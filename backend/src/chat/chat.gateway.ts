@@ -84,4 +84,47 @@ export class ChatGateway {
     this.server.to(payload.channelId).emit('reaction_updated', { messageId: payload.messageId, reactions });
     return reactions;
   }
+
+  // WebRTC Signaling
+  @SubscribeMessage('join_video_call')
+  handleJoinVideoCall(@MessageBody() payload: { channelId: string; senderId: string; senderName?: string }, @ConnectedSocket() client: Socket) {
+    client.to(payload.channelId).emit('join_video_call', payload);
+  }
+
+  @SubscribeMessage('invite_video_call')
+  handleInviteVideoCall(@MessageBody() payload: { channelId: string; senderId: string; targetId: string; channelName?: string; senderName?: string }, @ConnectedSocket() client: Socket) {
+    client.to(payload.channelId).emit('invite_video_call', payload);
+  }
+
+  // In-Call Chat & Admin Controls
+  @SubscribeMessage('in_call_message')
+  handleInCallMessage(@MessageBody() payload: { channelId: string; senderId: string; senderName: string; text: string; timestamp: string }, @ConnectedSocket() client: Socket) {
+    client.to(payload.channelId).emit('in_call_message', payload);
+  }
+
+  @SubscribeMessage('toggle_in_call_chat')
+  handleToggleInCallChat(@MessageBody() payload: { channelId: string; isEnabled: boolean; adminId: string }, @ConnectedSocket() client: Socket) {
+    client.to(payload.channelId).emit('toggle_in_call_chat', payload);
+  }
+
+  @SubscribeMessage('in_call_file')
+  handleInCallFile(@MessageBody() payload: { channelId: string; senderId: string; senderName: string; file: any; timestamp: string }, @ConnectedSocket() client: Socket) {
+    client.to(payload.channelId).emit('in_call_file', payload);
+  }
+
+  @SubscribeMessage('webrtc_offer')
+  handleWebRtcOffer(@MessageBody() payload: { channelId: string; offer: any; senderId: string }, @ConnectedSocket() client: Socket) {
+    client.to(payload.channelId).emit('webrtc_offer', payload);
+  }
+
+  @SubscribeMessage('webrtc_answer')
+  handleWebRtcAnswer(@MessageBody() payload: { channelId: string; answer: any; senderId: string }, @ConnectedSocket() client: Socket) {
+    client.to(payload.channelId).emit('webrtc_answer', payload);
+  }
+
+  @SubscribeMessage('webrtc_ice_candidate')
+  handleWebRtcIceCandidate(@MessageBody() payload: { channelId: string; candidate: any; senderId: string }, @ConnectedSocket() client: Socket) {
+    client.to(payload.channelId).emit('webrtc_ice_candidate', payload);
+  }
 }
+

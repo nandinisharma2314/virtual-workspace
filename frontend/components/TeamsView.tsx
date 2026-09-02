@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Search, Plus, Filter, MoreVertical, Mail, Phone, Calendar, User, Edit2, Trash2, X } from "lucide-react";
+import Avatar from "@/components/Avatar";
 import { avatarColors } from "@/lib/data";
 
 const initialMembers = [
@@ -89,9 +90,7 @@ function MemberCard({ member, onViewProfile, onEditMember, onRemoveMember, curre
       
       <div className="flex flex-col items-center text-center mt-2">
         <div className="relative mb-4">
-          <div className={`flex h-16 w-16 items-center justify-center rounded-full text-white font-bold text-[18px] shadow-sm ${avatar.color}`}>
-            {avatar.initials}
-          </div>
+          <Avatar person={member.name.split(' ')[0].toLowerCase()} name={member.name} avatar={member.avatar} size={64} />
           <div className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white ${
             member.status === "Active" ? "bg-emerald-500" :
             member.status === "Away" ? "bg-amber-500" : "bg-gray-400"
@@ -159,7 +158,8 @@ export default function TeamsView() {
           role: u.role || "Member",
           department: u.department || "Engineering",
           status: u.status || "Active",
-          email: u.email
+          email: u.email,
+          avatar: u.avatar
         }));
         setMembers(realMembers);
       })
@@ -387,8 +387,8 @@ export default function TeamsView() {
       <Modal isOpen={!!viewingMember} onClose={() => setViewingMember(null)} title="Member Profile">
         {viewingMember && (
           <div className="flex flex-col items-center">
-            <div className={`flex h-24 w-24 items-center justify-center rounded-full text-white font-bold text-3xl shadow-sm mb-4 ${(avatarColors[viewingMember.id as keyof typeof avatarColors] || { color: "bg-gray-400" }).color}`}>
-              {(avatarColors[viewingMember.id as keyof typeof avatarColors] || { initials: viewingMember.name.substring(0, 2).toUpperCase() }).initials}
+            <div className="mb-4">
+              <Avatar person={viewingMember.name.split(' ')[0].toLowerCase()} name={viewingMember.name} avatar={viewingMember.avatar} size={96} />
             </div>
             <h3 className="text-xl font-bold text-gray-900">{viewingMember.name}</h3>
             <p className="text-sm font-medium text-indigo-600 mb-4">{viewingMember.role}</p>

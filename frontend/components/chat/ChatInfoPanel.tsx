@@ -416,7 +416,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
                     return (
                       <div key={i} className="flex items-center justify-between group py-1">
                         <div className="flex items-center gap-3">
-                          <Avatar person={m.avatarPerson} name={m.name} size={32} ring />
+                          <Avatar person={m.avatarPerson} name={m.name} avatar={m.avatar} size={32} ring />
                           <div className="flex flex-col">
                             <span className="text-[13px] font-semibold text-gray-900 leading-tight">
                               {m.name} {isYou && <span className="text-gray-500 font-normal">(You)</span>}
@@ -452,7 +452,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
                   })
                   .slice(0, 6)
                   .map((m: any, i: number) => (
-                    <Avatar key={i} person={m.avatarPerson} name={m.name} size={26} ring />
+                    <Avatar key={i} person={m.avatarPerson} name={m.name} avatar={m.avatar} size={26} ring />
                   ))}
                 {info.members.length > 6 && (
                   <span className="flex h-[26px] items-center justify-center rounded-full bg-blue-50 text-blue-600 font-black px-2 text-[11px] ring-2 ring-white shadow-2xs cursor-pointer" onClick={() => setViewAllMembers(true)}>

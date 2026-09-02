@@ -1,4 +1,7 @@
+"use client";
+
 import { avatarColors } from "@/lib/data";
+import { useEffect, useState } from "react";
 
 export default function Avatar({
   person,
@@ -13,49 +16,48 @@ export default function Avatar({
   size?: number;
   ring?: boolean;
 }) {
-  if (avatar) {
-    return (
-      <div 
-        className={`shrink-0 overflow-hidden rounded-full ${ring ? "ring-2 ring-white" : ""}`}
-        style={{ width: size, height: size }}
-        title={name}
-      >
-        <img 
-          src={avatar} 
-          alt={name || "Avatar"} 
-          className="w-full h-full object-cover" 
-        />
-      </div>
-    );
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (!avatar) {
+      try {
+        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+        if (token) {
+          const user = JSON.parse(atob(token.split('.')[1]));
+          setCurrentUser(user);
+        }
+      } catch (e) {}
+    }
+  }, [avatar]);
+
+  let displayAvatar = avatar;
+
+  if (!displayAvatar && currentUser) {
+    const nameMatches = name && currentUser.name && name.toLowerCase() === currentUser.name.toLowerCase();
+    const personMatches = person && currentUser.sub && person === currentUser.sub;
+    
+    if ((nameMatches || personMatches) && currentUser.avatar) {
+      displayAvatar = currentUser.avatar;
+    }
   }
 
-  let initials = "?";
-  let color = "bg-gray-400";
-
-  if (person && avatarColors[person]) {
-    initials = avatarColors[person].initials;
-    color = avatarColors[person].color;
-  } else if (name) {
-    const parts = name.split(" ");
-    if (parts.length >= 2) {
-      initials = (parts[0][0] + parts[1][0]).toUpperCase();
-    } else {
-      initials = name.substring(0, 2).toUpperCase();
-    }
-    
-    // Generate a consistent color based on name string
-    const colors = ["bg-indigo-500", "bg-purple-500", "bg-blue-500", "bg-rose-500", "bg-emerald-500", "bg-amber-500"];
-    const charCode = name.charCodeAt(0) || 0;
-    color = colors[charCode % colors.length];
+  // Always use a generated avatar if none is provided to replace text initials
+  if (!displayAvatar) {
+    const seed = encodeURIComponent(person || name || "default");
+    displayAvatar = `https://api.dicebear.com/9.x/micah/svg?seed=${seed}&backgroundColor=f3f4f6`;
   }
 
   return (
-    <div
-      className={`${color} ${ring ? "ring-2 ring-white" : ""} flex shrink-0 items-center justify-center rounded-full font-medium text-white`}
-      style={{ width: size, height: size, fontSize: size * 0.38 }}
-      title={name || initials}
+    <div 
+      className={`shrink-0 overflow-hidden rounded-full ${ring ? "ring-2 ring-white" : ""} bg-gray-100 flex items-center justify-center`}
+      style={{ width: size, height: size }}
+      title={name || person || "Avatar"}
     >
-      {initials}
+      <img 
+        src={displayAvatar} 
+        alt={name || person || "Avatar"} 
+        className="w-full h-full object-cover" 
+      />
     </div>
   );
 }

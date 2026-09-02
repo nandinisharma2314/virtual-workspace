@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { io, Socket } from "socket.io-client";
+import VideoCall from "./chat/VideoCall";
 
 import {
   Video,
@@ -20,7 +23,8 @@ import {
   Link as LinkIcon
 } from "lucide-react";
 
-const upcomingMeetings = [
+// Hardcoded fallback data just in case API fails
+const fallbackUpcomingMeetings = [
   {
     id: 1,
     title: "Weekly Design Sync",
@@ -45,18 +49,7 @@ const upcomingMeetings = [
       { initials: "RS", color: "bg-indigo-500" },
     ],
     isNow: false,
-  },
-  {
-    id: 3,
-    title: "Client Onboarding: TechCorp",
-    time: "4:00 PM - 5:00 PM",
-    date: "Today",
-    attendees: [
-      { initials: "AP", color: "bg-emerald-600" },
-      { initials: "AS", color: "bg-rose-400" },
-    ],
-    isNow: false,
-  },
+  }
 ];
 
 const recordedMeetings = [
@@ -91,7 +84,11 @@ const recordedMeetings = [
 ];
 
 export default function MeetingsView() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isInCall, setIsInCall] = useState(false);
+  const [upcomingMeetings, setUpcomingMeetings] = useState<any[]>(fallbackUpcomingMeetings);
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
@@ -104,7 +101,54 @@ export default function MeetingsView() {
         if (data) setCurrentUser(data);
       })
       .catch(() => {});
+
+      // Fetch meetings
+      fetch("http://localhost:3001/meetings", {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (data && data.length > 0) {
+          const now = new Date();
+          const parsed = data.map((m: any, idx: number) => {
+            const start = new Date(m.startTime);
+            const end = new Date(m.endTime);
+            const isNow = start <= now && end >= now;
+            
+            const formatTime = (date: Date) => {
+              let h = date.getHours();
+              const min = date.getMinutes().toString().padStart(2, '0');
+              const ampm = h >= 12 ? 'PM' : 'AM';
+              h = h % 12 || 12;
+              return `${h}:${min} ${ampm}`;
+            };
+
+            const colors = [
+              [{ initials: "NS", color: "bg-emerald-400" }, { initials: "AP", color: "bg-sky-400" }],
+              [{ initials: "AS", color: "bg-rose-400" }, { initials: "RV", color: "bg-indigo-400" }],
+              [{ initials: "JD", color: "bg-amber-400" }, { initials: "MK", color: "bg-purple-500" }]
+            ];
+
+            return {
+              id: m.id,
+              title: m.title,
+              time: `${formatTime(start)} - ${formatTime(end)}`,
+              date: start.toDateString() === now.toDateString() ? "Today" : start.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+              attendees: colors[idx % colors.length],
+              isNow
+            };
+          });
+          setUpcomingMeetings(parsed);
+        }
+      })
+      .catch(() => {});
     }
+
+    socketRef.current = io("http://localhost:3001");
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
   }, []);
 
   return (
@@ -197,11 +241,11 @@ export default function MeetingsView() {
                 
                 <div className="flex shrink-0 flex-col items-center gap-3">
                   <button 
-                    onClick={() => window.open('https://meet.google.com/abc-mno-xyz', '_blank')}
+                    onClick={() => setIsInCall(true)}
                     className="flex h-14 w-full md:w-auto items-center justify-center gap-3 rounded-xl bg-[#2563EB] px-8 text-[15px] font-black text-white shadow-lg shadow-blue-600/30 transition-all hover:bg-blue-700 hover:-translate-y-0.5"
                   >
                     <Video size={20} strokeWidth={2.5} />
-                    <span>Join Google Meet</span>
+                    <span>Join Meet</span>
                   </button>
                   <div className="flex items-center justify-center gap-2 w-full">
                     <button className="flex h-10 flex-1 items-center justify-center rounded-xl bg-gray-800 text-gray-300 transition-colors hover:bg-gray-700 hover:text-white">
@@ -223,7 +267,10 @@ export default function MeetingsView() {
           <section>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-[15px] font-extrabold text-gray-900">Today's Schedule</h2>
-              <button className="text-[13px] font-bold text-indigo-600 hover:text-indigo-700">
+              <button 
+                onClick={() => router.push('/calendar')}
+                className="text-[13px] font-bold text-indigo-600 hover:text-indigo-700"
+              >
                 View Calendar
               </button>
             </div>
@@ -270,7 +317,7 @@ export default function MeetingsView() {
                     </div>
                     {meeting.isNow ? (
                       <button 
-                        onClick={() => window.open('https://meet.google.com/abc-mno-xyz', '_blank')}
+                        onClick={() => setIsInCall(true)}
                         className="rounded-lg bg-[#2563EB] px-3 py-1.5 text-[12px] font-bold text-white hover:bg-blue-700 transition-colors flex items-center gap-1.5"
                       >
                         <Video size={14} />
@@ -330,6 +377,16 @@ export default function MeetingsView() {
 
         </div>
       </main>
+
+      {isInCall && socketRef.current && currentUser && (
+        <VideoCall 
+          socket={socketRef.current}
+          channelId="global-meetings-room"
+          currentUser={currentUser}
+          onClose={() => setIsInCall(false)}
+          isInitiator={true}
+        />
+      )}
     </div>
   );
 }

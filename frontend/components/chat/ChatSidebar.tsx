@@ -160,7 +160,7 @@ export default function ChatSidebar({
             {users.map((u) => {
               const dmId = `dm-${u.id}`;
               const isActive = selectedDMId === dmId;
-              const person = u.avatar || u.name.split(' ')[0].toLowerCase();
+              const person = u.name.split(' ')[0].toLowerCase();
               return (
                 <button
                   key={dmId}
@@ -175,7 +175,7 @@ export default function ChatSidebar({
                 >
                   <span className="flex items-center gap-2 truncate">
                     <span className="relative shrink-0">
-                      <Avatar person={person} name={u.name} size={22} />
+                      <Avatar person={person} name={u.name} avatar={u.avatar} size={22} />
                       <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full ${u.status === 'Active' ? 'bg-emerald-500' : 'bg-gray-400'} ring-1 ring-white`} />
                     </span>
                     <span className="truncate flex items-center gap-1.5">

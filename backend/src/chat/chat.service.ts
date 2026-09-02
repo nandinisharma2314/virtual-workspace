@@ -22,6 +22,7 @@ export class ChatService {
         createdAt: messages.createdAt,
         senderId: users.id,
         senderName: users.name,
+        senderAvatar: users.avatar,
         parentId: messages.parentId,
         reactions: messages.reactions,
         isEdited: messages.isEdited,
@@ -37,6 +38,7 @@ export class ChatService {
       text: m.content,
       senderName: m.senderName || 'Unknown',
       senderPerson: m.senderName?.split(' ')[0].toLowerCase() || 'unknown',
+      senderAvatar: m.senderAvatar || undefined,
       timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       channelId: m.channelId,
       parentId: m.parentId?.toString(),
@@ -60,7 +62,7 @@ export class ChatService {
       
     // Fetch user details for the broadcast
     const [user] = await this.dbService.db
-      .select({ name: users.name, role: users.role })
+      .select({ name: users.name, role: users.role, avatar: users.avatar })
       .from(users)
       .where(eq(users.id, userId));
       
@@ -73,6 +75,7 @@ export class ChatService {
       text: saved.content,
       senderName: user?.name || 'Unknown',
       senderPerson: user?.name?.split(' ')[0].toLowerCase() || 'unknown',
+      senderAvatar: user?.avatar || undefined,
       timestamp: new Date(saved.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       channelId: saved.channelId,
       parentId: saved.parentId?.toString(),
@@ -259,7 +262,8 @@ export class ChatService {
     const members = channelUsers.map(u => ({
       name: u.name,
       role: u.role,
-      avatarPerson: u.name.split(' ')[0].toLowerCase()
+      avatarPerson: u.name.split(' ')[0].toLowerCase(),
+      avatar: u.avatar
     }));
 
     // Fetch tasks

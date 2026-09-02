@@ -26,6 +26,7 @@ export type ChatMessage = {
   parentId?: string;
   senderName: string;
   senderPerson: string;
+  senderAvatar?: string;
   timestamp: string;
   text: string;
   isEdited?: boolean;

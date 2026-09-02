@@ -4,6 +4,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { chatMessages, ChatMessage } from "@/lib/chatData";
 import Avatar from "@/components/Avatar";
 import { io, Socket } from "socket.io-client";
+import TemplateModal from "./TemplateModal";
+import InviteModal from "./InviteModal";
+import VideoCall from "./VideoCall";
 import {
   Star,
   MoreVertical,
@@ -29,7 +32,8 @@ import {
   BookOpen,
   Info,
   Link as LinkIcon,
-  Clock
+  Clock,
+  PhoneCall
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import EmojiPicker from 'emoji-picker-react';
@@ -130,6 +134,8 @@ const MockAudioPlayer = ({ duration = 8, filename = "", url = "" }: { duration?:
 
 export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }: { channelId?: string, refreshTrigger?: number }) {
   const [activeTab, setActiveTab] = useState("Messages");
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [copied, setCopied] = useState(false);
@@ -139,6 +145,12 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
   const [inlineEditMessageId, setInlineEditMessageId] = useState<string | null>(null);
   const [inlineEditText, setInlineEditText] = useState("");
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Video Call states
+  const [isInCall, setIsInCall] = useState(false);
+  const [isInitiator, setIsInitiator] = useState(false);
+  const [incomingCallOffer, setIncomingCallOffer] = useState<any>(null);
+  const isAdmin = currentUser?.role === "Admin";
 
   // Toolbar states
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -222,11 +234,26 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
       setMessages(prev => prev.map(m => m.id === data.messageId.toString() ? { ...m, reactions: data.reactions } : m));
     });
 
+    socketRef.current.on("webrtc_offer", (payload: any) => {
+      // We only care if the offer is specifically for us, but if we are not in a call, we shouldn't get offers.
+      // The banner is now triggered by invite_video_call
+    });
+
+    socketRef.current.on("invite_video_call", (payload: any) => {
+      if (currentUser && payload.senderId !== currentUser.sub) {
+        // If it has a targetId and it's not us, ignore
+        if (payload.targetId && payload.targetId !== currentUser.sub) return;
+        
+        // Show banner
+        setIncomingCallOffer(payload);
+      }
+    });
+
     return () => {
       socketRef.current?.disconnect();
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     };
-  }, [channelId, refreshTrigger]);
+  }, [channelId, refreshTrigger, currentUser]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -452,7 +479,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
             <div className="flex items-center gap-2.5 shrink-0">
               <div className="flex items-center -space-x-1.5 overflow-hidden">
                 {info?.members?.slice(0, 4).map((m: any, i: number) => (
-                  <Avatar key={i} person={m.avatarPerson} name={m.name} size={26} ring />
+                  <Avatar key={i} person={m.avatarPerson} name={m.name} avatar={m.avatar} size={26} ring />
                 ))}
                 {info?.members?.length > 4 && (
                   <span className="flex h-[26px] items-center justify-center rounded-full bg-gray-100 px-2 text-[11px] font-black text-gray-700 ring-2 ring-white shadow-2xs">
@@ -461,13 +488,39 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                 )}
               </div>
 
-              <button
-                onClick={() => router.push('/meetings')}
-                className="flex items-center gap-1.5 rounded-full bg-[#5E43FF] px-4 py-1.5 text-[12px] font-bold text-white hover:bg-indigo-600 transition-colors shadow-sm"
-              >
-                <Video size={14} strokeWidth={2.5} />
-                <span>Join call</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    setIsInCall(true);
+                    setIsInitiator(true);
+                    setIncomingCallOffer(null);
+                  }}
+                  className="flex items-center gap-1.5 rounded-full bg-[#5E43FF] px-4 py-1.5 text-[12px] font-bold text-white hover:bg-indigo-600 transition-colors shadow-sm"
+                >
+                  <Video size={14} strokeWidth={2.5} />
+                  <span>Join call</span>
+                </button>
+                
+                {/* Ring Channel Button */}
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setIsInCall(true);
+                      setIsInitiator(true);
+                      setIncomingCallOffer(null);
+                      socketRef.current?.emit('invite_video_call', {
+                        channelId,
+                        senderId: currentUser?.sub,
+                        senderName: currentUser?.name
+                      });
+                    }}
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shadow-sm border border-indigo-200"
+                    title="Ring entire channel"
+                  >
+                    <PhoneCall size={14} strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
 
               <button className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-50 transition-colors">
                 <MoreVertical size={18} />
@@ -511,15 +564,25 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                     <Pin size={15} className="text-gray-600 shrink-0 rotate-45" strokeWidth={2.3} />
                     <div className="min-w-0">
                       <span className="text-[12px] font-bold text-gray-900 block truncate">
-                        Pinned by {pinnedMessage.senderName}
+                        {pinnedMessage.attachment ? pinnedMessage.attachment.name : pinnedMessage.text}
                       </span>
                       <span className="text-[11.5px] text-gray-500 block truncate mt-0.5">
-                        {pinnedMessage.text}
+                        Pinned by {pinnedMessage.senderName}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button className="text-[12px] font-bold text-[#2563EB] hover:underline px-2 py-0.5">
+                    <button 
+                      onClick={() => {
+                        const el = document.getElementById(`message-${pinnedMessage.id}`);
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          el.classList.add('bg-blue-50', 'transition-colors', 'duration-500');
+                          setTimeout(() => el.classList.remove('bg-blue-50'), 2000);
+                        }
+                      }}
+                      className="text-[12px] font-bold text-[#2563EB] hover:underline px-2 py-0.5"
+                    >
                       View
                     </button>
                     <button
@@ -545,7 +608,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                   </p>
 
                   <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1 bg-[#FDF1F5] rounded-2xl p-5 border border-pink-100/50 cursor-pointer hover:shadow-md hover:border-pink-200 transition-all flex flex-col">
+                    <div onClick={() => setIsInviteModalOpen(true)} className="flex-1 bg-[#FDF1F5] rounded-2xl p-5 border border-pink-100/50 cursor-pointer hover:shadow-md hover:border-pink-200 transition-all flex flex-col">
                       <h3 className="font-extrabold text-gray-900 text-[14px] mb-1">Invite your external partners</h3>
                       <p className="text-[12.5px] font-medium text-gray-600 mb-6">Add clients or customers</p>
 
@@ -556,7 +619,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                       </div>
                     </div>
 
-                    <div className="flex-1 bg-[#FFF8E6] rounded-2xl p-5 border border-amber-100/50 cursor-pointer hover:shadow-md hover:border-amber-200 transition-all flex flex-col">
+                    <div onClick={() => setIsTemplateModalOpen(true)} className="flex-1 bg-[#FFF8E6] rounded-2xl p-5 border border-amber-100/50 cursor-pointer hover:shadow-md hover:border-amber-200 transition-all flex flex-col">
                       <h3 className="font-extrabold text-gray-900 text-[14px] mb-1">Start from a template</h3>
                       <p className="text-[12.5px] font-medium text-gray-600 mb-6">Browse channel templates</p>
 
@@ -580,18 +643,22 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                       <h3 className="font-extrabold text-gray-900 text-[14px] mb-1">Connect your apps</h3>
                       <p className="text-[12.5px] font-medium text-gray-600 mb-6">Bring your work into WorkFlow</p>
 
-                      <div className="mt-auto self-center relative w-full h-16 flex items-center justify-center">
-                        <div className="w-[90%] h-14 bg-white rounded-xl shadow-sm border border-blue-200/50 flex overflow-hidden">
-                          <div className="w-6 bg-blue-600 shrink-0"></div>
-                          <div className="flex-1 p-2 flex flex-col gap-1.5 justify-center px-3">
-                            <div className="flex items-center gap-2">
-                              <div className="h-2.5 w-2.5 rounded-full bg-amber-400"></div>
-                              <div className="h-1.5 w-8 bg-gray-200 rounded-full"></div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="h-2.5 w-2.5 rounded bg-blue-400"></div>
-                              <div className="h-1.5 w-12 bg-gray-200 rounded-full"></div>
-                            </div>
+                      <div className="mt-auto self-center flex items-center justify-center h-16 w-full px-4">
+                        <div className="flex -space-x-3 overflow-visible py-2 px-1 hover:-space-x-1 transition-all duration-300">
+                          <div className="w-10 h-10 rounded-xl bg-[#0052CC] ring-2 ring-white shadow-sm flex items-center justify-center z-10 hover:z-50 hover:-translate-y-1 transition-all cursor-pointer" title="Jira">
+                            <span className="font-black text-white text-[16px]">J</span>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-[#F24E1E] ring-2 ring-white shadow-sm flex items-center justify-center z-20 hover:z-50 hover:-translate-y-1 transition-all cursor-pointer" title="Figma">
+                            <span className="font-black text-white text-[16px]">F</span>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-gray-900 ring-2 ring-white shadow-sm flex items-center justify-center z-30 hover:z-50 hover:-translate-y-1 transition-all cursor-pointer" title="GitHub">
+                            <span className="font-black text-white text-[13px]">GH</span>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-[#00C4CC] ring-2 ring-white shadow-sm flex items-center justify-center z-40 hover:z-50 hover:-translate-y-1 transition-all cursor-pointer" title="Canva">
+                            <span className="font-black text-white text-[16px]">C</span>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-[#2D8CFF] ring-2 ring-white shadow-sm flex items-center justify-center z-50 hover:-translate-y-1 transition-all cursor-pointer" title="Zoom">
+                            <span className="font-black text-white text-[16px]">Z</span>
                           </div>
                         </div>
                       </div>
@@ -608,6 +675,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                 {messages.filter(m => !m.parentId).map((m) => (
                   <div
                     key={m.id}
+                    id={`message-${m.id}`}
                     className="group flex items-start gap-3 rounded-xl px-2 py-1 -mx-2 hover:bg-gray-50/60 transition-colors shrink-0 relative"
                   >
                     <div className="absolute -top-3 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-gray-200 rounded-lg shadow-sm flex items-center p-0.5 z-10">
@@ -685,7 +753,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                     </div>
 
                     <div className="shrink-0 pt-0.5">
-                      <Avatar person={m.senderPerson} name={m.senderName} size={32} />
+                      <Avatar person={m.senderPerson} name={m.senderName} avatar={m.senderAvatar} size={32} />
                     </div>
 
                     <div className="flex-1 min-w-0 pr-2">
@@ -822,32 +890,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                         );
                       })()}
 
-                      {/* Reactions Row */}
-                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                        {m.reactions && Object.entries(m.reactions).map(([emoji, userIds]) => {
-                          const hasReacted = currentUser && userIds.includes(currentUser.sub);
-                          return (
-                            <button
-                              key={emoji}
-                              onClick={() => handleReaction(m, emoji)}
-                              className={`inline-flex items-center gap-1.5 rounded-xl border px-2 py-0.5 text-[11.5px] font-bold shadow-2xs transition-all ${hasReacted
-                                  ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                  : 'border-gray-200/90 bg-white hover:bg-gray-50/90 text-gray-700'
-                                }`}
-                            >
-                              <span>{emoji}</span>
-                              <span className="font-extrabold">{userIds.length}</span>
-                            </button>
-                          );
-                        })}
-                        <button
-                          onClick={() => handleReaction(m, '❤️')}
-                          className="h-6 w-7 rounded-xl border border-gray-200/90 bg-white hover:bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 shadow-2xs transition-all"
-                          title="Add reaction"
-                        >
-                          <Smile size={14} strokeWidth={2} />
-                        </button>
-                      </div>
+
                     </div>
                   </div>
                 ))}
@@ -1474,6 +1517,86 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
           </div>
         </div>
       )}
+      
+      <TemplateModal 
+        isOpen={isTemplateModalOpen} 
+        onClose={() => setIsTemplateModalOpen(false)} 
+        channelName={info?.name || "# new-channel"} 
+        onApply={(template) => {
+          setIsTemplateModalOpen(false);
+          if (currentUser) {
+            socketRef.current?.emit("send_message", {
+              text: `🚀 **${currentUser.name}** applied the **${template.name}** template to this channel.\n\n_Check the tabs above for new workflows, instructions, and resources!_`,
+              userId: currentUser.sub,
+              channelId: channelId,
+            });
+            setActiveTab("Messages");
+          }
+        }}
+      />
+      <InviteModal 
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        onInvite={(email) => {
+          if (currentUser) {
+            socketRef.current?.emit("send_message", {
+              text: `✉️ **${currentUser.name}** invited **${email}** to join WorkFlow Connect for this channel.`,
+              userId: currentUser.sub,
+              channelId: channelId,
+            });
+            setActiveTab("Messages");
+          }
+        }}
+      />
+
+      {/* Incoming Call Banner */}
+      {incomingCallOffer && !isInCall && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-top-4 border border-gray-700">
+          <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center animate-pulse shadow-lg shadow-indigo-500/30">
+            <PhoneCall size={20} />
+          </div>
+          <div>
+            <h4 className="text-[14px] font-bold">Incoming Video Call</h4>
+            <p className="text-[12px] text-gray-400">
+              {incomingCallOffer.senderName ? `${incomingCallOffer.senderName} is inviting you to a call` : `Someone is calling in ${info?.name || "this channel"}`}
+            </p>
+          </div>
+          <div className="flex gap-2 ml-4">
+            <button
+              onClick={() => {
+                setIsInCall(true);
+                setIsInitiator(false);
+              }}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-xl text-[13px] font-bold transition-colors shadow-sm"
+            >
+              Accept
+            </button>
+            <button
+              onClick={() => setIncomingCallOffer(null)}
+              className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-1.5 rounded-xl text-[13px] font-bold transition-colors"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Video Call Overlay */}
+      {isInCall && (
+        <VideoCall
+          socket={socketRef.current}
+          channelId={channelId}
+          currentUser={currentUser}
+          isInitiator={isInitiator}
+          channelMembers={info?.members || []}
+          onClose={() => {
+            setIsInCall(false);
+            setIsInitiator(false);
+            setIncomingCallOffer(null);
+          }}
+        />
+      )}
     </div>
   );
 }
+

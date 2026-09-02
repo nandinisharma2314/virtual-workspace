@@ -36,8 +36,8 @@ export class MeetingsService {
     return newMeeting;
   }
 
-  findAll() {
-    return `This action returns all meetings`;
+  async findAll() {
+    return await this.dbService.db.select().from(meetings).orderBy(meetings.startTime);
   }
 
   findOne(id: number) {

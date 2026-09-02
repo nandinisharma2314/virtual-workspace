@@ -16,7 +16,7 @@ export default function CalendarView({ calendarData = [] }: { calendarData?: any
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(eventTypes.map(e => e.id)));
   const [userRole, setUserRole] = useState("Member");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: "", description: "", startTime: "", endTime: "" });
+  const [newEvent, setNewEvent] = useState({ title: "", description: "", startTime: "", endTime: "", attendees: "" });
 
   useEffect(() => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
@@ -45,7 +45,7 @@ export default function CalendarView({ calendarData = [] }: { calendarData?: any
       });
       if (res.ok) {
         setIsModalOpen(false);
-        setNewEvent({ title: "", description: "", startTime: "", endTime: "" });
+        setNewEvent({ title: "", description: "", startTime: "", endTime: "", attendees: "" });
         window.location.reload();
       } else {
         alert("Failed to create event. Ensure all fields are valid.");
@@ -365,6 +365,17 @@ export default function CalendarView({ calendarData = [] }: { calendarData?: any
                   onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
                   className="w-full rounded-lg border border-gray-200 p-2 text-[13px] outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 h-20 resize-none"
                   placeholder="Optional details..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-bold text-gray-700 mb-1">Attendees (Emails or Names)</label>
+                <input 
+                  type="text" 
+                  value={newEvent.attendees}
+                  onChange={(e) => setNewEvent({...newEvent, attendees: e.target.value})}
+                  className="w-full rounded-lg border border-gray-200 p-2 text-[13px] outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  placeholder="E.g., nandini@example.com, john@example.com"
                 />
               </div>
 

@@ -182,10 +182,11 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
   }, []);
 
   useEffect(() => {
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+
     // 1. Fetch initial messages for channel
     const fetchMessages = async () => {
       try {
-        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
         if (!token) return;
 
         const res = await fetch(`http://localhost:3001/chat/messages/${channelId}`, {
@@ -210,7 +211,9 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
     fetchMessages();
 
     // 2. Setup Socket
-    socketRef.current = io("http://localhost:3001");
+    socketRef.current = io("http://localhost:3001", {
+      auth: { token }
+    });
 
     // Join channel room
     socketRef.current.emit("join_channel", { channelId });

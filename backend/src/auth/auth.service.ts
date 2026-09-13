@@ -57,7 +57,7 @@ export class AuthService {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     console.log(`[Email Mock] Sent password reset email to ${email}. Reset Link: ${frontendUrl}/reset-password?token=${token}`);
 
-    return { message: 'Reset link sent', token };
+    return { message: 'Reset link sent' };
   }
 
   async resetPassword(token: string, newPassword: string) {

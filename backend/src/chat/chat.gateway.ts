@@ -4,23 +4,57 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { ChatService } from './chat.service.js';
+import { JwtService } from '@nestjs/jwt';
 
 @WebSocketGateway({
   cors: {
     origin: '*',
   },
 })
-export class ChatGateway {
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(ChatGateway.name);
 
-  constructor(private readonly chatService: ChatService) {}
+  constructor(
+    private readonly chatService: ChatService,
+    private readonly jwtService: JwtService
+  ) {}
+
+  async handleConnection(client: Socket) {
+    try {
+      const token = client.handshake.auth?.token || 
+                    client.handshake.headers?.authorization?.split(' ')[1] || 
+                    client.handshake.query?.token;
+                    
+      if (!token) {
+        this.logger.error(`Unauthorized client (no token): ${client.id}`);
+        client.disconnect();
+        return;
+      }
+      
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: process.env.JWT_SECRET || 'fallback_secret'
+      });
+      
+      (client as any).user = payload;
+      this.logger.log(`Client authenticated: ${client.id} (User: ${payload.sub})`);
+    } catch (error) {
+      this.logger.error(`Unauthorized client (invalid token): ${client.id}`);
+      client.disconnect();
+    }
+  }
+
+  handleDisconnect(client: Socket) {
+    this.logger.log(`Client disconnected: ${client.id}`);
+  }
 
   @SubscribeMessage('join_channel')
   handleJoinChannel(@MessageBody() payload: { channelId: string }, @ConnectedSocket() client: Socket) {

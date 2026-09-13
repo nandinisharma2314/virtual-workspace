@@ -123,6 +123,7 @@ export default function InboxView() {
     }
     
     const socket = io("http://localhost:3001", {
+      auth: { token },
       query: { userId }
     });
     

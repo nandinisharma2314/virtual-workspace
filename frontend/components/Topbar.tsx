@@ -110,6 +110,7 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
     }
     
     const socket = io("http://localhost:3001", {
+      auth: { token },
       query: { userId }
     });
     

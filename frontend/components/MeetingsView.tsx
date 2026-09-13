@@ -144,7 +144,9 @@ export default function MeetingsView() {
       .catch(() => {});
     }
 
-    socketRef.current = io("http://localhost:3001");
+    socketRef.current = io("http://localhost:3001", {
+      auth: { token }
+    });
 
     return () => {
       socketRef.current?.disconnect();
@@ -221,7 +223,7 @@ export default function MeetingsView() {
                   
                   <div className="flex items-center gap-4 pt-2">
                     <div className="flex -space-x-2">
-                      {upcomingMeetings[0].attendees.map((a, i) => (
+                      {upcomingMeetings[0].attendees.map((a: { initials: string; color: string }, i: number) => (
                         <div
                           key={i}
                           className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-gray-900 text-[10px] font-bold text-white ${a.color}`}
@@ -306,7 +308,7 @@ export default function MeetingsView() {
                   
                   <div className="mt-5 flex items-center justify-between">
                     <div className="flex -space-x-2">
-                      {meeting.attendees.map((a, i) => (
+                      {meeting.attendees.map((a: { initials: string; color: string }, i: number) => (
                         <div
                           key={i}
                           className={`flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold text-white ${a.color}`}

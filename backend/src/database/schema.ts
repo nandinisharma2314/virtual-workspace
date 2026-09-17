@@ -93,7 +93,8 @@ export const messages = pgTable('messages', {
 export const files = pgTable('files', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
-  url: varchar('url', { length: 1000 }).notNull(),
+  url: varchar('url', { length: 1000 }), // URL can be nullable if we rely on presigned URLs
+  storageKey: varchar('storage_key', { length: 500 }),
   size: integer('size'),
   type: varchar('type', { length: 100 }),
   uploadedById: integer('uploaded_by_id').references(() => users.id),

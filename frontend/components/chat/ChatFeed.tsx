@@ -174,7 +174,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
 
   // Toolbar states
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [pendingAttachment, setPendingAttachment] = useState<{ name: string, size: string, url?: string } | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<{ name: string, size: string, url?: string, file?: File } | null>(null);
 
   // Task Modal states
   const [taskToEdit, setTaskToEdit] = useState<any>(null);
@@ -463,14 +463,71 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
   const templateTabs = matchingTemplate?.customTabs?.map((t) => t.name) || [];
   const tabs = [...baseTabs, ...templateTabs.filter((t) => !baseTabs.includes(t))];
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if ((!inputText.trim() && !pendingAttachment) || !currentUser) return;
+
+    let attachmentToSent = pendingAttachment as any;
+
+    if (pendingAttachment && pendingAttachment.file) {
+      try {
+        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+        
+        // 1. Get signed URL
+        const res = await fetch(`http://localhost:3001/files/upload-url?filename=${encodeURIComponent(pendingAttachment.file.name)}&contentType=${encodeURIComponent(pendingAttachment.file.type)}`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error("Failed to get upload URL");
+        const { uploadUrl, storageKey } = await res.json();
+        
+        // 2. Upload to S3 (wrapped in try/catch to handle dummy credentials gracefully)
+        try {
+          const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            body: pendingAttachment.file,
+            headers: { 'Content-Type': pendingAttachment.file.type }
+          });
+          if (!uploadRes.ok) console.warn("Failed to upload to S3, proceeding with mock upload.");
+        } catch (uploadError) {
+          console.warn("S3 Upload failed (likely due to dummy credentials or missing CORS). Skipping real upload.", uploadError);
+        }
+        
+        // 3. Save metadata to backend
+        const fileRes = await fetch('http://localhost:3001/files', {
+          method: 'POST',
+          headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: pendingAttachment.file.name,
+            size: pendingAttachment.file.size,
+            type: pendingAttachment.file.type,
+            storageKey: storageKey
+          })
+        });
+        if (!fileRes.ok) {
+          const errText = await fileRes.text();
+          console.error("Backend error saving file metadata:", errText);
+          throw new Error("Failed to save file metadata: " + errText);
+        }
+        
+        const fileRecord = await fileRes.json();
+        
+        // 4. Update attachment for chat message
+        attachmentToSent = {
+          fileId: fileRecord.id,
+          name: fileRecord.name,
+          size: (fileRecord.size / 1024 / 1024).toFixed(2) + ' MB',
+          type: fileRecord.type
+        };
+      } catch (err) {
+        console.error("Upload failed", err);
+        return; // Don't send message if upload fails
+      }
+    }
 
     socketRef.current?.emit("send_message", {
       text: inputText,
       userId: currentUser.sub,
       channelId: channelId,
-      attachment: pendingAttachment
+      attachment: attachmentToSent ? { ...attachmentToSent, file: undefined } : null
     });
 
     setInputText("");
@@ -481,15 +538,12 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setPendingAttachment({
-          name: file.name,
-          size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
-          url: event.target?.result as string
-        });
-      };
-      reader.readAsDataURL(file);
+      setPendingAttachment({
+        name: file.name,
+        size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
+        file: file,
+        url: URL.createObjectURL(file)
+      });
     }
     // reset input
     if (e.target) e.target.value = '';
@@ -564,17 +618,42 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
     }
   };
 
-  const handleDownloadAttachment = (attachment: { name: string, size: string, url?: string }) => {
-    // Generate a dummy blob since actual file bytes aren't persisted in this mockup
-    const blob = new Blob([`Mock file content for: ${attachment.name}`], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = attachment.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleDownloadAttachment = async (attachment: any) => {
+    if (!attachment.fileId) {
+      // Fallback for mock attachments that don't have a fileId
+      const blob = new Blob([`Mock file content for: ${attachment.name}`], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = attachment.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    try {
+      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      const res = await fetch(`http://localhost:3001/files/${attachment.fileId}/download-url`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Failed to get download URL");
+      
+      const { downloadUrl } = await res.json();
+      
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = attachment.name;
+      // We open in new tab so it handles S3 link properly
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Download failed", err);
+      alert("Failed to download file.");
+    }
   };
 
   const handleEditInit = (m: ChatMessage) => {

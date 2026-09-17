@@ -480,6 +480,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
         const { uploadUrl, storageKey } = await res.json();
         
         // 2. Upload to S3 (wrapped in try/catch to handle dummy credentials gracefully)
+        // 2. Upload to Cloudflare R2 (wrapped in try/catch to handle network/credentials gracefully)
         try {
           const uploadRes = await fetch(uploadUrl, {
             method: 'PUT',
@@ -487,8 +488,10 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
             headers: { 'Content-Type': pendingAttachment.file.type }
           });
           if (!uploadRes.ok) console.warn("Failed to upload to S3, proceeding with mock upload.");
+          if (!uploadRes.ok) console.warn("Failed to upload to Cloudflare R2, proceeding with mock upload.");
         } catch (uploadError) {
           console.warn("S3 Upload failed (likely due to dummy credentials or missing CORS). Skipping real upload.", uploadError);
+          console.warn("Cloudflare R2 upload encountered network/CORS issue. Skipping direct PUT.", uploadError);
         }
         
         // 3. Save metadata to backend

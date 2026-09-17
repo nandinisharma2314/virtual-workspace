@@ -90,6 +90,8 @@ export class ChatService {
       
     // If there is an attachment, also save it to the files table so it shows up in Files view
     if (attachment) {
+    // If there is an attachment without a fileId, save it to the files table so it shows up in Files view
+    if (attachment && !attachment.fileId) {
       try {
         await this.dbService.db.insert(schema.files).values({
           name: attachment.name || 'Untitled File',

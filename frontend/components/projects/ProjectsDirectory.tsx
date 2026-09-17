@@ -7,16 +7,6 @@ import { useRouter } from "next/navigation";
 
 const mockProjects = [
   {
-    id: "website-redesign",
-    name: "Website Redesign",
-    description: "Redesign company website with improved UX, performance and modern design.",
-    status: "On Track",
-    progress: 65,
-    dueDate: "Jul 30, 2025",
-    members: ["rohit", "neha", "priya"],
-    category: "Design",
-  },
-  {
     id: "mobile-app",
     name: "Mobile App Launch",
     description: "Launch iOS and Android versions of our core product.",

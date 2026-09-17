@@ -18,26 +18,23 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Custom slim scrollbar for navigation and cards */
+/* Hide scrollbar globally across the entire project but keep functionality */
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera */
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Custom slim scrollbar classes overridden to hide completely */
 .custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #e5e7eb transparent;
+  scrollbar-width: none !important;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #e5e7eb;
-  border-radius: 9999px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #d1d5db;
+  display: none !important;
 }

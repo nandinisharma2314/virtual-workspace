@@ -40,15 +40,27 @@ export class MeetingsService {
     return await this.dbService.db.select().from(meetings).orderBy(meetings.startTime);
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} meeting`;
+  async findOne(id: number) {
+    const results = await this.dbService.db.select().from(meetings).where(eq(meetings.id, id)).limit(1);
+    return results[0] || null;
   }
 
-  update(id: number, updateMeetingDto: UpdateMeetingDto) {
-    return `This action updates a #${id} meeting`;
+  async update(id: number, updateMeetingDto: UpdateMeetingDto) {
+    const [updated] = await this.dbService.db
+      .update(meetings)
+      .set({
+        title: updateMeetingDto.title,
+        description: updateMeetingDto.description,
+        startTime: updateMeetingDto.startTime ? new Date(updateMeetingDto.startTime) : undefined,
+        endTime: updateMeetingDto.endTime ? new Date(updateMeetingDto.endTime) : undefined,
+      })
+      .where(eq(meetings.id, id))
+      .returning();
+    return updated;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} meeting`;
+  async remove(id: number) {
+    const [deleted] = await this.dbService.db.delete(meetings).where(eq(meetings.id, id)).returning();
+    return deleted;
   }
 }

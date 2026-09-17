@@ -6,7 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { eq, or } from 'drizzle-orm';
 
 import { DatabaseService } from '../database/database.service.js';
-import { users, notifications, settings, reports, meetings, documents, files, messages, tasks } from '../database/schema.js';
+import { users, notifications, settings, reports, meetings, documents, files, messages, tasks, channelMembers, channels } from '../database/schema.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 
 @Injectable()
@@ -26,7 +26,7 @@ export class UsersService {
     }
 
     async create(createUserDto: CreateUserDto) {
-        const { name, email, password } = createUserDto;
+        const { name, email, password, department } = createUserDto;
 
         // Check if email already exists
         const existingUser = await this.database.db
@@ -50,11 +50,15 @@ export class UsersService {
                 name,
                 email,
                 password: hashedPassword,
+                ...(department ? { department } : {}),
             })
             .returning({
                 id: users.id,
                 name: users.name,
                 email: users.email,
+                role: users.role,
+                department: users.department,
+                status: users.status,
                 avatar: users.avatar,
                 createdAt: users.createdAt,
             });
@@ -124,6 +128,8 @@ export class UsersService {
 
     async deleteUser(userId: number) {
         // Handle foreign key constraints by deleting or nullifying related records
+        await this.database.db.delete(channelMembers).where(or(eq(channelMembers.userId, userId), eq(channelMembers.addedById, userId)));
+        await this.database.db.update(channels).set({ creatorId: null }).where(eq(channels.creatorId, userId));
         await this.database.db.delete(notifications).where(eq(notifications.userId, userId));
         await this.database.db.delete(settings).where(eq(settings.userId, userId));
         await this.database.db.delete(reports).where(eq(reports.generatedById, userId));

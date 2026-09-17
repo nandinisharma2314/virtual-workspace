@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Plus, Filter, MoreHorizontal, MessageSquare, Play, CheckCircle2, Zap, LayoutGrid, List, AlertCircle, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Plus, Filter, MoreHorizontal, MessageSquare, Play, CheckCircle2, Zap, LayoutGrid, List, AlertCircle, Clock, X } from "lucide-react";
 import Avatar from "./Avatar";
 
-const sprintList = [
-  { id: "sprint-12", name: "Sprint 12", status: "active", dates: "May 15 - May 29", completed: 8, total: 14 },
-  { id: "sprint-13", name: "Sprint 13", status: "planned", dates: "May 30 - Jun 12", completed: 0, total: 12 },
-  { id: "sprint-14", name: "Sprint 14", status: "planned", dates: "Jun 13 - Jun 26", completed: 0, total: 9 },
+const initialSprintList = [
+  { id: "sprint-12", name: "Sprint 12", status: "active", dates: "Sep 8 - Sep 22", completed: 8, total: 14 },
+  { id: "sprint-13", name: "Sprint 13", status: "planned", dates: "Sep 23 - Oct 6", completed: 0, total: 12 },
+  { id: "sprint-14", name: "Sprint 14", status: "planned", dates: "Oct 7 - Oct 20", completed: 0, total: 9 },
   { id: "backlog", name: "Backlog", status: "backlog", dates: "Unscheduled", completed: 0, total: 45 },
 ];
 
@@ -39,11 +39,142 @@ const columns = [
 ];
 
 export default function SprintsView() {
+  const [sprints, setSprints] = useState(initialSprintList);
   const [activeSprint, setActiveSprint] = useState("sprint-12");
   const [tasks, setTasks] = useState(initialTasks);
   const [viewMode, setViewMode] = useState("board");
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  const [isCompleteSprintModalOpen, setIsCompleteSprintModalOpen] = useState(false);
+  const [filterAssignee, setFilterAssignee] = useState("All");
+  const [targetColumn, setTargetColumn] = useState("todo");
+  const [newTaskForm, setNewTaskForm] = useState({ title: "", type: "Feature", points: 3, assignee: "" });
+  const [teamMembers, setTeamMembers] = useState<{ id: number, name: string }[]>([]);
+
+  useEffect(() => {
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    if (token) {
+      const headers = { "Authorization": `Bearer ${token}` };
+      
+      Promise.all([
+        fetch("http://localhost:3001/users", { headers }).then(r => r.json()),
+        fetch("http://localhost:3001/sprints", { headers }).then(r => r.json()),
+        fetch("http://localhost:3001/tasks", { headers }).then(r => r.json())
+      ]).then(([usersData, sprintsData, tasksData]) => {
+        setTeamMembers(usersData);
+        if (usersData.length > 0) {
+          setNewTaskForm(prev => ({ ...prev, assignee: usersData[0].name }));
+        }
+
+        if (sprintsData && sprintsData.length > 0) {
+          const formattedSprints = sprintsData.map((s: any) => {
+            const start = s.startDate ? new Date(s.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+            const end = s.endDate ? new Date(s.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+            
+            const sprintTasks = (tasksData || []).filter((t: any) => t.sprintId === s.id);
+            const total = sprintTasks.reduce((acc: number, t: any) => acc + (t.estimatedHours || 0), 0);
+            const completed = sprintTasks.filter((t: any) => t.status === 'done').reduce((acc: number, t: any) => acc + (t.estimatedHours || 0), 0);
+
+            return {
+              id: s.id.toString(),
+              name: s.name,
+              status: s.status,
+              dates: start && end ? `${start} - ${end}` : 'Unscheduled',
+              completed,
+              total
+            };
+          });
+          setSprints(formattedSprints);
+          setActiveSprint(formattedSprints[0].id);
+        }
+
+        if (tasksData && tasksData.length > 0) {
+          const newTasksState: Record<string, Task[]> = { todo: [], inprogress: [], review: [], done: [] };
+          tasksData.forEach((t: any) => {
+            const taskObj: Task = {
+              id: t.id.toString(),
+              title: t.title,
+              type: t.priority || 'Task',
+              points: t.estimatedHours || 0,
+              assignee: t.assigneeName || 'unassigned'
+            };
+            const col = t.status || 'todo';
+            if (newTasksState[col]) {
+              newTasksState[col].push(taskObj);
+            }
+          });
+          setTasks(newTasksState);
+        }
+      }).catch(console.error);
+    }
+  }, []);
+
+  const handleAddTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskForm.title.trim()) return;
+    
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    const assignee = teamMembers.find(m => m.name === newTaskForm.assignee);
+    const sprintId = activeSprint && !isNaN(Number(activeSprint)) ? Number(activeSprint) : undefined;
+    
+    fetch("http://localhost:3001/tasks", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}` 
+      },
+      body: JSON.stringify({
+        title: newTaskForm.title,
+        priority: newTaskForm.type,
+        estimatedHours: Number(newTaskForm.points),
+        assigneeId: assignee ? assignee.id : undefined,
+        sprintId: sprintId,
+        status: targetColumn
+      })
+    })
+    .then(res => res.json())
+    .then(savedTask => {
+      const newTask: Task = {
+        id: savedTask.id ? savedTask.id.toString() : `t${Date.now()}`,
+        title: newTaskForm.title,
+        type: newTaskForm.type,
+        points: Number(newTaskForm.points),
+        assignee: newTaskForm.assignee
+      };
+      
+      setTasks(prev => ({
+        ...prev,
+        [targetColumn]: [...(prev[targetColumn] || []), newTask]
+      }));
+      setIsAddTaskModalOpen(false);
+      setNewTaskForm({ title: "", type: "Feature", points: 3, assignee: teamMembers[0]?.name || "" });
+    }).catch(console.error);
+  };
+
+  const handleCompleteSprint = () => {
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    const sprintId = activeSprint && !isNaN(Number(activeSprint)) ? Number(activeSprint) : null;
+    
+    setSprints(prev => prev.map(s => {
+      if (s.id === activeSprint) return { ...s, status: "completed" };
+      return s;
+    }));
+    setIsCompleteSprintModalOpen(false);
+
+    if (sprintId) {
+      fetch(`http://localhost:3001/sprints/${sprintId}`, {
+        method: "PATCH",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+        },
+        body: JSON.stringify({ status: "completed" })
+      }).catch(console.error);
+    }
+  };
 
   const moveTask = (taskId: string, sourceCol: string, targetCol: string) => {
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    
     setTasks(prev => {
       const sourceTasks = [...prev[sourceCol]];
       const targetTasks = [...prev[targetCol]];
@@ -60,9 +191,20 @@ export default function SprintsView() {
         [targetCol]: targetTasks
       };
     });
+
+    if (!taskId.startsWith('sprint') && !taskId.startsWith('t') && !isNaN(Number(taskId))) {
+      fetch(`http://localhost:3001/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+        },
+        body: JSON.stringify({ status: targetCol })
+      }).catch(console.error);
+    }
   };
 
-  const currentSprintData = sprintList.find(s => s.id === activeSprint);
+  const currentSprintData = sprints.find(s => s.id === activeSprint);
   const progressPct = currentSprintData && currentSprintData.total > 0 
     ? Math.round((currentSprintData.completed / currentSprintData.total) * 100) 
     : 0;
@@ -84,7 +226,7 @@ export default function SprintsView() {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
-          {sprintList.map((sprint) => {
+          {sprints.map((sprint) => {
             const isActive = activeSprint === sprint.id;
             return (
               <button
@@ -115,7 +257,7 @@ export default function SprintsView() {
                 <div className="text-[11px] text-gray-500 font-medium flex items-center justify-between">
                   <span>{sprint.dates}</span>
                   {sprint.status !== "backlog" && (
-                    <span>{sprint.completed}/{sprint.total} pts</span>
+                    <span>{sprint.status === "active" ? "Actual " : ""}{sprint.completed}/{sprint.total} pts</span>
                   )}
                 </div>
                 {isActive && sprint.status === "active" && (
@@ -168,16 +310,33 @@ export default function SprintsView() {
               </button>
             </div>
             
-            <button className="flex items-center gap-1.5 rounded-lg border border-gray-200/80 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs transition-colors">
-              <Filter size={14} className="text-gray-500" />
-              Filter
-            </button>
-            <button className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <Filter size={14} className="text-gray-500" />
+              </div>
+              <select
+                value={filterAssignee}
+                onChange={e => setFilterAssignee(e.target.value)}
+                className="appearance-none flex items-center gap-1.5 rounded-lg border border-gray-200/80 pl-8 pr-8 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs transition-colors bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="All">All Assignees</option>
+                {teamMembers.map(member => (
+                  <option key={member.id} value={member.name}>{member.name}</option>
+                ))}
+              </select>
+            </div>
+            <button 
+              onClick={() => { setTargetColumn("todo"); setIsAddTaskModalOpen(true); }}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all"
+            >
               <Plus size={14} strokeWidth={2.5} />
               Add Task
             </button>
             {currentSprintData?.status === "active" && (
-               <button className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-all ml-1">
+               <button 
+                 onClick={() => setIsCompleteSprintModalOpen(true)}
+                 className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-all ml-1"
+               >
                  Complete Sprint
                </button>
             )}
@@ -201,7 +360,7 @@ export default function SprintsView() {
                   </div>
 
                   <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 pb-2">
-                    {tasks[col.key]?.map(task => (
+                    {tasks[col.key]?.filter(t => filterAssignee === "All" || t.assignee === filterAssignee).map(task => (
                       <div key={task.id} className="bg-white rounded-lg p-2.5 border border-gray-200/70 shadow-2xs hover:border-indigo-300 hover:shadow-md transition-all group cursor-pointer relative">
                         <div className="flex justify-between items-start mb-1.5">
                           <p className="text-[12px] font-bold text-gray-900 leading-snug pr-4">{task.title}</p>
@@ -244,7 +403,10 @@ export default function SprintsView() {
                       </div>
                     ))}
                     
-                    <button className="w-full py-1.5 rounded-lg border border-dashed border-gray-300 text-[11px] font-semibold text-gray-500 hover:text-gray-800 hover:border-gray-400 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1 mt-1">
+                    <button 
+                      onClick={() => { setTargetColumn(col.key); setIsAddTaskModalOpen(true); }}
+                      className="w-full py-1.5 rounded-lg border border-dashed border-gray-300 text-[11px] font-semibold text-gray-500 hover:text-gray-800 hover:border-gray-400 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1 mt-1"
+                    >
                       <Plus size={13} /> Add Task
                     </button>
                   </div>
@@ -290,6 +452,121 @@ export default function SprintsView() {
            </div>
         )}
       </div>
+
+      {/* Add Task Modal */}
+      {isAddTaskModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <h2 className="text-lg font-black tracking-tight text-gray-900">Add New Task</h2>
+              <button 
+                onClick={() => setIsAddTaskModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleAddTask} className="p-5 space-y-4">
+              <div>
+                <label className="mb-1.5 block text-[13px] font-bold text-gray-700">Task Title</label>
+                <input
+                  type="text"
+                  required
+                  value={newTaskForm.title}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[14px] text-gray-900 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  placeholder="e.g. Implement user authentication"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1.5 block text-[13px] font-bold text-gray-700">Type</label>
+                  <select
+                    value={newTaskForm.type}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, type: e.target.value })}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[14px] text-gray-900 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  >
+                    <option value="Feature">Feature</option>
+                    <option value="Bug">Bug</option>
+                    <option value="Task">Task</option>
+                    <option value="Tech Debt">Tech Debt</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[13px] font-bold text-gray-700">Story Points</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="21"
+                    value={newTaskForm.points}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, points: parseInt(e.target.value) || 0 })}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[14px] text-gray-900 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[13px] font-bold text-gray-700">Assignee</label>
+                <select
+                  value={newTaskForm.assignee}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, assignee: e.target.value })}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[14px] text-gray-900 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                >
+                  {teamMembers.length === 0 ? (
+                    <option value="" disabled>Loading team...</option>
+                  ) : (
+                    teamMembers.map(member => (
+                      <option key={member.id} value={member.name}>
+                        {member.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddTaskModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-[13px] font-bold text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl text-[13px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+                >
+                  Add Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Complete Sprint Modal */}
+      {isCompleteSprintModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden p-6 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 mb-4">
+              <CheckCircle2 size={24} className="text-emerald-600" />
+            </div>
+            <h2 className="text-lg font-black tracking-tight text-gray-900 mb-2">Complete Sprint</h2>
+            <p className="text-sm text-gray-500 mb-6">Are you sure you want to complete this sprint? Any unfinished tasks will remain in their columns.</p>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setIsCompleteSprintModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-[13px] font-bold text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors w-full"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCompleteSprint}
+                className="px-4 py-2 rounded-xl text-[13px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors w-full"
+              >
+                Complete Sprint
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

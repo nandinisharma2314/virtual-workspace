@@ -12,6 +12,11 @@ export class ReportsController {
     return this.reportsService.create(createReportDto);
   }
 
+  @Get('dashboard')
+  getDashboardData() {
+    return this.reportsService.getDashboardData();
+  }
+
   @Get()
   findAll() {
     return this.reportsService.findAll();

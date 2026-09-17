@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, timestamp, integer, text, boolean, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, timestamp, integer, text, boolean, jsonb, real } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -59,8 +59,20 @@ export const tasks = pgTable('tasks', {
   projectId: integer('project_id').references(() => projects.id),
   sprintId: integer('sprint_id').references(() => sprints.id),
   assigneeId: integer('assignee_id').references(() => users.id),
+  channelId: varchar('channel_id', { length: 255 }).references(() => channels.id),
+  estimatedHours: real('estimated_hours'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const timeLogs = pgTable('time_logs', {
+  id: serial('id').primaryKey(),
+  taskId: integer('task_id').references(() => tasks.id),
+  userId: integer('user_id').references(() => users.id),
+  projectId: integer('project_id').references(() => projects.id),
+  hours: real('hours').notNull(),
+  date: timestamp('date').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 export const messages = pgTable('messages', {
@@ -136,3 +148,25 @@ export const notifications = pgTable('notifications', {
   isRead: boolean('is_read').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+export const channels = pgTable('channels', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  creatorId: integer('creator_id').references(() => users.id),
+  bgGradient: varchar('bg_gradient', { length: 255 }).default('from-indigo-600 via-indigo-700 to-purple-800'),
+  isTemplate: boolean('is_template').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const channelMembers = pgTable('channel_members', {
+  id: serial('id').primaryKey(),
+  channelId: varchar('channel_id', { length: 255 }).references(() => channels.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  addedById: integer('added_by_id').references(() => users.id),
+  status: varchar('status', { length: 50 }).default('accepted').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+

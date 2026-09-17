@@ -16,14 +16,17 @@ import {
   ChevronRight,
   Plus,
   HelpCircle,
+  Layers,
 } from "lucide-react";
 import { sidebarPrimary, favorites } from "@/lib/data";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 
 const iconMap: Record<string, React.ElementType> = {
   home: Home,
+  layers: Layers,
   inbox: Inbox,
   chat: MessageSquare,
   users: Users,
@@ -69,19 +72,17 @@ export default function Sidebar() {
   return (
     <aside className="hidden w-[230px] sm:w-[240px] shrink-0 flex-col border-r border-gray-200/80 bg-white lg:flex h-screen overflow-hidden pt-4 pb-8 px-3.5">
       {/* 1. Seamless Logo Header Section */}
-      <div className="flex shrink-0 items-center gap-3 px-2 pb-3 mb-1">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-500/20">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8"
-              stroke="currentColor"
-              strokeWidth="2.7"
-              strokeLinecap="round"
-            />
-            <circle cx="4" cy="12" r="2.2" fill="currentColor" />
-          </svg>
-        </div>
-        <span className="text-[19px] font-black tracking-tight text-gray-900">WorkFlow</span>
+      <div className="flex shrink-0 items-center px-2 pb-3 mb-1">
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/workflow-logo.png"
+            alt="Workflow"
+            width={200}
+            height={56}
+            className="h-14 w-auto object-contain"
+            priority
+          />
+        </Link>
       </div>
 
       {/* Top-aligned Content Container without awkward stretched spaces */}
@@ -92,6 +93,7 @@ export default function Sidebar() {
             {visibleSidebarPrimary.map((item) => {
               const Icon = iconMap[item.icon];
               const isHome = item.label === "Home";
+              const isWorkspaces = item.label === "Workspaces";
               const isInbox = item.label === "Inbox";
               const isChat = item.label === "Chat";
               const isTeams = item.label === "Teams";
@@ -103,18 +105,18 @@ export default function Sidebar() {
               const isDocuments = item.label === "Documents";
               const isFiles = item.label === "Files";
               const isReports = item.label === "Reports";
-              const href = isHome ? "/" : isInbox ? "/inbox" : isChat ? "/chat" : isTeams ? "/teams" : isProjects ? "/projects" : isBoards ? "/boards" : isSprints ? "/sprints" : isCalendar ? "/calendar" : isMeetings ? "/meetings" : isDocuments ? "/documents" : isFiles ? "/files" : isReports ? "/reports" : "#";
+              const href = isHome ? "/" : isWorkspaces ? "/workspaces" : isInbox ? "/inbox" : isChat ? "/chat" : isTeams ? "/teams" : isProjects ? "/projects" : isBoards ? "/boards" : isSprints ? "/sprints" : isCalendar ? "/calendar" : isMeetings ? "/meetings" : isDocuments ? "/documents" : isFiles ? "/files" : isReports ? "/reports" : "#";
               
               const isActive = activeOverride
                 ? activeOverride === item.label
-                : (isHome && pathname === "/") || (isInbox && pathname?.startsWith("/inbox")) || (isChat && pathname?.startsWith("/chat")) || (isTeams && pathname?.startsWith("/teams")) || (isProjects && pathname?.startsWith("/projects")) || (isBoards && pathname?.startsWith("/boards")) || (isSprints && pathname?.startsWith("/sprints")) || (isCalendar && pathname?.startsWith("/calendar")) || (isMeetings && pathname?.startsWith("/meetings")) || (isDocuments && pathname?.startsWith("/documents")) || (isFiles && pathname?.startsWith("/files")) || (isReports && pathname?.startsWith("/reports"));
+                : (isHome && pathname === "/") || (isWorkspaces && pathname?.startsWith("/workspaces")) || (isInbox && pathname?.startsWith("/inbox")) || (isChat && pathname?.startsWith("/chat")) || (isTeams && pathname?.startsWith("/teams")) || (isProjects && pathname?.startsWith("/projects")) || (isBoards && pathname?.startsWith("/boards")) || (isSprints && pathname?.startsWith("/sprints")) || (isCalendar && pathname?.startsWith("/calendar")) || (isMeetings && pathname?.startsWith("/meetings")) || (isDocuments && pathname?.startsWith("/documents")) || (isFiles && pathname?.startsWith("/files")) || (isReports && pathname?.startsWith("/reports"));
 
               return (
                 <li key={item.label}>
                   <Link
                     href={href}
                     onClick={() => {
-                      if (isHome || isInbox || isChat || isTeams || isProjects || isBoards || isSprints || isCalendar || isMeetings || isDocuments || isFiles || isReports) {
+                      if (isHome || isWorkspaces || isInbox || isChat || isTeams || isProjects || isBoards || isSprints || isCalendar || isMeetings || isDocuments || isFiles || isReports) {
                         setActiveOverride(null);
                       } else {
                         setActiveOverride(item.label);

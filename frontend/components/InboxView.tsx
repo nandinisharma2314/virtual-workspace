@@ -25,13 +25,23 @@ function adaptDbNotification(dbNotif: any, index: number): InboxItem {
   };
 
   const contentLower = dbNotif.content?.toLowerCase() || "";
+  let parsedContent: any = null;
+  try {
+    parsedContent = JSON.parse(dbNotif.content);
+  } catch (e) {}
+
+  let displayTitle = parsedContent?.title || title;
+  let displaySubtitle = parsedContent?.subtitle || `Type: ${dbNotif.type}`;
+  let displayPreview = parsedContent?.preview || (dbNotif.content ? dbNotif.content.substring(0, 50) + "..." : "");
+  let displayFullMessage = parsedContent ? JSON.stringify(parsedContent, null, 2) : dbNotif.content;
+
   if (contentLower.includes("mention") || dbNotif.type === "Mention") { tag = "Mention"; tagStyle = { bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-200/60" }; iconType = "avatar"; }
-  else if (contentLower.includes("task") || dbNotif.type === "Task") { tag = "High"; tagStyle = { bg: "bg-rose-50", text: "text-rose-600", border: "border-rose-200/60" }; iconType = "check"; title = "Task Assignment"; }
+  else if (contentLower.includes("task") || dbNotif.type === "Task") { tag = "High"; tagStyle = { bg: "bg-rose-50", text: "text-rose-600", border: "border-rose-200/60" }; iconType = "check"; displayTitle = parsedContent?.title || "Task Assignment"; }
   else if (contentLower.includes("meet") || dbNotif.type === "Meeting") { 
     tag = "Meeting"; 
     tagStyle = { bg: "bg-indigo-50", text: "text-indigo-600", border: "border-indigo-200/60" }; 
     iconType = "meeting"; 
-    title = "Upcoming Meeting"; 
+    displayTitle = parsedContent?.title || "Upcoming Meeting"; 
     aiSuggestedAction = {
       title: "Join Google Meet",
       reason: "This meeting is starting soon. Ensure you join on time.",
@@ -40,11 +50,10 @@ function adaptDbNotification(dbNotif: any, index: number): InboxItem {
       actionUrl: "https://meet.google.com/abc-mno-xyz"
     };
   }
-  else if (contentLower.includes("file") || dbNotif.type === "File") { tag = "File"; tagStyle = { bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200/60" }; iconType = "file"; title = "File Shared"; }
+  else if (contentLower.includes("file") || dbNotif.type === "File") { tag = "File"; tagStyle = { bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200/60" }; iconType = "file"; displayTitle = parsedContent?.title || "File Shared"; }
 
   // Cycle through some mock projects and priorities so the UI looks alive
   const projects = [
-    { name: "Website Redesign", dotColor: "bg-blue-500" },
     { name: "Mobile App", dotColor: "bg-pink-500" },
     { name: "Marketing Campaign", dotColor: "bg-orange-500" }
   ];
@@ -56,9 +65,9 @@ function adaptDbNotification(dbNotif: any, index: number): InboxItem {
 
   return {
     id: dbNotif.id.toString(),
-    title: title,
-    subtitle: `Type: ${dbNotif.type}`,
-    preview: dbNotif.content.substring(0, 50) + "...",
+    title: displayTitle,
+    subtitle: displaySubtitle,
+    preview: displayPreview,
     time: timeString,
     dateGroup: "Today",
     unread: !dbNotif.isRead,
@@ -70,7 +79,7 @@ function adaptDbNotification(dbNotif: any, index: number): InboxItem {
     channel: { name: "# general", project: "System" },
     project: projects[index % projects.length],
     priority: priorities[index % priorities.length],
-    fullMessage: dbNotif.content,
+    fullMessage: displayFullMessage,
     aiSuggestedAction: aiSuggestedAction,
   };
 }
@@ -99,9 +108,8 @@ export default function InboxView() {
         if (res.ok) {
           const data = await res.json();
           const mapped = data.map((d: any, i: number) => adaptDbNotification(d, i));
-          const combined = [...mapped, ...initialInboxItems];
-          setItems(combined);
-          if (combined.length > 0) setSelectedItemId(combined[0].id.toString());
+          setItems(mapped);
+          if (mapped.length > 0) setSelectedItemId(mapped[0].id.toString());
         } else {
           const txt = await res.text();
           setErrorMsg(`Error ${res.status}: ${txt}`);

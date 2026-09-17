@@ -92,26 +92,30 @@ export default function InboxList({
         <h3 className="text-[11.5px] font-black uppercase text-gray-400 tracking-wider mb-1.5 px-1">
           {title}
         </h3>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {groupItems.map((item) => {
             const isSelected = item.id === selectedItemId;
             return (
               <div
                 key={item.id}
                 onClick={() => onSelectItem(item.id)}
-                className={`group flex items-center gap-3 px-3 py-2 sm:py-2 rounded-xl transition-all cursor-pointer border ${
+                className={`group flex items-center gap-4 px-3.5 py-3 rounded-2xl transition-all cursor-pointer border relative ${
                   isSelected
-                    ? "bg-blue-50/60 border-blue-200/90 shadow-2xs ring-1 ring-blue-500/15"
+                    ? "bg-blue-50/60 border-blue-200 shadow-sm ring-1 ring-blue-500/20"
                     : item.unread
-                    ? "bg-white border-gray-200/90 hover:border-gray-300 hover:bg-gray-50/70 hover:shadow-2xs"
-                    : "bg-white/70 border-gray-200/70 hover:bg-gray-50 hover:border-gray-300/80"
+                    ? "bg-white border-gray-200 shadow-2xs hover:border-gray-300 hover:shadow-sm"
+                    : "bg-gray-50/50 border-transparent hover:bg-white hover:border-gray-200 hover:shadow-2xs"
                 }`}
               >
+                {item.unread && !isSelected && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-500 rounded-r-md"></div>
+                )}
+                
                 {/* Checkbox */}
                 <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
-                    className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors cursor-pointer"
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors cursor-pointer"
                   />
                 </div>
 
@@ -122,15 +126,15 @@ export default function InboxList({
                 <div className="flex-1 min-w-0 pr-2">
                   <div className="flex items-baseline justify-between gap-2">
                     <h4
-                      className={`text-[13px] leading-tight truncate ${
-                        item.unread ? "font-black text-gray-900" : "font-bold text-gray-800"
+                      className={`text-[13.5px] leading-tight truncate ${
+                        item.unread ? "font-black text-gray-900" : "font-extrabold text-gray-700"
                       }`}
                     >
                       {item.title}
                     </h4>
                   </div>
                   <p
-                    className={`text-[11.5px] leading-tight truncate ${
+                    className={`text-[12px] leading-tight truncate mt-0.5 ${
                       item.subtitle.startsWith("In #") || item.subtitle.includes("#")
                         ? "text-blue-600 font-bold"
                         : "text-gray-500 font-semibold"
@@ -138,7 +142,7 @@ export default function InboxList({
                   >
                     {item.subtitle}
                   </p>
-                  <p className="text-[11.5px] text-gray-400 line-clamp-1 font-medium mt-0.5">
+                  <p className="text-[12px] text-gray-500 line-clamp-1 font-medium mt-1">
                     {item.preview}
                   </p>
                 </div>

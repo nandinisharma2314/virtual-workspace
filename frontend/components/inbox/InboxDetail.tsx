@@ -48,7 +48,7 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
   };
 
   const handleMoveToProject = () => {
-    showToast("Moved to Website Redesign project");
+    showToast("Moved to project");
   };
 
   const handleReportSpam = () => {
@@ -173,7 +173,7 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
       )}
 
       {/* High-density content area without scrollbars */}
-      <div className={`flex-1 min-h-0 px-6 pt-3 pb-5 flex flex-col justify-between overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${isSnoozed ? 'opacity-40 pointer-events-none' : ''}`}>
+      <div className={`flex-1 min-h-0 px-6 pt-3 pb-3 flex flex-col justify-between overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${isSnoozed ? 'opacity-40 pointer-events-none' : ''}`}>
         
         {/* Top block: Title, Tag, Sender & Message */}
         <div className="shrink-0">
@@ -190,24 +190,55 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
           </p>
 
           {/* Sender and indented message block */}
-          <div className="flex items-start gap-3.5 mt-4">
+          <div className="flex items-start gap-4 mt-2.5">
             <div className="shrink-0 pt-0.5">
-              <Avatar person={item.avatarPerson || "rohit"} size={32} />
+              <Avatar person={item.avatarPerson || "rohit"} size={36} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-2.5 mb-1">
-                <span className="text-[13.5px] font-bold text-gray-900">
+              <div className="flex items-baseline gap-2.5 mb-1.5">
+                <span className="text-[14px] font-extrabold text-gray-900">
                   {item.senderName}
                 </span>
-                <span className="text-[12px] font-normal text-gray-400">
+                <span className="text-[12px] font-medium text-gray-400">
                   {item.time === "Yesterday" ? "Yesterday, 4:15 PM" : item.time === "Jul 26" ? "Jul 26, 2:30 PM" : `10:24 AM`}
                 </span>
               </div>
-              <p className="text-[13px] sm:text-[13.5px] leading-relaxed text-gray-800 font-normal mb-2.5">
-                {renderFormattedMessage(item.fullMessage)}
-              </p>
+              
+              <div className="text-[13.5px] leading-relaxed text-gray-800 font-normal mb-3">
+                {(() => {
+                  let parsedMessage = null;
+                  try {
+                    parsedMessage = JSON.parse(item.fullMessage);
+                  } catch (e) {}
+
+                  if (parsedMessage && typeof parsedMessage === 'object') {
+                    const extraFields = Object.entries(parsedMessage).filter(([key]) => !['title', 'subtitle', 'preview'].includes(key));
+                    return (
+                      <div className="space-y-3">
+                        {parsedMessage.preview && (
+                          <div className="text-gray-700">
+                            {renderFormattedMessage(parsedMessage.preview)}
+                          </div>
+                        )}
+                        {extraFields.length > 0 && (
+                          <div className="bg-gray-50 border border-gray-200/80 rounded-xl p-3 shadow-2xs grid grid-cols-2 gap-2 mt-2">
+                            {extraFields.map(([key, value]) => (
+                              <div key={key} className="text-gray-500 text-[11.5px]">
+                                <span className="font-bold text-gray-700 capitalize">{key}:</span> {String(value)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  
+                  return <p>{renderFormattedMessage(item.fullMessage)}</p>;
+                })()}
+              </div>
+
               <div>
-                <button className="h-8 w-9 rounded-xl border border-gray-200/90 bg-white hover:bg-gray-50 text-gray-500 flex items-center justify-center shadow-2xs transition-all">
+                <button className="h-8 w-9 rounded-xl border border-gray-200/90 bg-white hover:bg-gray-50 text-gray-500 flex items-center justify-center shadow-2xs transition-all cursor-pointer">
                   <Smile size={16} strokeWidth={2} className="text-gray-500" />
                 </button>
               </div>
@@ -215,11 +246,11 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
           </div>
         </div>
 
-        <div className="h-px bg-gray-100/90 my-3.5 w-full shrink-0" />
+        <div className="h-px bg-gray-100/90 my-2.5 w-full shrink-0" />
 
         {/* Channel Section */}
         <div className="shrink-0">
-          <h3 className="text-[13px] font-bold text-gray-900 mb-2.5">
+          <h3 className="text-[13px] font-bold text-gray-900 mb-1.5">
             Channel
           </h3>
           <div className="flex items-center justify-between">
@@ -243,14 +274,14 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
           </div>
         </div>
 
-        <div className="h-px bg-gray-100/90 my-3.5 w-full shrink-0" />
+        <div className="h-px bg-gray-100/90 my-2.5 w-full shrink-0" />
 
         {/* About this message Section */}
         <div className="shrink-0">
-          <h3 className="text-[13px] font-bold text-gray-900 mb-3">
+          <h3 className="text-[13px] font-bold text-gray-900 mb-1.5">
             About this message
           </h3>
-          <div className="space-y-3 px-0.5">
+          <div className="space-y-2 px-0.5">
             <div className="flex items-center justify-between text-[13px]">
               <div className="flex items-center gap-2.5 text-gray-500 font-normal">
                 <Sparkles size={15} className="text-gray-400 shrink-0" strokeWidth={2} />
@@ -297,11 +328,11 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
           </div>
         </div>
 
-        <div className="h-px bg-gray-100/90 my-3.5 w-full shrink-0" />
+        <div className="h-px bg-gray-100/90 my-2.5 w-full shrink-0" />
 
         {/* Actions Section */}
         <div className="shrink-0">
-          <h3 className="text-[13px] font-bold text-gray-900 mb-2.5">
+          <h3 className="text-[13px] font-bold text-gray-900 mb-1.5">
             Actions
           </h3>
           <div className="flex flex-wrap items-center gap-2">
@@ -334,7 +365,7 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
 
         {/* AI Suggested Action Section */}
         {item.aiSuggestedAction && (
-          <div className="shrink-0 bg-[#F6F5FF] border border-indigo-100/80 rounded-2xl p-4 sm:p-4.5 shadow-2xs relative overflow-hidden mt-auto">
+          <div className="shrink-0 bg-[#F6F5FF] border border-indigo-100/80 rounded-2xl p-3 shadow-2xs relative overflow-hidden mt-auto">
             <div className="flex items-center gap-2 mb-1">
               <Sparkles size={16} className="text-[#2563EB] shrink-0" strokeWidth={2.4} />
               <span className="text-[13.5px] font-bold text-gray-900">

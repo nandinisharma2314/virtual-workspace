@@ -1,15 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ api?: string }>({});
+
+  useEffect(() => {
+    const emailParam = searchParams.get("email");
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+  }, [searchParams]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,7 +33,8 @@ export default function LoginPage() {
         if (res.ok) {
           const data = await res.json();
           document.cookie = `token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
-          window.location.href = "/";
+          const redirectUrl = searchParams.get("invite") ? `/chat?${searchParams.toString()}` : "/";
+          window.location.href = redirectUrl;
         } else {
           const errorData = await res.json();
           setErrors({ api: errorData.message || "Login failed" });
@@ -206,7 +216,7 @@ export default function LoginPage() {
           <div className="mt-10 text-center">
             <span className="text-[14px] text-gray-500">
               Don't have an account?{" "}
-              <Link href="/register" className="font-semibold text-[#5D5FEF] hover:text-[#4a4cc7]">
+              <Link href={`/register${searchParams.toString() ? `?${searchParams.toString()}` : ''}`} className="font-semibold text-[#5D5FEF] hover:text-[#4a4cc7]">
                 Sign up
               </Link>
             </span>

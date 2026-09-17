@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import ChatView from "@/components/ChatView";
@@ -11,7 +12,9 @@ export default function ChatPage() {
         <Topbar />
 
         <main className="flex-1 w-full h-full min-h-0 overflow-hidden flex flex-row bg-white">
-          <ChatView />
+          <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-white text-gray-400">Loading chat...</div>}>
+            <ChatView />
+          </Suspense>
         </main>
       </div>
     </div>

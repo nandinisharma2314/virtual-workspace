@@ -41,14 +41,14 @@ export default function ProjectHeader({
         <div className="flex items-center gap-1 text-[11.5px] font-semibold text-gray-400 mb-1">
           <span>Projects</span>
           <span>&gt;</span>
-          <span className="text-gray-600 font-bold">Website Redesign</span>
+          <span className="text-gray-600 font-bold">Mobile App Launch</span>
         </div>
 
         {/* Title and Right Actions Row */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5 min-w-0">
             <h1 className="text-[22px] font-black text-gray-900 tracking-tight leading-none">
-              Website Redesign
+              Mobile App Launch
             </h1>
             <button className="text-gray-400 hover:text-amber-500 transition-colors">
               <Star size={18} strokeWidth={2.2} />
@@ -83,7 +83,7 @@ export default function ProjectHeader({
 
         {/* Subtitle */}
         <p className="text-[12px] text-gray-500 font-medium mt-1">
-          Redesign company website with improved UX, performance and modern design.
+          Launch iOS and Android versions of our core product.
         </p>
 
         {/* Tabs Row */}

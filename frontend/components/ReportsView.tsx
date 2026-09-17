@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BarChart3,
   TrendingUp,
@@ -27,52 +27,58 @@ import {
   Legend
 } from "recharts";
 
-const velocityData = [
-  { name: "Sprint 1", completed: 45, planned: 50 },
-  { name: "Sprint 2", completed: 52, planned: 48 },
-  { name: "Sprint 3", completed: 38, planned: 45 },
-  { name: "Sprint 4", completed: 65, planned: 60 },
-  { name: "Sprint 5", completed: 48, planned: 55 },
-  { name: "Sprint 6", completed: 70, planned: 65 },
-  { name: "Sprint 7", completed: 75, planned: 70 },
-  { name: "Sprint 8", completed: 82, planned: 75 },
-];
-
-const workloadData = [
-  { name: "Avi", tasks: 14 },
-  { name: "Rohit", tasks: 15 },
-  { name: "Priya", tasks: 16 },
-  { name: "Neha", tasks: 18 },
-  { name: "Arjun", tasks: 20 },
-];
-
-const projectPerformance = [
-  { id: 1, name: "Website Redesign", status: "Completed", progress: 100, budget: "95%", health: "Excellent" },
-  { id: 2, name: "Mobile App v2.0", status: "On Track", progress: 65, budget: "105%", health: "Good" },
-  { id: 3, name: "Marketing Campaign", status: "On Track", progress: 80, budget: "60%", health: "Good" },
-  { id: 4, name: "API Integration", status: "Completed", progress: 100, budget: "85%", health: "Excellent" },
-  { id: 5, name: "Cloud Migration", status: "At Risk", progress: 30, budget: "120%", health: "Poor" },
-];
-
-const teamPerformanceData = [
-  { id: 1, name: "Avi", role: "Frontend Developer", tasks: 14, capacity: 90, status: "Optimal" },
-  { id: 2, name: "Rohit", role: "Backend Developer", tasks: 15, capacity: 95, status: "Optimal" },
-  { id: 3, name: "Priya", role: "UI/UX Designer", tasks: 16, capacity: 92, status: "Optimal" },
-  { id: 4, name: "Neha", role: "QA Engineer", tasks: 18, capacity: 98, status: "Optimal" },
-  { id: 5, name: "Arjun", role: "Product Manager", tasks: 20, capacity: 85, status: "Optimal" }
-];
-
-const timeTrackingLogs = [
-  { id: 1, date: "Nov 02, 2023", project: "Cloud Migration", task: "AWS Setup", member: "Rohit", hours: "5.5h" },
-  { id: 2, date: "Nov 02, 2023", project: "Mobile App v2.0", task: "Push Notifications", member: "Avi", hours: "4.0h" },
-  { id: 3, date: "Nov 01, 2023", project: "Marketing Campaign", task: "Email Templates", member: "Priya", hours: "3.5h" },
-  { id: 4, date: "Nov 01, 2023", project: "Mobile App v2.0", task: "Integration Testing", member: "Neha", hours: "6.0h" },
-  { id: 5, date: "Oct 31, 2023", project: "Website Redesign", task: "Launch Review", member: "Arjun", hours: "2.5h" }
-];
-
 export default function ReportsView() {
   const [dateRange, setDateRange] = useState("Last 30 Days");
   const [activeTab, setActiveTab] = useState("overview");
+
+  const [velocityData, setVelocityData] = useState<any[]>([]);
+  const [workloadData, setWorkloadData] = useState<any[]>([]);
+  const [projectPerformance, setProjectPerformance] = useState<any[]>([]);
+  const [teamPerformanceData, setTeamPerformanceData] = useState<any[]>([]);
+  const [timeTrackingLogs, setTimeTrackingLogs] = useState<any[]>([]);
+  const [kpis, setKpis] = useState<any>({ tasksCompleted: 0, overdueTasks: 0, teamUtilization: 0 });
+
+  useEffect(() => {
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    if (token) {
+      fetch("http://localhost:3001/reports/dashboard", {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          if (data.velocityData) {
+            if (data.velocityData.length === 0) {
+              setVelocityData([
+                { name: 'Sprint 1', completed: 30, planned: 35 },
+                { name: 'Sprint 2', completed: 42, planned: 40 },
+                { name: 'Sprint 3', completed: 38, planned: 38 },
+                { name: 'Sprint 4', completed: 50, planned: 45 },
+                { name: 'Sprint 5', completed: 62, planned: 60 },
+                { name: 'Sprint 6', completed: 58, planned: 65 },
+              ]);
+            } else {
+              setVelocityData(data.velocityData);
+            }
+          }
+          if (data.workloadData) setWorkloadData(data.workloadData);
+          if (data.projectPerformance && data.projectPerformance.length > 0) {
+            setProjectPerformance(data.projectPerformance);
+          } else {
+            setProjectPerformance([
+              { id: "p2", name: "Mobile App Launch", status: "At Risk", progress: 42, budget: "$120,000", health: "Fair" },
+              { id: "p3", name: "Q3 Marketing Campaign", status: "On Track", progress: 88, budget: "$25,000", health: "Good" },
+              { id: "p4", name: "Annual Security Audit", status: "Completed", progress: 100, budget: "$15,000", health: "Good" }
+            ]);
+          }
+          if (data.teamPerformanceData) setTeamPerformanceData(data.teamPerformanceData);
+          if (data.kpis) setKpis(data.kpis);
+          if (data.timeTrackingLogs) setTimeTrackingLogs(data.timeTrackingLogs);
+        }
+      })
+      .catch(console.error);
+    }
+  }, []);
 
   return (
     <div className="flex w-full h-full min-h-0 flex-col bg-transparent overflow-hidden">
@@ -144,7 +150,7 @@ export default function ReportsView() {
                 Tasks Completed
               </div>
               <div className="text-xl font-black text-gray-900 tracking-tight">
-                415
+                {kpis.tasksCompleted}
               </div>
               <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600">
                 <TrendingUp size={12} />
@@ -182,7 +188,7 @@ export default function ReportsView() {
                 Overdue Tasks
               </div>
               <div className="text-xl font-black text-gray-900 tracking-tight">
-                12
+                {kpis.overdueTasks}
               </div>
               <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600">
                 <TrendingUp size={12} className="rotate-180" />
@@ -201,7 +207,7 @@ export default function ReportsView() {
                 Team Utilization
               </div>
               <div className="text-xl font-black text-gray-900 tracking-tight">
-                92<span className="text-[13px] text-gray-500 font-semibold">%</span>
+                {kpis.teamUtilization}<span className="text-[13px] text-gray-500 font-semibold">%</span>
               </div>
               <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>

@@ -40,8 +40,8 @@ export const initialInboxItems: InboxItem[] = [
     avatarPerson: "rahul",
     senderName: "Rahul Sharma",
     senderRole: "Lead UI/UX Designer",
-    channel: { name: "# design-team", project: "Website Redesign" },
-    project: { name: "Website Redesign", dotColor: "bg-blue-500" },
+    channel: { name: "# design-team", project: "Mobile App" },
+    project: { name: "Mobile App", dotColor: "bg-pink-500" },
     priority: { label: "High", color: "text-rose-600", dotClass: "bg-rose-500" },
     fullMessage: "@You can you review the new landing page design? Your feedback is important before we move to development. We have aligned the typography tokens and responsive breakpoints according to the design specifications.",
     aiSuggestedAction: {
@@ -90,8 +90,8 @@ export const initialInboxItems: InboxItem[] = [
     avatarPerson: "rohit",
     senderName: "Rohit Verma",
     senderRole: "Scrum Master",
-    channel: { name: "# general-sync", project: "Website Redesign" },
-    project: { name: "Website Redesign", dotColor: "bg-blue-500" },
+    channel: { name: "# general-sync", project: "Mobile App" },
+    project: { name: "Mobile App", dotColor: "bg-pink-500" },
     priority: { label: "Medium", color: "text-amber-500", dotClass: "bg-amber-500" },
     fullMessage: "Weekly sprint planning session for the upcoming Q3 product roadmap. We will groom backlog epics, estimate story points, and assign engineering capacity for the next two-week sprint.",
     aiSuggestedAction: {
@@ -105,7 +105,7 @@ export const initialInboxItems: InboxItem[] = [
     id: "item-4",
     dateGroup: "Today",
     title: "UI Proposal.pdf shared with you",
-    subtitle: "Shared by Vikram Joshi in Website Redesign",
+    subtitle: "Shared by Vikram Joshi in Mobile App",
     preview: "Please check the latest UI proposal for the homepage.",
     time: "8:55 AM",
     unread: true,
@@ -115,8 +115,8 @@ export const initialInboxItems: InboxItem[] = [
     avatarPerson: "vikram",
     senderName: "Vikram Joshi",
     senderRole: "Senior Visual Designer",
-    channel: { name: "# design-system", project: "Website Redesign" },
-    project: { name: "Website Redesign", dotColor: "bg-blue-500" },
+    channel: { name: "# design-system", project: "Mobile App" },
+    project: { name: "Mobile App", dotColor: "bg-pink-500" },
     priority: { label: "Medium", color: "text-amber-500", dotClass: "bg-amber-500" },
     fullMessage: "I have attached the finalized Figma export and PDF documentation for the responsive homepage layout. Take a close look at the revised dark mode color palettes and component elevation states.",
     aiSuggestedAction: {
@@ -140,8 +140,8 @@ export const initialInboxItems: InboxItem[] = [
     avatarPerson: "priya",
     senderName: "Priya Singh",
     senderRole: "Product Designer",
-    channel: { name: "# product-ui", project: "Website Redesign" },
-    project: { name: "Website Redesign", dotColor: "bg-blue-500" },
+    channel: { name: "# product-ui", project: "Mobile App" },
+    project: { name: "Mobile App", dotColor: "bg-pink-500" },
     priority: { label: "High", color: "text-rose-600", dotClass: "bg-rose-500" },
     fullMessage: "We need to update our primary button tokens across all modals, dialogs, and navigation cards to support the new elevation shadows and disabled interaction states by tomorrow end-of-day.",
     aiSuggestedAction: {
@@ -248,7 +248,6 @@ export const inboxPriorities = [
 ];
 
 export const inboxProjects = [
-  { key: "Website Redesign", label: "Website Redesign", dotColor: "bg-blue-500" },
   { key: "Mobile App", label: "Mobile App", dotColor: "bg-pink-500" },
   { key: "Marketing Campaign", label: "Marketing Campaign", dotColor: "bg-orange-500" },
   { key: "HR & Admin", label: "HR & Admin", dotColor: "bg-emerald-500" },

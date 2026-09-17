@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MessageSquare, Plus, Filter, LayoutGrid, List, Milestone, GanttChartSquare, X } from "lucide-react";
 import { roadmap as mockRoadmap } from "@/lib/data";
 import Avatar from "./Avatar";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import GanttChartView from "./boards/GanttChartView";
 
 const tabs = [
   { key: "board", label: "Board", icon: LayoutGrid },
@@ -13,7 +15,18 @@ const tabs = [
   { key: "gantt", label: "Gantt", icon: GanttChartSquare },
 ];
 
-export default function RoadmapBoard({ roadmap = mockRoadmap }: { roadmap?: any[] }) {
+export default function RoadmapBoard({
+  roadmap = mockRoadmap,
+  boardTitle = "Product Roadmap",
+  bgGradient,
+}: {
+  roadmap?: any[];
+  boardTitle?: string;
+  bgGradient?: string;
+}) {
+  const [localRoadmap, setLocalRoadmap] = useState(roadmap);
+  useEffect(() => { setLocalRoadmap(roadmap); }, [roadmap]);
+
   const [tab, setTab] = useState("board");
   const router = useRouter();
   
@@ -25,14 +38,95 @@ export default function RoadmapBoard({ roadmap = mockRoadmap }: { roadmap?: any[
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [newTaskStatus, setNewTaskStatus] = useState("todo");
 
-  const filteredRoadmap = roadmap.map(col => ({
-    ...col,
-    tasks: col.tasks.filter((t: any) => 
-      !filterQuery || 
-      t.title.toLowerCase().includes(filterQuery.toLowerCase()) || 
-      t.tag.toLowerCase().includes(filterQuery.toLowerCase())
-    )
-  }));
+  const [backendTasks, setBackendTasks] = useState<any[]>([]);
+
+  const fetchTasks = async () => {
+    try {
+      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      const res = await fetch("http://localhost:3001/tasks", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBackendTasks(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const handleChangeStatus = async (task: any, currentColKey: string, targetColKey: string) => {
+    if (currentColKey === targetColKey) return;
+    
+    const isMock = String(task.id).startsWith('c-') || String(task.id).startsWith('t-') || !task.tagColor?.includes('bg-indigo-100');
+
+    if (!isMock && task.id) {
+      const statusMap: Record<string, string> = {
+        todo: 'todo',
+        inprogress: 'in_progress',
+        review: 'review',
+        done: 'completed'
+      };
+      
+      try {
+        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+        await fetch(`http://localhost:3001/tasks/${task.id}`, {
+          method: "PATCH",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ status: statusMap[targetColKey] || 'todo' })
+        });
+        fetchTasks();
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      setLocalRoadmap(prev => prev.map(col => {
+        if (col.key === currentColKey) {
+          return { ...col, tasks: col.tasks.filter((t: any) => (t.id || t.title) !== (task.id || task.title)) };
+        }
+        if (col.key === targetColKey) {
+          return { ...col, tasks: [task, ...col.tasks] };
+        }
+        return col;
+      }));
+    }
+  };
+
+  const filteredRoadmap = localRoadmap.map(col => {
+    const colBackendTasks = backendTasks.filter(t => {
+       if (col.key === 'todo') return t.status === 'todo';
+       if (col.key === 'inprogress') return t.status === 'in_progress';
+       if (col.key === 'review') return t.status === 'review';
+       if (col.key === 'done') return t.status === 'completed';
+       return false;
+    }).map(t => ({
+       id: t.id,
+       title: t.title,
+       tag: 'NEW',
+       tagColor: 'bg-indigo-100 text-indigo-700',
+       people: ['avi'], // placeholder user
+       comments: 0
+    }));
+
+    const combinedTasks = [...colBackendTasks, ...col.tasks];
+
+    return {
+      ...col,
+      count: combinedTasks.length,
+      tasks: combinedTasks.filter((t: any) => 
+        !filterQuery || 
+        t.title.toLowerCase().includes(filterQuery.toLowerCase()) || 
+        (t.tag && t.tag.toLowerCase().includes(filterQuery.toLowerCase()))
+      )
+    };
+  });
 
   const handleAddTask = async (columnKey: string, title?: string) => {
     const taskTitle = title !== undefined ? title : newTaskTitle;
@@ -64,7 +158,7 @@ export default function RoadmapBoard({ roadmap = mockRoadmap }: { roadmap?: any[
       setNewTaskTitle("");
       setAddingColumn(null);
       setIsTaskModalOpen(false);
-      router.refresh();
+      fetchTasks();
     } catch (e) {
       console.error(e);
     } finally {
@@ -80,7 +174,12 @@ export default function RoadmapBoard({ roadmap = mockRoadmap }: { roadmap?: any[
     <div className="w-full h-full flex-1 flex flex-col justify-between rounded-xl border border-gray-200/80 bg-white p-3 shadow-2xs overflow-hidden min-h-0">
       <div className="flex flex-wrap items-center justify-between gap-2 shrink-0 mb-2">
         <div className="flex items-center gap-3">
-          <h3 className="text-xs font-bold text-gray-900 tracking-tight">Product Roadmap</h3>
+          <div className="flex items-center gap-2">
+            {bgGradient && (
+              <div className={`w-3.5 h-3.5 rounded-md bg-gradient-to-tr ${bgGradient} shrink-0 shadow-2xs`} />
+            )}
+            <h3 className="text-xs font-extrabold text-gray-900 tracking-tight">{boardTitle}</h3>
+          </div>
           <div className="flex items-center gap-0.5 rounded-lg bg-gray-100/80 p-0.5">
             {tabs.map((t) => {
               const Icon = t.icon;
@@ -111,24 +210,27 @@ export default function RoadmapBoard({ roadmap = mockRoadmap }: { roadmap?: any[
               Filter {filterQuery && <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 ml-0.5" />}
             </button>
             {isFilterOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100">
-                <input 
-                   type="text" 
-                   autoFocus
-                   placeholder="Search tasks or tags..." 
-                   className="w-full text-[11px] font-semibold text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all shadow-inner"
-                   value={filterQuery}
-                   onChange={e => setFilterQuery(e.target.value)}
-                />
-                {filterQuery && (
-                  <button 
-                    onClick={() => { setFilterQuery(''); setIsFilterOpen(false); }}
-                    className="text-[10px] font-bold text-gray-500 hover:text-rose-500 text-left px-1 mt-0.5 transition-colors"
-                  >
-                    Clear filter
-                  </button>
-                )}
-              </div>
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)} />
+                <div className="absolute right-0 top-full mt-1.5 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100">
+                  <input 
+                     type="text" 
+                     autoFocus
+                     placeholder="Search tasks or tags..." 
+                     className="w-full text-[11px] font-semibold text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all shadow-inner"
+                     value={filterQuery}
+                     onChange={e => setFilterQuery(e.target.value)}
+                  />
+                  {filterQuery && (
+                    <button 
+                      onClick={() => { setFilterQuery(''); setIsFilterOpen(false); }}
+                      className="text-[10px] font-bold text-gray-500 hover:text-rose-500 text-left px-1 mt-0.5 transition-colors"
+                    >
+                      Clear filter
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
           <div className="relative">
@@ -140,33 +242,36 @@ export default function RoadmapBoard({ roadmap = mockRoadmap }: { roadmap?: any[
               Add Task
             </button>
             {isTaskModalOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 p-3 flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-100">
-                <h4 className="text-[11px] font-bold text-gray-800">Create New Task</h4>
-                <input 
-                   type="text" 
-                   autoFocus
-                   placeholder="Task title..." 
-                   className="w-full text-[11px] font-semibold text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all shadow-inner"
-                   value={newTaskTitle}
-                   onChange={e => setNewTaskTitle(e.target.value)}
-                   onKeyDown={e => e.key === 'Enter' && handleGlobalAddTask()}
-                />
-                <select 
-                   className="w-full text-[11px] font-semibold text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all shadow-inner cursor-pointer"
-                   value={newTaskStatus}
-                   onChange={e => setNewTaskStatus(e.target.value)}
-                >
-                   <option value="todo">To Do</option>
-                   <option value="inprogress">In Progress</option>
-                   <option value="done">Done</option>
-                </select>
-                <div className="flex items-center justify-end gap-2 mt-1">
-                  <button onClick={() => setIsTaskModalOpen(false)} className="text-[10px] font-bold text-gray-500 hover:text-gray-800 transition-colors">Cancel</button>
-                  <button onClick={handleGlobalAddTask} disabled={isSubmitting} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs">
-                     {isSubmitting ? "..." : "Save Task"}
-                  </button>
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsTaskModalOpen(false)} />
+                <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 p-3 flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-100">
+                  <h4 className="text-[11px] font-bold text-gray-800">Create New Task</h4>
+                  <input 
+                     type="text" 
+                     autoFocus
+                     placeholder="Task title..." 
+                     className="w-full text-[11px] font-semibold text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all shadow-inner"
+                     value={newTaskTitle}
+                     onChange={e => setNewTaskTitle(e.target.value)}
+                     onKeyDown={e => e.key === 'Enter' && handleGlobalAddTask()}
+                  />
+                  <select 
+                     className="w-full text-[11px] font-semibold text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all shadow-inner cursor-pointer"
+                     value={newTaskStatus}
+                     onChange={e => setNewTaskStatus(e.target.value)}
+                  >
+                     <option value="todo">To Do</option>
+                     <option value="inprogress">In Progress</option>
+                     <option value="done">Done</option>
+                  </select>
+                  <div className="flex items-center justify-end gap-2 mt-1">
+                    <button onClick={() => setIsTaskModalOpen(false)} className="text-[10px] font-bold text-gray-500 hover:text-gray-800 transition-colors">Cancel</button>
+                    <button onClick={handleGlobalAddTask} disabled={isSubmitting} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs">
+                       {isSubmitting ? "..." : "Save Task"}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -185,15 +290,39 @@ export default function RoadmapBoard({ roadmap = mockRoadmap }: { roadmap?: any[
               </div>
 
               <div className="flex-1 min-h-0 flex flex-col gap-1.5 justify-start overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                {col.tasks.map((task: any, idx: number) => (
-                  <div
-                    key={task.id || `${task.title}-${idx}`}
-                    className="rounded-lg border border-gray-200/70 bg-white px-2.5 py-1.5 shadow-2xs hover:border-indigo-200 hover:shadow-2xs transition-all group cursor-pointer shrink-0"
-                  >
-                    <div className="flex items-center justify-between gap-1.5">
-                      <p className="text-[11px] font-bold text-gray-800 leading-tight group-hover:text-indigo-600 transition-colors truncate">{task.title}</p>
+                <AnimatePresence mode="popLayout">
+                  {col.tasks.map((task: any, idx: number) => {
+                    const uniqueKey = task.id ? `task-${task.id}` : `mock-${task.title}-${idx}`;
+                    return (
+                      <motion.div
+                        layout
+                        initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        key={uniqueKey}
+                        className="rounded-lg border border-gray-200/70 bg-white px-2.5 py-1.5 shadow-2xs hover:border-indigo-200 hover:shadow-2xs transition-all group cursor-pointer shrink-0"
+                      >
+                    <div className="flex items-start justify-between gap-1.5">
+                      <div className="flex items-start gap-2 flex-1 min-w-0">
+                        {col.key !== 'done' && (
+                          <input
+                            type="checkbox"
+                            checked={false}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleChangeStatus(task, col.key, 'done');
+                            }}
+                            className="h-3.5 w-3.5 mt-0.5 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Mark as done"
+                          />
+                        )}
+                        <p className={`text-[11px] font-bold leading-tight group-hover:text-indigo-600 transition-colors truncate ${col.key === 'done' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                          {task.title}
+                        </p>
+                      </div>
                       <span
-                        className={`shrink-0 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider ${task.tagColor}`}
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider ${task.tagColor || 'bg-gray-100 text-gray-500'}`}
                       >
                         {task.tag}
                       </span>
@@ -204,15 +333,33 @@ export default function RoadmapBoard({ roadmap = mockRoadmap }: { roadmap?: any[
                           <Avatar key={p} person={p} size={16} ring />
                         ))}
                       </div>
-                      {task.comments ? (
-                        <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-400">
-                          <MessageSquare size={11} />
-                          {task.comments}
-                        </span>
-                      ) : null}
+                      <div className="flex items-center gap-1.5">
+                        {task.comments ? (
+                          <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-400">
+                            <MessageSquare size={11} />
+                            {task.comments}
+                          </span>
+                        ) : null}
+                        <select
+                          className="text-[9px] font-bold bg-gray-50 border border-gray-200/80 rounded px-1 py-0.5 text-gray-500 hover:text-gray-700 cursor-pointer focus:outline-none focus:border-indigo-300 transition-colors"
+                          value={col.key}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleChangeStatus(task, col.key, e.target.value);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <option value="todo">To Do</option>
+                          <option value="inprogress">In Progress</option>
+                          <option value="review">Review</option>
+                          <option value="done">Done</option>
+                        </select>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                    </motion.div>
+                  );
+                })}
+                </AnimatePresence>
               </div>
 
               {addingColumn === col.key ? (
@@ -299,52 +446,13 @@ export default function RoadmapBoard({ roadmap = mockRoadmap }: { roadmap?: any[
       )}
 
       {tab === 'gantt' && (
-        <div className="flex-1 min-h-0 overflow-y-auto bg-white rounded-xl border border-gray-100 shadow-inner p-1 relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-           <div className="flex items-center border-b border-gray-100 bg-gray-50/90 backdrop-blur-sm px-3 py-2 sticky top-0 z-20 rounded-t-lg">
-             <div className="w-48 shrink-0 text-[10px] font-extrabold text-gray-500 uppercase tracking-widest">Task Timeline</div>
-             <div className="flex-1 flex text-[10px] font-extrabold text-gray-400 tracking-wider">
-                {['Q1', 'Q2', 'Q3', 'Q4'].map(q => <div key={q} className="flex-1 text-center border-l border-gray-200/60">{q}</div>)}
-             </div>
-           </div>
-           <div className="flex flex-col relative pt-1">
-             {filteredRoadmap.flatMap(col => col.tasks).map((task: any, i: number) => {
-                const gradients = [
-                  "bg-gradient-to-r from-indigo-500 to-purple-500 shadow-indigo-500/30",
-                  "bg-gradient-to-r from-emerald-400 to-teal-500 shadow-emerald-500/30",
-                  "bg-gradient-to-r from-amber-400 to-orange-500 shadow-orange-500/30",
-                  "bg-gradient-to-r from-blue-400 to-cyan-500 shadow-blue-500/30",
-                  "bg-gradient-to-r from-rose-400 to-pink-500 shadow-rose-500/30",
-                ];
-                const gradient = gradients[i % gradients.length];
-                
-                return (
-                  <div key={task.id || `${task.title}-${i}`} className="flex items-center hover:bg-gray-50/80 transition-colors px-3 py-2.5 cursor-pointer group rounded-lg">
-                     <div className="w-48 shrink-0 truncate pr-4 text-[11px] font-bold text-gray-700 group-hover:text-indigo-600 transition-colors flex items-center gap-2">
-                       <span className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-indigo-400 transition-colors" />
-                       <span className="truncate">{task.title}</span>
-                     </div>
-                     <div className="flex-1 relative h-8 rounded-lg bg-gray-50/50 flex items-center border border-gray-100 group-hover:bg-white group-hover:border-gray-200 transition-all overflow-hidden">
-                       {/* Background grid lines for quarters */}
-                       <div className="absolute inset-0 flex w-full pointer-events-none">
-                         <div className="flex-1 border-r border-dashed border-gray-200/50 h-full"></div>
-                         <div className="flex-1 border-r border-dashed border-gray-200/50 h-full"></div>
-                         <div className="flex-1 border-r border-dashed border-gray-200/50 h-full"></div>
-                         <div className="flex-1"></div>
-                       </div>
-                       
-                       {/* Gantt Bar */}
-                       <div 
-                         className={`absolute h-4 rounded-full ${gradient} shadow-sm group-hover:shadow-md group-hover:scale-y-110 group-hover:brightness-110 transition-all duration-300 ease-out z-10 cursor-ew-resize`} 
-                         style={{ left: `${(i % 4) * 15}%`, width: `${20 + (i % 3) * 15}%` }} 
-                       >
-                         {/* Shine effect inside the bar */}
-                         <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/20 rounded-t-full"></div>
-                       </div>
-                     </div>
-                  </div>
-                );
-             })}
-           </div>
+        <div className="flex-1 min-h-0 h-full overflow-hidden flex flex-col">
+          <GanttChartView
+            columns={filteredRoadmap}
+            boardTitle={boardTitle}
+            onStatusChange={handleChangeStatus}
+            onAddTask={(status, title) => handleAddTask(status, title)}
+          />
         </div>
       )}
     </div>

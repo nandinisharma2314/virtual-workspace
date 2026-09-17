@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
 import * as schema from '../database/schema.js';
-import { eq, or, and, sql, isNull } from 'drizzle-orm';
+import { eq, or, and, sql, isNull, desc, inArray } from 'drizzle-orm';
 
 @Injectable()
 export class DashboardService {
@@ -304,6 +304,69 @@ export class DashboardService {
       };
     });
 
+    // Fetch user channels according to role-based access:
+    // Admin: see all channels created by admin (or all channels)
+    // Member: see ONLY channels they are added to by admin
+    const [currentUser] = user;
+    let userChannels: any[] = [];
+    if (currentUser && currentUser.role === 'Admin') {
+      userChannels = await db
+        .select()
+        .from(schema.channels)
+        .where(or(eq(schema.channels.creatorId, userId), isNull(schema.channels.creatorId)))
+        .orderBy(desc(schema.channels.createdAt));
+    } else {
+      userChannels = await db
+        .select({
+          id: schema.channels.id,
+          name: schema.channels.name,
+          description: schema.channels.description,
+          creatorId: schema.channels.creatorId,
+          bgGradient: schema.channels.bgGradient,
+          isTemplate: schema.channels.isTemplate,
+          createdAt: schema.channels.createdAt,
+          updatedAt: schema.channels.updatedAt,
+        })
+        .from(schema.channels)
+        .innerJoin(schema.channelMembers, eq(schema.channels.id, schema.channelMembers.channelId))
+        .where(eq(schema.channelMembers.userId, userId))
+        .orderBy(desc(schema.channels.createdAt));
+    }
+
+    // Determine upNextChannel: recent activity or welcome
+    let upNextChannel: any = null;
+    if (userChannels.length > 0) {
+      const channelIds = userChannels.map(c => c.id);
+      const latestMsg = await db
+        .select({
+          id: schema.messages.id,
+          content: schema.messages.content,
+          channelId: schema.messages.channelId,
+          createdAt: schema.messages.createdAt,
+          senderName: schema.users.name,
+          senderAvatar: schema.users.avatar,
+        })
+        .from(schema.messages)
+        .leftJoin(schema.users, eq(schema.messages.senderId, schema.users.id))
+        .where(inArray(schema.messages.channelId, channelIds))
+        .orderBy(desc(schema.messages.createdAt))
+        .limit(1);
+
+      const targetChannel = latestMsg[0] 
+        ? userChannels.find(c => c.id === latestMsg[0].channelId) || userChannels[0]
+        : userChannels[0];
+
+      upNextChannel = {
+        channel: targetChannel,
+        latestMessage: latestMsg[0] ? {
+          text: latestMsg[0].content,
+          senderName: latestMsg[0].senderName || 'Team Lead',
+          senderAvatar: latestMsg[0].senderAvatar,
+          time: new Date(latestMsg[0].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        } : null,
+      };
+    }
+
     return {
       stats,
       projectProgress,
@@ -315,7 +378,9 @@ export class DashboardService {
       upcomingEventsCard,
       upcomingList,
       recentFiles,
-      activityFeed
+      activityFeed,
+      channels: userChannels,
+      upNextChannel,
     };
   }
 }

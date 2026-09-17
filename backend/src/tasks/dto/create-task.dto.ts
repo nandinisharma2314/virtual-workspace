@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsNumber } from 'class-validator';
 
 export class CreateTaskDto {
   @IsString()
@@ -16,4 +16,20 @@ export class CreateTaskDto {
   @IsString()
   @IsOptional()
   priority?: string;
+
+  @IsString()
+  @IsOptional()
+  channelId?: string;
+
+  @IsNumber()
+  @IsOptional()
+  sprintId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  assigneeId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  estimatedHours?: number;
 }

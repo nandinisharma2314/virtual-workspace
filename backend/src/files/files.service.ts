@@ -4,7 +4,7 @@ import { UpdateFileDto } from './dto/update-file.dto.js';
 import { DatabaseService } from '../database/database.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import * as schema from '../database/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, isNotNull } from 'drizzle-orm';
 
 @Injectable()
 export class FilesService {
@@ -36,8 +36,9 @@ export class FilesService {
     return newFile;
   }
 
-  findAll() {
-    return this.dbService.db.select().from(schema.files);
+  async findAll() {
+    const dbFiles = await this.dbService.db.select().from(schema.files);
+    return dbFiles;
   }
 
   findOne(id: number) {

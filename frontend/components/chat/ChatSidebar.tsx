@@ -2,8 +2,10 @@
 
 import { chatChannels, chatTeams } from "@/lib/chatData";
 import Avatar from "@/components/Avatar";
-import { Plus, SquarePen, Hash } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Plus, SquarePen, Hash, Lock, Check, X, Mail } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import CreateChannelModal from "./CreateChannelModal";
 
 type Props = {
   selectedChannelId: string;
@@ -18,12 +20,84 @@ export default function ChatSidebar({
   selectedDMId,
   onSelectDM,
 }: Props) {
+  const searchParams = useSearchParams();
   const [users, setUsers] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [channelsList, setChannelsList] = useState<any[]>([]);
+  const [channelsLoaded, setChannelsLoaded] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const fetchChannels = useCallback(async () => {
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    if (!token) return;
+
+    try {
+      const res = await fetch("http://localhost:3001/chat/channels", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setChannelsList(data);
+        }
+      }
+      setChannelsLoaded(true);
+    } catch (err) {
+      console.error(err);
+      setChannelsLoaded(true);
+    }
+  }, []);
+
+  const fetchInvitations = useCallback(async () => {
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    if (!token) return;
+
+    try {
+      const res = await fetch("http://localhost:3001/chat/invitations", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setPendingInvitations(data);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  // Listen for global open-create-channel event or URL param
+  useEffect(() => {
+    const handleOpenModal = () => setIsCreateModalOpen(true);
+    const handleRefresh = () => {
+      fetchChannels();
+      fetchInvitations();
+    };
+
+    window.addEventListener("open-create-channel", handleOpenModal);
+    window.addEventListener("refresh-chat-channels", handleRefresh);
+
+    return () => {
+      window.removeEventListener("open-create-channel", handleOpenModal);
+      window.removeEventListener("refresh-chat-channels", handleRefresh);
+    };
+  }, [fetchChannels, fetchInvitations]);
+
+  useEffect(() => {
+    if (searchParams?.get("create") === "true") {
+      setIsCreateModalOpen(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (!token) return;
+
+    fetchChannels();
+    fetchInvitations();
 
     fetch("http://localhost:3001/chat/direct-message-users", {
       headers: { "Authorization": `Bearer ${token}` }
@@ -42,36 +116,64 @@ export default function ChatSidebar({
       .then(res => res.json())
       .then(data => setCurrentUser(data))
       .catch(console.error);
-  }, []);
 
-  const handleCreateChannel = async () => {
-    const name = window.prompt("Enter channel name:");
-    if (!name) return;
-    const description = window.prompt("Enter channel description:") || "";
-    
+    // Poll invitations every 15 seconds
+    const timer = setInterval(() => {
+      fetchInvitations();
+    }, 15000);
+
+    return () => clearInterval(timer);
+  }, [fetchChannels, fetchInvitations]);
+
+  const handleChannelCreated = (newChannel: any) => {
+    setChannelsList(prev => [newChannel, ...prev.filter(c => c.id !== newChannel.id)]);
+    onSelectChannel(newChannel.id);
+    onSelectDM(null);
+  };
+
+  const handleAcceptInvite = async (channelId: string) => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (!token) return;
-
+    setActionLoading(channelId);
     try {
-      const res = await fetch("http://localhost:3001/chat/channels", {
+      const res = await fetch(`http://localhost:3001/chat/invitations/${channelId}/accept`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ name, description })
+        headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
-        const newChannel = await res.json();
-        // Just selecting it will re-render ChatFeed which fetches info
-        chatChannels.push({ id: newChannel.id, name: newChannel.name });
-        onSelectChannel(newChannel.id);
+        setPendingInvitations(prev => prev.filter(inv => inv.channelId !== channelId));
+        await fetchChannels();
+        onSelectChannel(channelId);
         onSelectDM(null);
+        window.dispatchEvent(new CustomEvent("refresh-chat-channels"));
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setActionLoading(null);
     }
   };
+
+  const handleDeclineInvite = async (channelId: string) => {
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    if (!token) return;
+    setActionLoading(channelId);
+    try {
+      const res = await fetch(`http://localhost:3001/chat/invitations/${channelId}/decline`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setPendingInvitations(prev => prev.filter(inv => inv.channelId !== channelId));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const displayedChannels = channelsLoaded ? channelsList : chatChannels;
 
   return (
     <div className="w-[215px] sm:w-[230px] lg:w-[240px] shrink-0 border-r border-gray-200/80 bg-white flex flex-col h-full overflow-hidden select-none">
@@ -80,33 +182,92 @@ export default function ChatSidebar({
         <h2 className="text-[17px] font-black tracking-tight text-gray-900">
           Chat
         </h2>
-        {currentUser?.role === 'Admin' && (
-          <button className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-50 transition-colors" title="New Message">
-            <SquarePen size={16} strokeWidth={2.2} />
+        <div className="flex items-center gap-1.5">
+          <button 
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-1 text-[11.5px] font-bold text-blue-600 bg-blue-50/80 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors border border-blue-200/60 shadow-2xs"
+            title="Create New Channel"
+          >
+            <Plus size={13} strokeWidth={2.5} />
+            <span>Channel</span>
           </button>
-        )}
+          {currentUser?.role === 'Admin' && (
+            <button className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-50 transition-colors" title="New Message">
+              <SquarePen size={16} strokeWidth={2.2} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* High-density Zero-Scroll Navigation Content */}
       <div className="flex-1 min-h-0 px-2.5 py-2 flex flex-col justify-between overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {/* Channels Section */}
         <div className="shrink-0">
+          {/* Pending Invitations Banner if any */}
+          {pendingInvitations.length > 0 && (
+            <div className="mb-2 bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-50 rounded-xl p-2.5 border border-indigo-200/70 shadow-xs">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-indigo-700 flex items-center gap-1">
+                  <Mail size={12} className="text-indigo-600" />
+                  Invitations ({pendingInvitations.length})
+                </span>
+              </div>
+              <div className="space-y-2 max-h-32 overflow-y-auto [scrollbar-width:none]">
+                {pendingInvitations.map((inv) => (
+                  <div key={inv.channelId} className="bg-white/90 backdrop-blur-xs rounded-lg p-2 border border-indigo-100 shadow-2xs">
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <span className="text-[12px] font-extrabold text-gray-900 truncate">
+                        {inv.channelName}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-medium shrink-0">
+                        {inv.inviterName.split(' ')[0]}
+                      </span>
+                    </div>
+                    <p className="text-[10.5px] text-gray-500 mb-2 leading-tight truncate">
+                      Invited to join private channel
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleAcceptInvite(inv.channelId)}
+                        disabled={actionLoading === inv.channelId}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md py-1 text-[11px] font-extrabold flex items-center justify-center gap-1 transition-colors shadow-2xs disabled:opacity-50"
+                        title="Accept Invitation"
+                      >
+                        <Check size={12} strokeWidth={3} />
+                        <span>Accept</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeclineInvite(inv.channelId)}
+                        disabled={actionLoading === inv.channelId}
+                        className="px-2 bg-gray-100 hover:bg-rose-50 hover:text-rose-600 text-gray-600 rounded-md py-1 text-[11px] font-bold flex items-center justify-center transition-colors disabled:opacity-50"
+                        title="Decline Invitation"
+                      >
+                        <X size={12} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between px-2 mb-1">
             <span className="text-[12px] font-black uppercase tracking-wider text-gray-400">
               Channels
             </span>
-            {currentUser?.role === 'Admin' && (
-              <button 
-                onClick={handleCreateChannel}
-                className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors"
-              >
-                <Plus size={15} strokeWidth={2.2} />
-              </button>
-            )}
+            {/* Anyone can create a channel per requirements */}
+            <button 
+              onClick={() => setIsCreateModalOpen(true)}
+              className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-1 rounded-md transition-colors"
+              title="Create Channel"
+            >
+              <Plus size={15} strokeWidth={2.4} />
+            </button>
           </div>
-          <div className="space-y-[1px]">
-            {chatChannels.map((c) => {
+          <div className="space-y-[1px] max-h-52 overflow-y-auto [scrollbar-width:none]">
+            {displayedChannels.map((c) => {
               const isActive = selectedChannelId === c.id && !selectedDMId;
+              const isPrivate = c.id !== "c-general";
               return (
                 <button
                   key={c.id}
@@ -121,11 +282,19 @@ export default function ChatSidebar({
                   }`}
                 >
                   <span className="flex items-center gap-2 truncate">
-                    <Hash
-                      size={15}
-                      strokeWidth={isActive ? 2.5 : 2}
-                      className={isActive ? "text-[#2563EB] shrink-0" : "text-gray-400 shrink-0"}
-                    />
+                    {isPrivate ? (
+                      <Lock
+                        size={13}
+                        strokeWidth={isActive ? 2.5 : 2}
+                        className={isActive ? "text-[#2563EB] shrink-0" : "text-gray-400 shrink-0"}
+                      />
+                    ) : (
+                      <Hash
+                        size={15}
+                        strokeWidth={isActive ? 2.5 : 2}
+                        className={isActive ? "text-[#2563EB] shrink-0" : "text-gray-400 shrink-0"}
+                      />
+                    )}
                     <span className="truncate">{c.name}</span>
                   </span>
                   {c.unreadCount ? (
@@ -136,11 +305,6 @@ export default function ChatSidebar({
                 </button>
               );
             })}
-          </div>
-          <div className="px-2.5 pt-0.5">
-            <button className="text-[12px] font-bold text-[#2563EB] hover:underline transition-all">
-              Show more
-            </button>
           </div>
         </div>
 
@@ -222,6 +386,12 @@ export default function ChatSidebar({
           </div>
         </div>
       </div>
+
+      <CreateChannelModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onChannelCreated={handleChannelCreated}
+      />
     </div>
   );
 }

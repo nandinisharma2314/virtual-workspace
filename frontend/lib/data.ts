@@ -190,6 +190,7 @@ export const roadmap: RoadmapColumn[] = [
 
 export const sidebarPrimary: { label: string; icon: string; badge?: string }[] = [
   { label: "Home", icon: "home" },
+  { label: "Workspaces", icon: "layers" },
   { label: "Inbox", icon: "inbox" },
   { label: "Chat", icon: "chat" },
   { label: "Teams", icon: "users" },
@@ -208,5 +209,4 @@ export const favorites = [
   { label: "#product-design", color: "bg-blue-400" },
   { label: "#dev-team", color: "bg-emerald-400" },
   { label: "Customer Support", color: "bg-amber-400" },
-  { label: "Website Redesign", color: "bg-violet-400" },
 ];

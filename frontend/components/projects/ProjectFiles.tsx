@@ -1,9 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Avatar from "@/components/Avatar";
 import { Search, Filter, Upload, Folder, FileImage, FileText, File as FileIcon, Archive, MoreHorizontal } from "lucide-react";
 
-const filesData = [
+const initialFilesData = [
   { id: 1, name: "Wireframes", type: "folder", uploader: { name: "Priya S.", person: "priya" }, size: "-", updated: "May 25, 2025" },
   { id: 2, name: "Designs", type: "folder", uploader: { name: "Neha S.", person: "neha" }, size: "-", updated: "May 28, 2025" },
   { id: 3, name: "Documentation", type: "folder", uploader: { name: "Priya S.", person: "priya" }, size: "-", updated: "May 26, 2025" },
@@ -16,14 +17,67 @@ const filesData = [
 ];
 
 export default function ProjectFiles() {
+  const [filesData, setFilesData] = useState<any[]>(initialFilesData);
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+        if (!token) return;
+        const res = await fetch("http://localhost:3001/files", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const mappedFiles = data.map((f: any) => {
+            const ext = f.type?.toLowerCase() || f.name.split('.').pop()?.toLowerCase();
+            let sizeStr = "1.2 MB";
+            
+            if (f.size) {
+              if (typeof f.size === 'string') {
+                sizeStr = f.size.includes('MB') || f.size.includes('KB') ? f.size : parseFloat(f.size) + " MB";
+              } else if (typeof f.size === 'number') {
+                sizeStr = (f.size / 1024 / 1024).toFixed(1) + " MB";
+              }
+            }
+
+            return {
+              id: f.id,
+              name: f.name,
+              type: ext || 'document',
+              uploader: { name: "You", person: "you" }, // Ideally fetched from uploader details
+              size: sizeStr,
+              updated: new Date(f.createdAt).toLocaleDateString(),
+              url: f.url || '#'
+            };
+          });
+          mappedFiles.sort((a: any, b: any) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+          setFilesData(mappedFiles);
+        }
+      } catch (err) {
+        console.error("Failed to fetch project files:", err);
+      }
+    };
+    fetchFiles();
+  }, []);
+
   const getIcon = (type: string) => {
     switch(type) {
       case 'folder': return <Folder className="text-amber-400 fill-amber-400" size={18} />;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'webp':
       case 'image': return <FileImage className="text-blue-500" size={18} />;
       case 'pdf': return <FileText className="text-rose-500" size={18} />;
-      case 'docx': return <FileText className="text-blue-600" size={18} />;
-      case 'zip': return <Archive className="text-gray-500" size={18} />;
-      case 'figma': return <div className="w-4.5 h-4.5 rounded-full bg-gradient-to-r from-purple-500 to-rose-500 shrink-0" />;
+      case 'docx':
+      case 'doc':
+      case 'txt': return <FileText className="text-blue-600" size={18} />;
+      case 'zip':
+      case 'rar': return <Archive className="text-gray-500" size={18} />;
+      case 'figma':
+      case 'fig': return <div className="w-4.5 h-4.5 rounded-full bg-gradient-to-r from-purple-500 to-rose-500 shrink-0" />;
       default: return <FileIcon className="text-gray-400" size={18} />;
     }
   };
@@ -66,8 +120,28 @@ export default function ProjectFiles() {
             </tr>
           </thead>
           <tbody>
-            {filesData.map((item) => (
-              <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors group cursor-pointer">
+            {filesData.length > 0 ? filesData.map((item) => (
+              <tr 
+                key={item.id} 
+                className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors group cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (item.url && item.url !== '#') {
+                    if (item.url.startsWith('data:')) {
+                      fetch(item.url)
+                        .then(res => res.blob())
+                        .then(blob => {
+                          const url = URL.createObjectURL(blob);
+                          window.open(url, '_blank');
+                        });
+                    } else {
+                      window.open(item.url, '_blank');
+                    }
+                  } else {
+                    alert("This is a demo file and does not have an associated document.");
+                  }
+                }}
+              >
                 <td className="py-3 px-5">
                   <div className="flex items-center gap-3">
                     {getIcon(item.type)}
@@ -92,7 +166,13 @@ export default function ProjectFiles() {
                   </button>
                 </td>
               </tr>
-            ))}
+            )) : (
+              <tr>
+                <td colSpan={5} className="py-8 text-center text-gray-400 text-[13px]">
+                  No files uploaded yet.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

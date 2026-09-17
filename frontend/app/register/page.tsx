@@ -1,15 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Mail, Lock, Eye, EyeOff, User, Users, CheckSquare, BarChart2, Check, Home, FileText, Folder, Calendar, Settings, UserPlus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Mail, Lock, Eye, EyeOff, User, Users, CheckSquare, BarChart2, Check, Home, FileText, Folder, Calendar, Settings, UserPlus, Briefcase, ChevronDown } from "lucide-react";
+
+const DEPARTMENTS = [
+  "Engineering",
+  "Design",
+  "Product",
+  "Marketing",
+  "Sales",
+  "Operations",
+  "Finance",
+  "Human Resources",
+];
 
 export default function RegisterPage() {
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [department, setDepartment] = useState("Engineering");
+  
+  useEffect(() => {
+    const emailParam = searchParams.get("email");
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+  }, [searchParams]);
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [terms, setTerms] = useState(false);
@@ -36,13 +58,14 @@ export default function RegisterPage() {
       fetch("http://localhost:3001/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: fullName, email, password }),
+        body: JSON.stringify({ name: fullName, email, password, department }),
       })
         .then(async (res) => {
           if (res.ok) {
             const data = await res.json();
             document.cookie = `token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
-            window.location.href = "/";
+            const redirectUrl = searchParams.get("invite") ? `/chat?${searchParams.toString()}` : "/";
+            window.location.href = redirectUrl;
           } else {
             const errorData = await res.json();
             setErrors((prev) => ({ ...prev, api: errorData.message || "Registration failed" }));
@@ -207,6 +230,16 @@ export default function RegisterPage() {
               <p className="text-[13px] text-gray-500 text-center">Fill in the details to get started with WorkFlow</p>
             </div>
 
+            {searchParams.get("invite") && (
+              <div className="bg-indigo-50/80 border border-indigo-100 text-[#5D5FEF] text-[13px] p-3.5 rounded-xl mb-4 flex items-start gap-2.5">
+                <span className="flex-shrink-0 text-base">🎉</span>
+                <div>
+                  <span className="font-bold block text-gray-900 text-[13px]">You're invited to collaborate!</span>
+                  <span className="text-gray-600 text-[12px]">Create your personal account to join the workspace channel securely.</span>
+                </div>
+              </div>
+            )}
+
             <form className="space-y-4" onSubmit={handleSubmit} noValidate>
               
               {errors.api && (
@@ -250,6 +283,29 @@ export default function RegisterPage() {
                       if (errors.email) setErrors({ ...errors, email: "" });
                     }}
                   />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-gray-900 ml-1">Department</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Briefcase className="h-[18px] w-[18px] text-gray-400" strokeWidth={1.5} />
+                  </div>
+                  <select
+                    className="block w-full pl-10 pr-10 py-3 border border-gray-200 focus:border-[#6543FF] rounded-xl text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#6543FF] transition-all text-[13.5px] bg-white appearance-none cursor-pointer"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                  >
+                    {DEPARTMENTS.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-400">
+                    <ChevronDown className="h-4 w-4" strokeWidth={1.5} />
+                  </div>
                 </div>
               </div>
 
@@ -354,7 +410,7 @@ export default function RegisterPage() {
             <div className="mt-6 text-center">
               <span className="text-[13px] text-gray-500 font-medium">
                 Already have an account?{" "}
-                <Link href="/login" className="font-bold text-[#6543FF] hover:text-[#5839db] transition-colors">
+                <Link href={`/login${searchParams.toString() ? `?${searchParams.toString()}` : ''}`} className="font-bold text-[#6543FF] hover:text-[#5839db] transition-colors">
                   Sign in
                 </Link>
               </span>

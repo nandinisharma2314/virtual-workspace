@@ -8,23 +8,25 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Get('messages/:channelId')
-  getMessages(@Param('channelId') channelId: string) {
-    return this.chatService.getMessagesByChannel(channelId);
+  getMessages(@Param('channelId') channelId: string, @Req() req: any) {
+    const userId = req.user?.sub;
+    return this.chatService.getMessagesByChannel(channelId, userId);
   }
 
   @Get('info/:channelId')
-  getInfo(@Param('channelId') channelId: string) {
-    return this.chatService.getChannelInfo(channelId);
+  getInfo(@Param('channelId') channelId: string, @Req() req: any) {
+    const userId = req.user?.sub;
+    return this.chatService.getChannelInfo(channelId, userId);
   }
 
   @Patch('info/:channelId')
   updateInfo(
     @Param('channelId') channelId: string,
-    @Body() body: { name: string; description: string },
+    @Body() body: { name: string; description: string; bgGradient?: string },
     @Req() req: any
   ) {
     const userId = req.user?.sub;
-    return this.chatService.updateChannelInfo(channelId, body.name, body.description, userId);
+    return this.chatService.updateChannelInfo(channelId, body.name, body.description, userId, body.bgGradient);
   }
 
   @Post('members/:channelId')
@@ -43,10 +45,19 @@ export class ChatController {
     return this.chatService.getDirectMessageUsers();
   }
 
-  @Post('channels')
-  createChannel(@Body() body: { name: string; description: string }, @Req() req: any) {
+  @Get('channels')
+  getChannels(@Req() req: any) {
     const userId = req.user?.sub;
-    return this.chatService.createChannel(body.name, body.description, userId);
+    return this.chatService.getChannelsForUser(userId);
+  }
+
+  @Post('channels')
+  createChannel(
+    @Body() body: { name: string; description: string; bgGradient?: string; memberEmails?: string[] }, 
+    @Req() req: any
+  ) {
+    const userId = req.user?.sub;
+    return this.chatService.createChannel(body.name, body.description, userId, body.bgGradient, body.memberEmails);
   }
 
   @Patch('messages/:id')
@@ -59,6 +70,44 @@ export class ChatController {
   deleteMessage(@Param('id') id: string, @Req() req: any) {
     const userId = req.user?.sub;
     return this.chatService.deleteMessage(parseInt(id), userId);
+  }
+
+  @Get('invitations')
+  getInvitations(@Req() req: any) {
+    const userId = req.user?.sub;
+    return this.chatService.getPendingInvitations(userId);
+  }
+
+  @Post('invitations/:channelId/accept')
+  acceptInvitation(@Param('channelId') channelId: string, @Req() req: any) {
+    const userId = req.user?.sub;
+    return this.chatService.acceptInvitation(channelId, userId);
+  }
+
+  @Post('invitations/:channelId/decline')
+  declineInvitation(@Param('channelId') channelId: string, @Req() req: any) {
+    const userId = req.user?.sub;
+    return this.chatService.declineInvitation(channelId, userId);
+  }
+
+  @Delete('channels/:channelId/members/:userId')
+  removeMember(
+    @Param('channelId') channelId: string,
+    @Param('userId') targetUserId: string,
+    @Req() req: any
+  ) {
+    const requesterId = req.user?.sub;
+    return this.chatService.removeMember(channelId, parseInt(targetUserId), requesterId);
+  }
+
+  @Delete('channels/:channelId/invitations/:userId')
+  revokeInvitation(
+    @Param('channelId') channelId: string,
+    @Param('userId') targetUserId: string,
+    @Req() req: any
+  ) {
+    const requesterId = req.user?.sub;
+    return this.chatService.revokeInvitation(channelId, parseInt(targetUserId), requesterId);
   }
 
   @Post('messages/:id/reactions')

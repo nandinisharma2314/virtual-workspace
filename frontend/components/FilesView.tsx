@@ -98,107 +98,79 @@ export default function FilesView() {
   const [filterModified, setFilterModified] = useState("");
   const [sortBy, setSortBy] = useState("recent");
 
-  const files = [
-    {
-      id: 1,
-      name: "Dashboard_UI_v2.fig",
-      type: "Figma",
-      category: "Figma",
-      size: "4.2 MB",
-      sizeValue: 4.2,
-      date: "Modified 2h ago",
-      timestamp: 1,
-      thumbnail: "bg-[#F4E8FF]",
-      icon: null,
-      Preview: () => (
-        <div className="flex flex-col items-center gap-2">
-           <div className="w-28 h-20 bg-white rounded-md shadow-sm border border-gray-100 flex p-1.5 gap-1.5">
-             <div className="w-1/3 bg-purple-200 rounded-sm"></div>
-             <div className="w-2/3 flex flex-col gap-1.5">
-               <div className="h-1/2 bg-blue-200 rounded-sm"></div>
-               <div className="h-1/2 bg-blue-200 rounded-sm"></div>
-             </div>
-           </div>
-        </div>
-      )
-    },
-    {
-      id: 2,
-      name: "Q2 Roadmap.pdf",
-      type: "PDF • 12 pages",
-      category: "PDF",
-      size: "2.4 MB",
-      sizeValue: 2.4,
-      date: "Modified Yesterday",
-      timestamp: 2,
-      thumbnail: "bg-[#FDE2E4]",
-      icon: (
-        <div className="flex flex-col items-center text-[#4B5563]">
-          <FileText size={48} strokeWidth={1} />
-          <span className="font-bold text-[10px] tracking-widest mt-1">PDF</span>
-        </div>
-      ),
-      Preview: null
-    },
-    {
-      id: 3,
-      name: "Design Guidelines.doc",
-      type: "Document",
-      category: "Document",
-      size: "1.8 MB",
-      sizeValue: 1.8,
-      date: "Modified Aug 28",
-      timestamp: 3,
-      thumbnail: "bg-[#E0E7FF]",
-      icon: (
-        <div className="flex flex-col items-center text-[#4B5563]">
-          <FileText size={48} strokeWidth={1} />
-          <span className="font-bold text-[10px] tracking-widest mt-1">DOC</span>
-        </div>
-      ),
-      Preview: null
-    },
-    {
-      id: 4,
-      name: "API_Documentation.pdf",
-      type: "PDF • 35 pages",
-      category: "PDF",
-      size: "3.2 MB",
-      sizeValue: 3.2,
-      date: "Modified Aug 25",
-      timestamp: 4,
-      thumbnail: "bg-[#F3F4F6]",
-      icon: (
-        <div className="flex flex-col items-center text-[#4B5563]">
-          <FileText size={48} strokeWidth={1} />
-          <span className="font-bold text-[10px] tracking-widest mt-1">PDF</span>
-        </div>
-      ),
-      Preview: null
-    },
-    {
-      id: 5,
-      name: "Brand_Assets.zip",
-      type: "Archive",
-      category: "Archive",
-      size: "12.6 MB",
-      sizeValue: 12.6,
-      date: "Modified Aug 20",
-      timestamp: 5,
-      thumbnail: "bg-[#D1FAE5]",
-      icon: (
-        <div className="flex flex-col items-center text-[#4B5563]">
-          <FileText size={48} strokeWidth={1} />
-          <span className="font-bold text-[10px] tracking-widest mt-1">ZIP</span>
-        </div>
-      ),
-      Preview: null
-    }
-  ];
+  const [files, setFiles] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+        if (!token) return;
+        const res = await fetch("http://localhost:3001/files", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const mappedFiles = data.map((f: any) => {
+            const ext = f.type?.toLowerCase() || f.name.split('.').pop()?.toLowerCase();
+            let sizeStr = "1.2 MB";
+            let sizeValue = 1.2;
+            let category = "Document";
+            let thumbnail = "bg-[#E0E7FF]";
+            
+            if (f.size) {
+              if (typeof f.size === 'string') {
+                sizeStr = f.size.includes('MB') || f.size.includes('KB') ? f.size : parseFloat(f.size) + " MB";
+                sizeValue = parseFloat(f.size) || 1.2;
+              } else if (typeof f.size === 'number') {
+                sizeStr = (f.size / 1024 / 1024).toFixed(1) + " MB";
+                sizeValue = f.size / 1024 / 1024;
+              }
+            }
+            
+            if (ext === 'pdf') { category = "PDF"; thumbnail = "bg-[#FDE2E4]"; }
+            else if (['zip', 'rar'].includes(ext)) { category = "Archive"; thumbnail = "bg-[#D1FAE5]"; }
+            else if (ext === 'fig') { category = "Figma"; thumbnail = "bg-[#F4E8FF]"; }
+            else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) { category = "Image"; thumbnail = "bg-[#FEF3C7]"; }
+            else if (['mp3', 'wav', 'm4a'].includes(ext)) { category = "Audio"; thumbnail = "bg-[#FCE7F3]"; }
+            else if (['doc', 'docx', 'txt'].includes(ext)) { category = "Document"; thumbnail = "bg-[#E0E7FF]"; }
+            else { category = ext ? ext.toUpperCase() : "Document"; thumbnail = "bg-[#F3F4F6]"; }
+            
+            return {
+              id: f.id,
+              name: f.name,
+              type: category,
+              category: category,
+              size: sizeStr,
+              sizeValue: sizeValue,
+              date: new Date(f.createdAt).toLocaleDateString(),
+              timestamp: new Date(f.createdAt).getTime(),
+              thumbnail: thumbnail,
+              url: f.url || '#',
+              icon: (
+                <div className="flex flex-col items-center text-[#4B5563]">
+                  <FileText size={48} strokeWidth={1} />
+                  <span className="font-bold text-[10px] tracking-widest mt-1 uppercase">{ext?.substring(0, 3)}</span>
+                </div>
+              ),
+              Preview: null
+            };
+          });
+          // Sort by timestamp descending initially
+          mappedFiles.sort((a: any, b: any) => b.timestamp - a.timestamp);
+          setFiles(mappedFiles);
+        }
+      } catch (err) {
+        console.error("Failed to fetch files", err);
+      }
+    };
+    fetchFiles();
+  }, []);
 
   const typeOptions = [
     { label: "Figma", value: "Figma" },
     { label: "PDF", value: "PDF" },
+    { label: "Image", value: "Image" },
+    { label: "Audio", value: "Audio" },
     { label: "Document", value: "Document" },
     { label: "Archive", value: "Archive" }
   ];
@@ -335,6 +307,24 @@ export default function FilesView() {
                 exit={{ opacity: 0, scale: 0.9, y: -10 }}
                 transition={{ duration: 0.25, type: "spring", bounce: 0.3 }}
                 key={file.id} 
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (file.url && file.url !== '#') {
+                    if (file.url.startsWith('data:')) {
+                      // Convert base64 to blob and open
+                      fetch(file.url)
+                        .then(res => res.blob())
+                        .then(blob => {
+                          const url = URL.createObjectURL(blob);
+                          window.open(url, '_blank');
+                        });
+                    } else {
+                      window.open(file.url, '_blank');
+                    }
+                  } else {
+                    alert("This is a demo file and does not have an associated document.");
+                  }
+                }}
                 className={`bg-white rounded-[18px] border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-md transition-shadow group cursor-pointer ${viewMode === "list" ? "flex items-center h-20" : ""}`}
               >
                 {/* Top half / Left side: Colored background with preview */}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Plus, HelpCircle, Bell, ChevronDown, Folder, Users, FileText, CheckCircle2, Command, User, Settings, LogOut } from "lucide-react";
+import Link from "next/link";
+import { Search, Plus, HelpCircle, Bell, ChevronDown, Folder, Users, FileText, CheckCircle2, Command, User, Settings, LogOut, Hash } from "lucide-react";
 import Avatar from "./Avatar";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
@@ -20,6 +21,7 @@ const searchResults = [
   ]},
   { type: "Quick Actions", items: [
     { name: "Create New Task", icon: CheckCircle2, action: () => alert("Quick Task Created!") },
+    { name: "Create New Channel", icon: Hash, isChannel: true, path: "/chat?create=true" },
     { name: "Add Team Member", icon: Plus, path: "/teams" },
   ]}
 ];
@@ -27,6 +29,7 @@ const searchResults = [
 const createMenuItems = [
   { name: "New Task", icon: CheckCircle2, path: "/boards" },
   { name: "New Project", icon: Folder, path: "/projects" },
+  { name: "New Channel", icon: Hash, isChannel: true, path: "/chat?create=true" },
   { name: "New Document", icon: FileText, path: "/documents" },
   { name: "Invite Member", icon: Users, path: "/teams" },
 ];
@@ -267,7 +270,10 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
                   <button
                     key={item.name}
                     onClick={() => {
-                      if (item.path) {
+                      if ((item as any).isChannel) {
+                        window.dispatchEvent(new CustomEvent('open-create-channel'));
+                        router.push('/chat?create=true');
+                      } else if (item.path) {
                         router.push(item.path);
                       }
                       setIsCreateOpen(false);
@@ -293,11 +299,9 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
             className={`relative rounded-lg p-1.5 transition-colors ${isNotificationsOpen ? "bg-indigo-50 text-indigo-600" : "text-gray-400 hover:bg-gray-50 hover:text-gray-600"}`}
           >
             <Bell size={16} />
-            {unreadCount > 0 && (
-              <span className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white ring-2 ring-white">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
+            <span className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white ring-2 ring-white">
+              {unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount) : '1'}
+            </span>
           </button>
           
           {isNotificationsOpen && (
@@ -319,21 +323,36 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-700">
                       <Bell size={14} />
                     </div>
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                       <p className="text-[13px] text-gray-800 leading-tight">
                         {notification.content}
                       </p>
                       <span className="text-[11px] font-semibold text-gray-400">
                         {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
+                      {notification.type === 'channel_invite' && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <Link
+                            href="/chat"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsNotificationsOpen(false);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors shadow-2xs"
+                          >
+                            <span>Respond in Chat</span>
+                            <span>→</span>
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
               <div className="p-2 border-t border-gray-100">
-                <button className="w-full rounded-lg py-2 text-[12px] font-bold text-gray-600 hover:bg-gray-50 transition-colors">
+                <Link href="/inbox" onClick={() => setIsNotificationsOpen(false)} className="block text-center w-full rounded-lg py-2 text-[12px] font-bold text-gray-600 hover:bg-gray-50 transition-colors">
                   View all notifications
-                </button>
+                </Link>
               </div>
             </div>
           )}

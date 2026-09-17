@@ -6,9 +6,11 @@ interface InviteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onInvite?: (email: string) => void;
+  inviterName?: string;
+  channelName?: string;
 }
 
-export default function InviteModal({ isOpen, onClose, onInvite }: InviteModalProps) {
+export default function InviteModal({ isOpen, onClose, onInvite, inviterName = 'A teammate', channelName = 'WorkFlow' }: InviteModalProps) {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,8 +31,8 @@ export default function InviteModal({ isOpen, onClose, onInvite }: InviteModalPr
           },
           body: JSON.stringify({
             email,
-            inviterName: 'A teammate',
-            channelName: 'WorkFlow'
+            inviterName,
+            channelName
           }),
         });
 

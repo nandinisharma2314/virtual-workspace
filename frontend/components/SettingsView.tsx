@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { User, Settings, Shield, Bell, Upload, Save, CheckCircle2 } from "lucide-react";
 import Avatar from "./Avatar";
 import { API_URL } from "@/lib/apis";
+import { toast, confirmDialog } from "@/lib/toast";
 
 export default function SettingsView({ user }: { user?: any }) {
   const searchParams = useSearchParams();
@@ -29,7 +30,7 @@ export default function SettingsView({ user }: { user?: any }) {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 1024 * 1024) {
-        alert("File size exceeds 1MB max.");
+        toast.warning("File size exceeds 1MB max.");
         return;
       }
       const reader = new FileReader();
@@ -122,23 +123,33 @@ export default function SettingsView({ user }: { user?: any }) {
   };
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm("Are you sure you want to permanently delete your account? This action cannot be undone.")) return;
-    
-    try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch(`${API_URL}/auth/me`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`
+    confirmDialog({
+      title: "Delete Account",
+      message: "Are you sure you want to permanently delete your account? This action cannot be undone.",
+      variant: "danger",
+      confirmText: "Delete Account",
+      onConfirm: async () => {
+        try {
+          const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+          const res = await fetch(`${API_URL}/auth/me`, {
+            method: "DELETE",
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
+          });
+          if (res.ok) {
+            toast.success("Account successfully deleted.");
+            document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            window.location.href = "/login";
+          } else {
+            toast.error("Failed to delete account.");
+          }
+        } catch (e) {
+          console.error(e);
+          toast.error("An error occurred while deleting your account.");
         }
-      });
-      if (res.ok) {
-        document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        window.location.href = "/login";
       }
-    } catch (e) {
-      console.error(e);
-    }
+    });
   };
 
   const tabs = [

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Avatar from "@/components/Avatar";
 import { Search, Filter, Upload, Folder, FileImage, FileText, File as FileIcon, Archive, MoreHorizontal, Loader2 } from "lucide-react";
 import { API_URL } from "@/lib/apis";
+import { toast } from "@/lib/toast";
 
 export default function ProjectFiles({ projectId }: { projectId?: number }) {
   const [filesData, setFilesData] = useState<any[]>([]);
@@ -71,7 +72,7 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       if (!token) {
-        alert("Please log in to upload files.");
+        toast.error("Please log in to upload files.");
         setIsUploading(false);
         return;
       }
@@ -112,10 +113,11 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
       });
       if (!createRes.ok) throw new Error("Failed to save file metadata");
 
+      toast.success("File uploaded successfully!");
       await fetchFiles();
     } catch (err: any) {
       console.error("Project file upload failed:", err);
-      alert(`Upload failed: ${err.message || 'Unknown error'}`);
+      toast.error(`Upload failed: ${err.message || 'Unknown error'}`);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -142,10 +144,10 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
         window.open(item.url, '_blank');
         return;
       }
-      alert("No document link is associated with this demo item.");
+      toast.info("No document link is associated with this item.");
     } catch (err) {
       console.error("Failed to open file:", err);
-      alert("Failed to open file.");
+      toast.error("Failed to open file.");
     }
   };
 

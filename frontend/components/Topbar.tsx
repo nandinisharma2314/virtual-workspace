@@ -7,6 +7,7 @@ import Avatar from "./Avatar";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 import { API_URL } from "@/lib/apis";
+import { toast } from "@/lib/toast";
 
 const profileMenuItems = [
   { name: "My Profile", icon: User, path: "/settings?tab=profile" },
@@ -21,7 +22,7 @@ const searchResults = [
     { name: "Analytics & Reports", icon: FileText, path: "/reports" },
   ]},
   { type: "Quick Actions", items: [
-    { name: "Create New Task", icon: CheckCircle2, action: () => alert("Quick Task Created!") },
+    { name: "Create New Task", icon: CheckCircle2, action: () => toast.success("Quick Task Created!") },
     { name: "Create New Channel", icon: Hash, isChannel: true, path: "/chat?create=true" },
     { name: "Add Team Member", icon: Plus, path: "/teams" },
   ]}

@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { io } from 'socket.io-client';
 import Image from 'next/image';
 import { API_URL } from '@/lib/apis';
+import { toast, confirmDialog } from '@/lib/toast';
 
 // ─── Adapt a raw DB notification into the rich InboxItem shape ───────────────
 function adaptDbNotification(dbNotif: any, index: number): InboxItem {
@@ -582,9 +583,16 @@ export default function MyTasksBoard({
   };
 
   const handleDeleteList = (colId: string) => {
-    if (confirm("Delete this list and all its cards?")) {
-      setColumns(prev => prev.filter(c => c.id !== colId));
-    }
+    confirmDialog({
+      title: "Delete List",
+      message: "Are you sure you want to delete this list and all its cards? This action cannot be undone.",
+      variant: "danger",
+      confirmText: "Delete List",
+      onConfirm: () => {
+        setColumns(prev => prev.filter(c => c.id !== colId));
+        toast.success("List deleted.");
+      }
+    });
   };
 
   const handleMoveCard = (cardId: string, fromColId: string, direction: 'prev' | 'next') => {
@@ -868,7 +876,7 @@ export default function MyTasksBoard({
             onClick={() => {
               if (typeof window !== 'undefined') {
                 navigator.clipboard.writeText(window.location.href);
-                alert("Board link copied to clipboard!");
+                toast.success("Board link copied to clipboard!");
               }
             }}
             className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-white/15 rounded text-[12.5px] font-medium text-white/90 transition-colors cursor-pointer"
@@ -1513,7 +1521,16 @@ export default function MyTasksBoard({
                 </div>
                 <button
                   onClick={() => {
-                    if (confirm('Clear all scheduled cards?')) savePlanned({});
+                    confirmDialog({
+                      title: "Clear Schedule",
+                      message: "Are you sure you want to clear all scheduled cards?",
+                      variant: "danger",
+                      confirmText: "Clear Schedule",
+                      onConfirm: () => {
+                        savePlanned({});
+                        toast.success("Schedule cleared.");
+                      }
+                    });
                   }}
                   className="text-[11px] text-white/30 hover:text-rose-400 transition-colors flex items-center gap-1"
                 >

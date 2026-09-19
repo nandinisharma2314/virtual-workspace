@@ -2,6 +2,7 @@
 
 import Avatar from "@/components/Avatar";
 import { API_URL } from "@/lib/apis";
+import { toast, confirmDialog } from "@/lib/toast";
 import {
   X,
   Pencil,
@@ -267,33 +268,39 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
     }
   };
 
-  const handleRemoveMember = async (memberId: number, memberName: string) => {
-    if (!confirm(`Are you sure you want to remove ${memberName} from this channel?`)) {
-      return;
-    }
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) return;
-    setMemberActionLoading(memberId);
-    try {
-      const res = await fetch(`${API_URL}/chat/channels/${channelId}/members/${memberId}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setActiveMemberMenu(null);
-        await fetchInfo();
-        if (onUpdate) onUpdate();
-        window.dispatchEvent(new CustomEvent("refresh-chat-channels"));
-      } else {
-        const data = await res.json();
-        alert(data.message || "Failed to remove member");
+  const handleRemoveMember = (memberId: number, memberName: string) => {
+    confirmDialog({
+      title: "Remove Member",
+      message: `Are you sure you want to remove ${memberName} from this channel?`,
+      variant: "danger",
+      confirmText: "Remove Member",
+      onConfirm: async () => {
+        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+        if (!token) return;
+        setMemberActionLoading(memberId);
+        try {
+          const res = await fetch(`${API_URL}/chat/channels/${channelId}/members/${memberId}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (res.ok) {
+            setActiveMemberMenu(null);
+            toast.success(`${memberName} removed from channel.`);
+            await fetchInfo();
+            if (onUpdate) onUpdate();
+            window.dispatchEvent(new CustomEvent("refresh-chat-channels"));
+          } else {
+            const data = await res.json();
+            toast.error(data.message || "Failed to remove member");
+          }
+        } catch (e) {
+          console.error(e);
+          toast.error("Error removing member");
+        } finally {
+          setMemberActionLoading(null);
+        }
       }
-    } catch (e) {
-      console.error(e);
-      alert("Error removing member");
-    } finally {
-      setMemberActionLoading(null);
-    }
+    });
   };
 
   const handleRevokeInvitation = async (targetUserId: number) => {
@@ -565,10 +572,16 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
                 <div className="h-px bg-gray-100 w-full my-0.5" />
                 <button 
                   onClick={() => {
-                    if (confirm("Are you sure you want to leave this channel?")) {
-                      alert("You have left the channel. (Simulation)");
-                      setShowMore(false);
-                    }
+                    confirmDialog({
+                      title: "Leave Channel",
+                      message: "Are you sure you want to leave this channel?",
+                      variant: "danger",
+                      confirmText: "Leave Channel",
+                      onConfirm: () => {
+                        toast.info("You have left the channel.");
+                        setShowMore(false);
+                      }
+                    });
                   }}
                   className="w-full px-3 py-2 text-[12px] font-semibold text-red-600 flex items-center gap-2 hover:bg-red-50 transition-colors"
                 >

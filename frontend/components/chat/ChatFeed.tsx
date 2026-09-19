@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ChatMessage } from "@/lib/chatData";
 import { API_URL } from "@/lib/apis";
+import { toast, confirmDialog } from "@/lib/toast";
 import Avatar from "@/components/Avatar";
 import { io, Socket } from "socket.io-client";
 import InviteModal from "./InviteModal";
@@ -594,7 +595,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
           setRecordingTime(prev => prev + 1);
         }, 1000);
       } catch (e) {
-        alert("Microphone access denied or not available. Please allow microphone permissions.");
+        toast.error("Microphone access denied or not available. Please allow microphone permissions.");
       }
     }
   };
@@ -631,7 +632,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
       document.body.removeChild(a);
     } catch (err) {
       console.error("Download failed", err);
-      alert("Failed to download file.");
+      toast.error("Failed to download file.");
     }
   };
 
@@ -642,17 +643,24 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
 
   const handleDelete = (m: ChatMessage) => {
     if (!currentUser) return;
-    if (window.confirm("Are you sure you want to delete this message?")) {
-      if (m.id.startsWith("m-")) {
-        setMessages(prev => prev.filter(msg => msg.id !== m.id));
-      } else {
-        socketRef.current?.emit("delete_message", {
-          messageId: parseInt(m.id),
-          userId: currentUser.sub,
-          channelId: channelId
-        });
+    confirmDialog({
+      title: "Delete Message",
+      message: "Are you sure you want to delete this message? This action cannot be undone.",
+      variant: "danger",
+      confirmText: "Delete",
+      onConfirm: () => {
+        if (m.id.startsWith("m-")) {
+          setMessages(prev => prev.filter(msg => msg.id !== m.id));
+        } else {
+          socketRef.current?.emit("delete_message", {
+            messageId: parseInt(m.id),
+            userId: currentUser.sub,
+            channelId: channelId
+          });
+        }
+        toast.success("Message deleted");
       }
-    }
+    });
   };
 
   const handleReaction = (m: ChatMessage, emoji: string) => {

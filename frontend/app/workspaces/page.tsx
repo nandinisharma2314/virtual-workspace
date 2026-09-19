@@ -33,6 +33,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
 import CreateBoardModal, { CustomBoard } from "@/components/boards/CreateBoardModal";
 import { API_URL } from "@/lib/apis";
+import { toast } from "@/lib/toast";
 
 interface ChannelItem {
   id: string;
@@ -484,7 +485,7 @@ export default function WorkspacesPage() {
                             if (currentUser?.role === "Admin") {
                               setIsInviteModalOpen(true);
                             } else {
-                              alert("Members can view their assigned channels. Contact an Admin to invite teammates.");
+                              toast.info("Members can view their assigned channels. Contact an Admin to invite teammates.");
                             }
                           }}
                           className="w-full px-2.5 py-1.5 hover:bg-gray-50 hover:text-gray-900 rounded-lg cursor-pointer transition-colors flex items-center justify-between font-medium group"

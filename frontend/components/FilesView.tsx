@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_URL } from "@/lib/apis";
+import { toast, confirmDialog } from "@/lib/toast";
 
 // Custom Dropdown Component
 function Dropdown({ 
@@ -209,7 +210,7 @@ export default function FilesView() {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       if (!token) {
-        alert("Authentication required. Please log in.");
+        toast.error("Authentication required. Please log in.");
         setIsUploading(false);
         return;
       }
@@ -260,10 +261,11 @@ export default function FilesView() {
         throw new Error(`Failed to save file metadata: ${errText}`);
       }
 
+      toast.success("File uploaded successfully to Cloudflare R2!");
       await fetchFiles();
     } catch (err: any) {
       console.error("Upload failed:", err);
-      alert(`Upload failed: ${err.message || 'Unknown error'}`);
+      toast.error(`Upload failed: ${err.message || 'Unknown error'}`);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -300,33 +302,40 @@ export default function FilesView() {
         return;
       }
 
-      alert("No direct download link is available for this file yet.");
+      toast.info("No direct download link is available for this file yet.");
     } catch (err) {
       console.error("Failed to download file:", err);
-      alert("Failed to download file.");
+      toast.error("Failed to download file.");
     }
   };
 
   // Delete file
-  const handleDeleteFile = async (e: React.MouseEvent, fileId: number) => {
+  const handleDeleteFile = (e: React.MouseEvent, fileId: number) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this file?")) return;
-
-    try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch(`${API_URL}/files/${fileId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setFiles(prev => prev.filter(f => f.id !== fileId));
-      } else {
-        alert("Failed to delete file.");
+    confirmDialog({
+      title: "Delete File",
+      message: "Are you sure you want to delete this file? This will permanently remove it from Cloudflare R2 storage.",
+      variant: "danger",
+      confirmText: "Delete File",
+      onConfirm: async () => {
+        try {
+          const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+          const res = await fetch(`${API_URL}/files/${fileId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+            setFiles(prev => prev.filter(f => f.id !== fileId));
+            toast.success("File deleted successfully.");
+          } else {
+            toast.error("Failed to delete file.");
+          }
+        } catch (err) {
+          console.error("Delete error:", err);
+          toast.error("Error deleting file.");
+        }
       }
-    } catch (err) {
-      console.error("Delete error:", err);
-      alert("Error deleting file.");
-    }
+    });
   };
 
   const typeOptions = [

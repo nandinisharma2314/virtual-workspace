@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import AuthGuard from "@/components/AuthGuard";
+import ToastContainer from "@/components/ToastContainer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,6 +19,7 @@ export default function RootLayout({
         <AuthGuard>
           {children}
         </AuthGuard>
+        <ToastContainer />
       </body>
     </html>
   );

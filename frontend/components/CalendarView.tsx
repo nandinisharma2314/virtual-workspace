@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Plus, Search, Filter, Calendar as CalendarIcon, Settings, MoreHorizontal } from "lucide-react";
 import { calendarWeekdays } from "@/lib/data";
 import { API_URL } from "@/lib/apis";
+import { toast } from "@/lib/toast";
 
 const eventTypes = [
   { id: "marketing", label: "Marketing", color: "bg-rose-500", fg: "text-rose-700", border: "border-rose-200" },
@@ -47,13 +48,14 @@ export default function CalendarView({ calendarData = [] }: { calendarData?: any
       if (res.ok) {
         setIsModalOpen(false);
         setNewEvent({ title: "", description: "", startTime: "", endTime: "", attendees: "" });
+        toast.success("Event created successfully!");
         window.location.reload();
       } else {
-        alert("Failed to create event. Ensure all fields are valid.");
+        toast.error("Failed to create event. Ensure all fields are valid.");
       }
     } catch(e) {
       console.error(e);
-      alert("Error creating event");
+      toast.error("Error creating event");
     }
   };
 

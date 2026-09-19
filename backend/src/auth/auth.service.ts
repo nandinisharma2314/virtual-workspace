@@ -1,6 +1,7 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { UsersService } from '../users/users.service.js';
 import { LoginDto } from './dto/login-dto.js';
 import { CreateUserDto } from '../users/dto/create-user.dto.js';
@@ -49,7 +50,7 @@ export class AuthService {
       return { message: 'Reset link sent' };
     }
 
-    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const token = randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 3600000); // 1 hour
     
     await this.usersService.saveResetToken(user.id, token, expires);
@@ -61,9 +62,16 @@ export class AuthService {
   }
 
   async resetPassword(token: string, newPassword: string) {
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      throw new BadRequestException('Reset token is required');
+    }
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      throw new BadRequestException('Password must be at least 6 characters');
+    }
+
     const user = await this.usersService.findByResetToken(token);
     
-    if (!user) {
+    if (!user || !user.resetPasswordToken) {
       throw new UnauthorizedException('Invalid or expired reset token');
     }
 

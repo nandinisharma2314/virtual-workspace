@@ -3,6 +3,7 @@ import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login-dto.js';
 import { CreateUserDto } from '../users/dto/create-user.dto.js';
+import { ResetPasswordDto, ForgotPasswordDto } from './dto/reset-password.dto.js';
 
 @Controller('auth')
 export class AuthController {
@@ -21,13 +22,13 @@ export class AuthController {
 
   @HttpCode(HttpStatus.OK)
   @Post('forgot-password')
-  forgotPassword(@Body() body: { email: string }) {
+  forgotPassword(@Body() body: ForgotPasswordDto) {
     return this.authService.forgotPassword(body.email);
   }
 
   @HttpCode(HttpStatus.OK)
   @Post('reset-password')
-  resetPassword(@Body() body: { token: string; password: string }) {
+  resetPassword(@Body() body: ResetPasswordDto) {
     return this.authService.resetPassword(body.token, body.password);
   }
 

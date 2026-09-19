@@ -16,12 +16,23 @@ export class MailService {
     });
   }
 
+  private escapeHtml(str: string): string {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   async sendInvitation(email: string, inviterName: string = 'A teammate', channelName: string = 'WorkFlow') {
+    const safeInviter = this.escapeHtml(inviterName);
+    const safeChannel = this.escapeHtml(channelName);
     try {
       await this.transporter.sendMail({
         from: `"WorkFlow Connect" <${process.env.SMTP_USER}>`,
         to: email,
-        subject: `You've been invited to collaborate on ${channelName}`,
+        subject: `You've been invited to collaborate on ${safeChannel}`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; background-color: #F8FAFC;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
@@ -31,7 +42,7 @@ export class MailService {
               <div style="padding: 40px;">
                 <h2 style="color: #1e293b; font-size: 20px; margin-top: 0;">You're Invited!</h2>
                 <p style="color: #475569; font-size: 16px; line-height: 1.6;">
-                  <strong>${inviterName}</strong> has invited you to collaborate securely in the <strong>${channelName}</strong> channel.
+                  <strong>${safeInviter}</strong> has invited you to collaborate securely in the <strong>${safeChannel}</strong> channel.
                 </p>
                 <p style="color: #475569; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
                   WorkFlow Connect allows external partners to seamlessly communicate, share files, and manage projects without leaving their own workspace.

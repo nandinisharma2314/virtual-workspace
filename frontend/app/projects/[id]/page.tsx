@@ -2,7 +2,8 @@ import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import ProjectView from "@/components/ProjectView";
 
-export default function ProjectDetailPage({ params }: { params: { id: string } }) {
+export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#FAFBFC]">
       <Sidebar />
@@ -11,7 +12,7 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
         <Topbar />
 
         <main className="flex-1 w-full h-full min-h-0 overflow-hidden flex flex-row bg-white">
-          <ProjectView projectId={params.id} />
+          <ProjectView projectId={id} />
         </main>
       </div>
     </div>

@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { InboxService } from './inbox.service';
-import { CreateInboxDto } from './dto/create-inbox.dto';
-import { UpdateInboxDto } from './dto/update-inbox.dto';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { InboxService } from './inbox.service.js';
+import { CreateInboxDto } from './dto/create-inbox.dto.js';
+import { UpdateInboxDto } from './dto/update-inbox.dto.js';
+import { AuthGuard } from '../auth/auth.guard.js';
 
 @Controller('inbox')
+@UseGuards(AuthGuard)
 export class InboxController {
   constructor(private readonly inboxService: InboxService) {}
 

@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { SprintsService } from './sprints.service';
-import { CreateSprintDto } from './dto/create-sprint.dto';
-import { UpdateSprintDto } from './dto/update-sprint.dto';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { SprintsService } from './sprints.service.js';
+import { CreateSprintDto } from './dto/create-sprint.dto.js';
+import { UpdateSprintDto } from './dto/update-sprint.dto.js';
+import { AuthGuard } from '../auth/auth.guard.js';
 
 @Controller('sprints')
+@UseGuards(AuthGuard)
 export class SprintsController {
   constructor(private readonly sprintsService: SprintsService) {}
 

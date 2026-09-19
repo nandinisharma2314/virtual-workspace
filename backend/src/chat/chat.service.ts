@@ -88,25 +88,6 @@ export class ChatService {
       })
       .returning();
       
-    // If there is an attachment, also save it to the files table so it shows up in Files view
-    if (attachment) {
-    // If there is an attachment without a fileId, save it to the files table so it shows up in Files view
-    if (attachment && !attachment.fileId) {
-      try {
-        await this.dbService.db.insert(schema.files).values({
-          name: attachment.name || 'Untitled File',
-          url: attachment.url || '#',
-          // size in files table is integer. attachment.size is likely a string like "4.2 MB".
-          // We will store null or 0 for now to prevent breaking, or parse it if we can.
-          size: null, 
-          type: attachment.name?.split('.').pop()?.toUpperCase() || 'Unknown',
-          uploadedById: userId,
-        });
-      } catch (err) {
-        console.error("Failed to save attachment to files table", err);
-      }
-    }
-      
     // Fetch user details for the broadcast
     const [user] = await this.dbService.db
       .select({ name: users.name, role: users.role, avatar: users.avatar })
@@ -340,6 +321,15 @@ export class ChatService {
     };
   }
 
+  private escapeHtml(str: string): string {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   private buildInvitationEmailHtml({
     recipientName,
     inviterName,
@@ -357,12 +347,17 @@ export class ChatService {
     declineUrl?: string;
     isNewUser?: boolean;
   }): string {
+    const safeRecipient = this.escapeHtml(recipientName);
+    const safeInviter = this.escapeHtml(inviterName);
+    const safeChannel = this.escapeHtml(channelName);
+    const safeDescription = channelDescription ? this.escapeHtml(channelDescription) : '';
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invitation to join #${channelName}</title>
+  <title>Invitation to join #${safeChannel}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8FAFC; padding: 40px 16px;">
@@ -395,11 +390,11 @@ export class ChatService {
           <tr>
             <td style="padding: 32px 28px;">
               <p style="font-size: 15px; line-height: 22px; color: #334155; margin: 0 0 16px 0;">
-                Hello <strong style="color: #0f172a;">${recipientName}</strong>,
+                Hello <strong style="color: #0f172a;">${safeRecipient}</strong>,
               </p>
               
               <p style="font-size: 15px; line-height: 23px; color: #475569; margin: 0 0 22px 0;">
-                <strong style="color: #4F46E5;">${inviterName}</strong> has invited you to join and collaborate in the <strong style="color: #0f172a;">#${channelName}</strong> channel on WorkFlow Dashboard.
+                <strong style="color: #4F46E5;">${safeInviter}</strong> has invited you to join and collaborate in the <strong style="color: #0f172a;">#${safeChannel}</strong> channel on WorkFlow Dashboard.
               </p>
 
               <!-- Channel Preview Card -->
@@ -415,11 +410,11 @@ export class ChatService {
                         </td>
                         <td style="padding-left: 12px;" valign="middle">
                           <div style="font-size: 15px; font-weight: 700; color: #0F172A;">
-                            ${channelName}
+                            ${safeChannel}
                           </div>
-                          ${channelDescription ? `
+                          ${safeDescription ? `
                           <div style="font-size: 12.5px; color: #64748B; margin-top: 3px; line-height: 17px;">
-                            ${channelDescription}
+                            ${safeDescription}
                           </div>` : ''}
                         </td>
                       </tr>
@@ -449,7 +444,7 @@ export class ChatService {
               <div style="height: 1px; background-color: #F1F5F9; width: 100%; margin: 24px 0 16px 0;"></div>
 
               <p style="font-size: 11.5px; line-height: 16px; color: #94A3B8; margin: 0; text-align: center;">
-                This link was sent securely to ${recipientName}. If you did not expect this invitation, you can safely ignore this email.
+                This link was sent securely to ${safeRecipient}. If you did not expect this invitation, you can safely ignore this email.
               </p>
             </td>
           </tr>

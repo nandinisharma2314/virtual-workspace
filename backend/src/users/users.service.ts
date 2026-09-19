@@ -96,10 +96,13 @@ export class UsersService {
     }
 
     async findByResetToken(token: string) {
+        if (!token || typeof token !== 'string' || !token.trim()) {
+            return undefined;
+        }
         const [user] = await this.database.db
             .select()
             .from(users)
-            .where(eq(users.resetPasswordToken, token))
+            .where(eq(users.resetPasswordToken, token.trim()))
             .limit(1);
         return user;
     }

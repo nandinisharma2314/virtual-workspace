@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { TeamsService } from './teams.service';
-import { CreateTeamDto } from './dto/create-team.dto';
-import { UpdateTeamDto } from './dto/update-team.dto';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { TeamsService } from './teams.service.js';
+import { CreateTeamDto } from './dto/create-team.dto.js';
+import { UpdateTeamDto } from './dto/update-team.dto.js';
+import { AuthGuard } from '../auth/auth.guard.js';
 
 @Controller('teams')
+@UseGuards(AuthGuard)
 export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 

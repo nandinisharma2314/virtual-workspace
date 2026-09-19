@@ -1,4 +1,3 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query, InternalServerErrorException } from '@nestjs/common';
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { FilesService } from './files.service.js';
 import { CreateFileDto } from './dto/create-file.dto.js';
@@ -16,7 +15,6 @@ export class FilesController {
     @Query('contentType') contentType: string,
   ) {
     if (!filename || !contentType) {
-      throw new Error('filename and contentType are required');
       throw new BadRequestException('filename and contentType query parameters are required');
     }
     return this.filesService.generateUploadUrl(filename, contentType);
@@ -38,8 +36,6 @@ export class FilesController {
   }
 
   @Get()
-  findAll() {
-    return this.filesService.findAll();
   findAll(@Query('projectId') projectId?: string) {
     return this.filesService.findAll(projectId ? +projectId : undefined);
   }

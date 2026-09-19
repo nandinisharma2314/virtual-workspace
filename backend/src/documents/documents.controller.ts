@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { DocumentsService } from './documents.service';
-import { CreateDocumentDto } from './dto/create-document.dto';
-import { UpdateDocumentDto } from './dto/update-document.dto';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { DocumentsService } from './documents.service.js';
+import { CreateDocumentDto } from './dto/create-document.dto.js';
+import { UpdateDocumentDto } from './dto/update-document.dto.js';
+import { AuthGuard } from '../auth/auth.guard.js';
 
 @Controller('documents')
+@UseGuards(AuthGuard)
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}
 

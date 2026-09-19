@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { CalendarService } from './calendar.service';
-import { CreateCalendarDto } from './dto/create-calendar.dto';
-import { UpdateCalendarDto } from './dto/update-calendar.dto';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { CalendarService } from './calendar.service.js';
+import { CreateCalendarDto } from './dto/create-calendar.dto.js';
+import { UpdateCalendarDto } from './dto/update-calendar.dto.js';
+import { AuthGuard } from '../auth/auth.guard.js';
 
 @Controller('calendar')
+@UseGuards(AuthGuard)
 export class CalendarController {
   constructor(private readonly calendarService: CalendarService) {}
 

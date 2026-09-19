@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { SettingsService } from './settings.service';
-import { CreateSettingDto } from './dto/create-setting.dto';
-import { UpdateSettingDto } from './dto/update-setting.dto';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { SettingsService } from './settings.service.js';
+import { CreateSettingDto } from './dto/create-setting.dto.js';
+import { UpdateSettingDto } from './dto/update-setting.dto.js';
+import { AuthGuard } from '../auth/auth.guard.js';
 
 @Controller('settings')
+@UseGuards(AuthGuard)
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 

@@ -1,7 +1,9 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { MailService } from './mail.service.js';
+import { AuthGuard } from '../auth/auth.guard.js';
 
 @Controller('api/mail')
+@UseGuards(AuthGuard)
 export class MailController {
   constructor(private readonly mailService: MailService) {}
 

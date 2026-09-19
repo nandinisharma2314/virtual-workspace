@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useState, useEffect, useRef } from "react";
 import Avatar from "@/components/Avatar";
-import { Search, Filter, Upload, Folder, FileImage, FileText, File as FileIcon, Archive, MoreHorizontal } from "lucide-react";
 import { Search, Filter, Upload, Folder, FileImage, FileText, File as FileIcon, Archive, MoreHorizontal, Loader2 } from "lucide-react";
 
 const initialFilesData = [
@@ -18,31 +16,12 @@ const initialFilesData = [
   { id: 9, name: "Logo_Assets.zip", type: "zip", uploader: { name: "Vikram J.", person: "vikram" }, size: "8.7 MB", updated: "May 22, 2025" },
 ];
 
-export default function ProjectFiles() {
 export default function ProjectFiles({ projectId }: { projectId?: number }) {
   const [filesData, setFilesData] = useState<any[]>(initialFilesData);
   const [searchQuery, setSearchQuery] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const fetchFiles = async () => {
-      try {
-        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-        if (!token) return;
-        const res = await fetch("http://localhost:3001/files", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const mappedFiles = data.map((f: any) => {
-            const ext = f.type?.toLowerCase() || f.name.split('.').pop()?.toLowerCase();
-            let sizeStr = "1.2 MB";
-            
-            if (f.size) {
-              if (typeof f.size === 'string') {
-                sizeStr = f.size.includes('MB') || f.size.includes('KB') ? f.size : parseFloat(f.size) + " MB";
-              } else if (typeof f.size === 'number') {
   const fetchFiles = async () => {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
@@ -73,17 +52,6 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
             }
           }
 
-            return {
-              id: f.id,
-              name: f.name,
-              type: ext || 'document',
-              uploader: { name: "You", person: "you" }, // Ideally fetched from uploader details
-              size: sizeStr,
-              updated: new Date(f.createdAt).toLocaleDateString(),
-              url: f.url || '#'
-            };
-          });
-          mappedFiles.sort((a: any, b: any) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
           return {
             id: f.id,
             name: f.name,
@@ -91,16 +59,14 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
             uploader: { name: "You", person: "you" },
             size: sizeStr,
             updated: new Date(f.createdAt).toLocaleDateString(),
-            url: f.url || ''
+            url: f.url || '#'
           };
         });
+        mappedFiles.sort((a: any, b: any) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
         if (mappedFiles.length > 0) {
           setFilesData(mappedFiles);
         }
-      } catch (err) {
-        console.error("Failed to fetch project files:", err);
       }
-    };
     } catch (err) {
       console.error("Failed to fetch project files:", err);
     }
@@ -108,7 +74,6 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
 
   useEffect(() => {
     fetchFiles();
-  }, []);
   }, [projectId]);
 
   const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,24 +163,7 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
   };
 
   const getIcon = (type: string) => {
-    switch(type) {
-      case 'folder': return <Folder className="text-amber-400 fill-amber-400" size={18} />;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-      case 'webp':
-      case 'image': return <FileImage className="text-blue-500" size={18} />;
-      case 'pdf': return <FileText className="text-rose-500" size={18} />;
-      case 'docx':
-      case 'doc':
-      case 'txt': return <FileText className="text-blue-600" size={18} />;
-      case 'zip':
-      case 'rar': return <Archive className="text-gray-500" size={18} />;
-      case 'figma':
-      case 'fig': return <div className="w-4.5 h-4.5 rounded-full bg-gradient-to-r from-purple-500 to-rose-500 shrink-0" />;
-      default: return <FileIcon className="text-gray-400" size={18} />;
-    const t = type.toLowerCase();
+    const t = (type || '').toLowerCase();
     if (t === 'folder') return <Folder className="text-amber-400 fill-amber-400" size={18} />;
     if (t.includes('jpg') || t.includes('jpeg') || t.includes('png') || t.includes('gif') || t.includes('webp') || t.includes('image')) {
       return <FileImage className="text-blue-500" size={18} />;
@@ -264,9 +212,6 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
             <Filter size={13} className="text-gray-500" strokeWidth={2.3} />
             Filter
           </button>
-          <button className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-[11.5px] font-bold shadow-sm transition-all">
-            <Upload size={14} strokeWidth={2.3} />
-            <span>Upload</span>
           <button 
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
@@ -301,27 +246,11 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
             </tr>
           </thead>
           <tbody>
-            {filesData.length > 0 ? filesData.map((item) => (
+            {filteredFiles.length > 0 ? filteredFiles.map((item) => (
               <tr 
                 key={item.id} 
                 className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors group cursor-pointer"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (item.url && item.url !== '#') {
-                    if (item.url.startsWith('data:')) {
-                      fetch(item.url)
-                        .then(res => res.blob())
-                        .then(blob => {
-                          const url = URL.createObjectURL(blob);
-                          window.open(url, '_blank');
-                        });
-                    } else {
-                      window.open(item.url, '_blank');
-                    }
-                  } else {
-                    alert("This is a demo file and does not have an associated document.");
-                  }
-                }}
+                onClick={() => handleRowClick(item)}
               >
                 <td className="py-3 px-5">
                   <div className="flex items-center gap-3">
@@ -331,8 +260,8 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
                 </td>
                 <td className="py-3 px-5">
                   <div className="flex items-center gap-2">
-                    <Avatar person={item.uploader.person} size={22} />
-                    <span className="text-[12.5px] font-semibold text-gray-700">{item.uploader.name}</span>
+                    <Avatar person={item.uploader?.person || "you"} size={22} />
+                    <span className="text-[12.5px] font-semibold text-gray-700">{item.uploader?.name || "You"}</span>
                   </div>
                 </td>
                 <td className="py-3 px-5">
@@ -346,69 +275,18 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
                     <MoreHorizontal size={16} />
                   </button>
                 </td>
-        <div className="bg-white rounded-2xl border border-gray-200/80 shadow-2xs overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="py-3 px-5 text-[12.5px] font-bold text-gray-500 w-1/2">Name</th>
-                <th className="py-3 px-5 text-[12.5px] font-bold text-gray-500">Uploaded by</th>
-                <th className="py-3 px-5 text-[12.5px] font-bold text-gray-500">Size</th>
-                <th className="py-3 px-5 text-[12.5px] font-bold text-gray-500">Updated</th>
-                <th className="py-3 px-5 text-[12.5px] font-bold text-gray-500 w-10"></th>
               </tr>
             )) : (
               <tr>
                 <td colSpan={5} className="py-8 text-center text-gray-400 text-[13px]">
-                  No files uploaded yet.
+                  No files found.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-            </thead>
-            <tbody>
-              {filteredFiles.length > 0 ? filteredFiles.map((item) => (
-                <tr 
-                  key={item.id} 
-                  className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors group cursor-pointer"
-                  onClick={() => handleRowClick(item)}
-                >
-                  <td className="py-3 px-5">
-                    <div className="flex items-center gap-3">
-                      {getIcon(item.type)}
-                      <span className="text-[13px] font-bold text-gray-900">{item.name}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-5">
-                    <div className="flex items-center gap-2">
-                      <Avatar person={item.uploader?.person || "you"} size={22} />
-                      <span className="text-[12.5px] font-semibold text-gray-700">{item.uploader?.name || "You"}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-5">
-                    <span className="text-[12.5px] font-semibold text-gray-500">{item.size}</span>
-                  </td>
-                  <td className="py-3 px-5">
-                    <span className="text-[12.5px] font-semibold text-gray-600">{item.updated}</span>
-                  </td>
-                  <td className="py-3 px-5 text-right">
-                    <button className="text-gray-400 hover:text-gray-700 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <MoreHorizontal size={16} />
-                    </button>
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-gray-400 text-[13px]">
-                    No files found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
       </div>
     </div>
-  );
+  </div>
+);
 }

@@ -3,21 +3,10 @@
 import { useState, useEffect, useRef } from "react";
 import Avatar from "@/components/Avatar";
 import { Search, Filter, Upload, Folder, FileImage, FileText, File as FileIcon, Archive, MoreHorizontal, Loader2 } from "lucide-react";
-
-const initialFilesData = [
-  { id: 1, name: "Wireframes", type: "folder", uploader: { name: "Priya S.", person: "priya" }, size: "-", updated: "May 25, 2025" },
-  { id: 2, name: "Designs", type: "folder", uploader: { name: "Neha S.", person: "neha" }, size: "-", updated: "May 28, 2025" },
-  { id: 3, name: "Documentation", type: "folder", uploader: { name: "Priya S.", person: "priya" }, size: "-", updated: "May 26, 2025" },
-  { id: 4, name: "Assets", type: "folder", uploader: { name: "Vikram J.", person: "vikram" }, size: "-", updated: "May 22, 2025" },
-  { id: 5, name: "Website_Wireframes.fig", type: "figma", uploader: { name: "Priya S.", person: "priya" }, size: "4.2 MB", updated: "May 25, 2025" },
-  { id: 6, name: "Style_Guide.pdf", type: "pdf", uploader: { name: "Neha S.", person: "neha" }, size: "2.8 MB", updated: "May 24, 2025" },
-  { id: 7, name: "Requirements.docx", type: "docx", uploader: { name: "Arjun P.", person: "arjun" }, size: "1.6 MB", updated: "May 20, 2025" },
-  { id: 8, name: "Homepage_Design.png", type: "image", uploader: { name: "Neha S.", person: "neha" }, size: "3.1 MB", updated: "May 28, 2025" },
-  { id: 9, name: "Logo_Assets.zip", type: "zip", uploader: { name: "Vikram J.", person: "vikram" }, size: "8.7 MB", updated: "May 22, 2025" },
-];
+import { API_URL } from "@/lib/apis";
 
 export default function ProjectFiles({ projectId }: { projectId?: number }) {
-  const [filesData, setFilesData] = useState<any[]>(initialFilesData);
+  const [filesData, setFilesData] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -27,8 +16,8 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       if (!token) return;
       const url = projectId 
-        ? `http://localhost:3001/files?projectId=${projectId}` 
-        : "http://localhost:3001/files";
+        ? `${API_URL}/files?projectId=${projectId}` 
+        : `${API_URL}/files`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -63,9 +52,7 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
           };
         });
         mappedFiles.sort((a: any, b: any) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
-        if (mappedFiles.length > 0) {
-          setFilesData(mappedFiles);
-        }
+        setFilesData(mappedFiles);
       }
     } catch (err) {
       console.error("Failed to fetch project files:", err);
@@ -91,7 +78,7 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
 
       // 1. Get Cloudflare R2 presigned URL
       const urlRes = await fetch(
-        `http://localhost:3001/files/upload-url?filename=${encodeURIComponent(selectedFile.name)}&contentType=${encodeURIComponent(selectedFile.type || 'application/octet-stream')}`,
+        `${API_URL}/files/upload-url?filename=${encodeURIComponent(selectedFile.name)}&contentType=${encodeURIComponent(selectedFile.type || 'application/octet-stream')}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!urlRes.ok) throw new Error("Failed to get R2 upload URL");
@@ -109,7 +96,7 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
       }
 
       // 3. Save metadata with projectId
-      const createRes = await fetch('http://localhost:3001/files', {
+      const createRes = await fetch(`${API_URL}/files`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -139,7 +126,7 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       if (item.id && token) {
-        const res = await fetch(`http://localhost:3001/files/${item.id}/download-url`, {
+        const res = await fetch(`${API_URL}/files/${item.id}/download-url`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {

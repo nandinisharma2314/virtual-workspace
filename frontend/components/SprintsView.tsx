@@ -3,32 +3,17 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Filter, MoreHorizontal, MessageSquare, Play, CheckCircle2, Zap, LayoutGrid, List, AlertCircle, Clock, X } from "lucide-react";
 import Avatar from "./Avatar";
+import { API_URL } from "@/lib/apis";
 
-const initialSprintList = [
-  { id: "sprint-12", name: "Sprint 12", status: "active", dates: "Sep 8 - Sep 22", completed: 8, total: 14 },
-  { id: "sprint-13", name: "Sprint 13", status: "planned", dates: "Sep 23 - Oct 6", completed: 0, total: 12 },
-  { id: "sprint-14", name: "Sprint 14", status: "planned", dates: "Oct 7 - Oct 20", completed: 0, total: 9 },
-  { id: "backlog", name: "Backlog", status: "backlog", dates: "Unscheduled", completed: 0, total: 45 },
-];
+const initialSprintList: any[] = [];
 
 type Task = { id: string; title: string; type: string; points: number; assignee: string };
 
 const initialTasks: Record<string, Task[]> = {
-  "todo": [
-    { id: "t1", title: "User authentication flow design", type: "Feature", points: 5, assignee: "avi" },
-    { id: "t2", title: "Fix mobile navigation layout", type: "Bug", points: 2, assignee: "priya" },
-    { id: "t7", title: "Write unit tests for utils", type: "Task", points: 3, assignee: "neha" }
-  ],
-  "inprogress": [
-    { id: "t3", title: "Implement new dashboard widgets", type: "Feature", points: 8, assignee: "rohit" },
-  ],
-  "review": [
-    { id: "t4", title: "Refactor user settings API", type: "Tech Debt", points: 3, assignee: "arjun" },
-  ],
-  "done": [
-    { id: "t5", title: "Setup CI/CD deployment", type: "Task", points: 5, assignee: "neha" },
-    { id: "t6", title: "Update primary color tokens", type: "Feature", points: 2, assignee: "avi" },
-  ]
+  "todo": [],
+  "inprogress": [],
+  "review": [],
+  "done": []
 };
 
 const columns = [
@@ -40,7 +25,7 @@ const columns = [
 
 export default function SprintsView() {
   const [sprints, setSprints] = useState(initialSprintList);
-  const [activeSprint, setActiveSprint] = useState("sprint-12");
+  const [activeSprint, setActiveSprint] = useState("");
   const [tasks, setTasks] = useState(initialTasks);
   const [viewMode, setViewMode] = useState("board");
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
@@ -56,9 +41,9 @@ export default function SprintsView() {
       const headers = { "Authorization": `Bearer ${token}` };
       
       Promise.all([
-        fetch("http://localhost:3001/users", { headers }).then(r => r.json()),
-        fetch("http://localhost:3001/sprints", { headers }).then(r => r.json()),
-        fetch("http://localhost:3001/tasks", { headers }).then(r => r.json())
+        fetch(`${API_URL}/users`, { headers }).then(r => r.json()),
+        fetch(`${API_URL}/sprints`, { headers }).then(r => r.json()),
+        fetch(`${API_URL}/tasks`, { headers }).then(r => r.json())
       ]).then(([usersData, sprintsData, tasksData]) => {
         setTeamMembers(usersData);
         if (usersData.length > 0) {
@@ -116,7 +101,7 @@ export default function SprintsView() {
     const assignee = teamMembers.find(m => m.name === newTaskForm.assignee);
     const sprintId = activeSprint && !isNaN(Number(activeSprint)) ? Number(activeSprint) : undefined;
     
-    fetch("http://localhost:3001/tasks", {
+    fetch(`${API_URL}/tasks`, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
@@ -161,7 +146,7 @@ export default function SprintsView() {
     setIsCompleteSprintModalOpen(false);
 
     if (sprintId) {
-      fetch(`http://localhost:3001/sprints/${sprintId}`, {
+      fetch(`${API_URL}/sprints/${sprintId}`, {
         method: "PATCH",
         headers: { 
           "Content-Type": "application/json",
@@ -193,7 +178,7 @@ export default function SprintsView() {
     });
 
     if (!taskId.startsWith('sprint') && !taskId.startsWith('t') && !isNaN(Number(taskId))) {
-      fetch(`http://localhost:3001/tasks/${taskId}`, {
+      fetch(`${API_URL}/tasks/${taskId}`, {
         method: "PATCH",
         headers: { 
           "Content-Type": "application/json",

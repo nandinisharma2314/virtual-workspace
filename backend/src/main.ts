@@ -21,7 +21,10 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
-  await app.listen(process.env.PORT ?? 3001);
+  if (!process.env.PORT) {
+    throw new Error('PORT environment variable is required');
+  }
+  await app.listen(process.env.PORT);
 }
 
 bootstrap();

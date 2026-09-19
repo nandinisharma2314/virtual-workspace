@@ -30,9 +30,13 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
         return;
       }
       
+      if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET environment variable is required');
+      }
+
       // Verify JWT
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'fallback_secret'
+        secret: process.env.JWT_SECRET
       });
       
       // Trust the user ID from the token payload (usually in 'sub' property based on auth.service.ts)

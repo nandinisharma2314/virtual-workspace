@@ -1,11 +1,11 @@
 "use client";
 
-import { chatChannels, chatTeams } from "@/lib/chatData";
 import Avatar from "@/components/Avatar";
 import { Plus, SquarePen, Hash, Lock, Check, X, Mail } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import CreateChannelModal from "./CreateChannelModal";
+import { API_URL } from "@/lib/apis";
 
 type Props = {
   selectedChannelId: string;
@@ -22,6 +22,7 @@ export default function ChatSidebar({
 }: Props) {
   const searchParams = useSearchParams();
   const [users, setUsers] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [channelsList, setChannelsList] = useState<any[]>([]);
   const [channelsLoaded, setChannelsLoaded] = useState(false);
@@ -34,7 +35,7 @@ export default function ChatSidebar({
     if (!token) return;
 
     try {
-      const res = await fetch("http://localhost:3001/chat/channels", {
+      const res = await fetch(`${API_URL}/chat/channels`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -55,7 +56,7 @@ export default function ChatSidebar({
     if (!token) return;
 
     try {
-      const res = await fetch("http://localhost:3001/chat/invitations", {
+      const res = await fetch(`${API_URL}/chat/invitations`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -99,7 +100,7 @@ export default function ChatSidebar({
     fetchChannels();
     fetchInvitations();
 
-    fetch("http://localhost:3001/chat/direct-message-users", {
+    fetch(`${API_URL}/chat/direct-message-users`, {
       headers: { "Authorization": `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -110,7 +111,18 @@ export default function ChatSidebar({
       })
       .catch(console.error);
 
-    fetch("http://localhost:3001/auth/me", {
+    fetch(`${API_URL}/teams`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (Array.isArray(data)) {
+          setTeams(data);
+        }
+      })
+      .catch(console.error);
+
+    fetch(`${API_URL}/auth/me`, {
       headers: { "Authorization": `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -136,7 +148,7 @@ export default function ChatSidebar({
     if (!token) return;
     setActionLoading(channelId);
     try {
-      const res = await fetch(`http://localhost:3001/chat/invitations/${channelId}/accept`, {
+      const res = await fetch(`${API_URL}/chat/invitations/${channelId}/accept`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -159,7 +171,7 @@ export default function ChatSidebar({
     if (!token) return;
     setActionLoading(channelId);
     try {
-      const res = await fetch(`http://localhost:3001/chat/invitations/${channelId}/decline`, {
+      const res = await fetch(`${API_URL}/chat/invitations/${channelId}/decline`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -173,7 +185,7 @@ export default function ChatSidebar({
     }
   };
 
-  const displayedChannels = channelsLoaded ? channelsList : chatChannels;
+  const displayedChannels = channelsList;
 
   return (
     <div className="w-[215px] sm:w-[230px] lg:w-[240px] shrink-0 border-r border-gray-200/80 bg-white flex flex-col h-full overflow-hidden select-none">
@@ -368,21 +380,25 @@ export default function ChatSidebar({
             )}
           </div>
           <div className="space-y-[1px] pb-0.5">
-            {chatTeams.map((team) => {
-              return (
-                <button
-                  key={team.id}
-                  className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-[12.5px] font-semibold text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all"
-                >
-                  <span className="flex items-center gap-2.5 truncate">
-                    <span className={`h-5 w-5 rounded-md ${team.badgeBg} text-white flex items-center justify-center text-[9px] font-black shrink-0 shadow-2xs`}>
-                      {team.badgeText}
+            {teams.length > 0 ? (
+              teams.map((team) => {
+                return (
+                  <button
+                    key={team.id}
+                    className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-[12.5px] font-semibold text-gray-700 hover:bg-gray-50/80 hover:text-gray-900 transition-all"
+                  >
+                    <span className="flex items-center gap-2.5 truncate">
+                      <span className={`h-5 w-5 rounded-md ${team.badgeBg || "bg-indigo-600"} text-white flex items-center justify-center text-[9px] font-black shrink-0 shadow-2xs`}>
+                        {team.badgeText || (team.name ? team.name.slice(0, 2).toUpperCase() : "TM")}
+                      </span>
+                      <span className="truncate">{team.name}</span>
                     </span>
-                    <span className="truncate">{team.name}</span>
-                  </span>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="px-2 py-1 text-[11.5px] text-gray-400">No teams found</div>
+            )}
           </div>
         </div>
       </div>

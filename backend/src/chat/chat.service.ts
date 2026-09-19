@@ -493,8 +493,13 @@ export class ChatService {
         });
       }
 
+      const fromAddress = process.env.SMTP_USER;
+      if (!fromAddress) {
+        throw new Error('SMTP_USER environment variable is required');
+      }
+
       const info = await transporter.sendMail({
-        from: `"WorkFlow" <${process.env.SMTP_USER || 'no-reply@workflowdashboard.local'}>`,
+        from: `"WorkFlow" <${fromAddress}>`,
         to,
         subject,
         text,
@@ -539,7 +544,10 @@ export class ChatService {
       .from(users)
       .where(or(eq(users.email, cleanEmail), ilike(users.email, cleanEmail)));
     
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL;
+    if (!frontendUrl) {
+      throw new Error('FRONTEND_URL environment variable is required');
+    }
     const channelDisplayName = channel.name.replace(/^#\s*/, '');
 
     if (!user) {

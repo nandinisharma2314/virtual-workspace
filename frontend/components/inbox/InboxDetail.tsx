@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { API_URL } from "@/lib/apis";
 
 type Props = {
   item: InboxItem | null;
@@ -43,7 +44,8 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(`http://localhost:3000/inbox?item=${item?.id}`);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    navigator.clipboard.writeText(`${origin}/inbox?item=${item?.id}`);
     showToast("Link copied to clipboard!");
   };
 
@@ -61,7 +63,7 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
   useEffect(() => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (token) {
-      fetch("http://localhost:3001/auth/me", {
+      fetch(`${API_URL}/auth/me`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       .then(res => res.ok ? res.json() : null)

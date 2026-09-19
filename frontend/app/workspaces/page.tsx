@@ -32,6 +32,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
 import CreateBoardModal, { CustomBoard } from "@/components/boards/CreateBoardModal";
+import { API_URL } from "@/lib/apis";
 
 interface ChannelItem {
   id: string;
@@ -218,7 +219,7 @@ export default function WorkspacesPage() {
 
     try {
       // 1. Fetch current user
-      const userRes = await fetch("http://localhost:3001/auth/me", {
+      const userRes = await fetch(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (userRes.ok) {
@@ -227,7 +228,7 @@ export default function WorkspacesPage() {
       }
 
       // 2. Fetch role-based channels
-      const channelsRes = await fetch("http://localhost:3001/chat/channels", {
+      const channelsRes = await fetch(`${API_URL}/chat/channels`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (channelsRes.ok) {
@@ -274,7 +275,7 @@ export default function WorkspacesPage() {
     setSendingReply(true);
 
     try {
-      const socket: Socket = io("http://localhost:3001", {
+      const socket: Socket = io(API_URL, {
         auth: { token },
         transports: ["websocket", "polling"],
       });
@@ -321,7 +322,7 @@ export default function WorkspacesPage() {
 
     setIsSubmittingChannel(true);
     try {
-      const res = await fetch("http://localhost:3001/chat/channels", {
+      const res = await fetch(`${API_URL}/chat/channels`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -355,7 +356,7 @@ export default function WorkspacesPage() {
     if (!token) return;
 
     try {
-      const res = await fetch(`http://localhost:3001/chat/members/${inviteChannelId}`, {
+      const res = await fetch(`${API_URL}/chat/members/${inviteChannelId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

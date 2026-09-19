@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Plus, Search, Filter, Calendar as CalendarIcon, Settings, MoreHorizontal } from "lucide-react";
 import { calendarWeekdays } from "@/lib/data";
+import { API_URL } from "@/lib/apis";
 
 const eventTypes = [
   { id: "marketing", label: "Marketing", color: "bg-rose-500", fg: "text-rose-700", border: "border-rose-200" },
@@ -21,7 +22,7 @@ export default function CalendarView({ calendarData = [] }: { calendarData?: any
   useEffect(() => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (token) {
-      fetch("http://localhost:3001/auth/me", {
+      fetch(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => res.json())
@@ -35,7 +36,7 @@ export default function CalendarView({ calendarData = [] }: { calendarData?: any
   const handleCreateEvent = async () => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     try {
-      const res = await fetch("http://localhost:3001/meetings", {
+      const res = await fetch(`${API_URL}/meetings`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

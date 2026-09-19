@@ -5,17 +5,9 @@ import Link from "next/link";
 import { Search, Plus, Filter, MoreVertical, Mail, Phone, Calendar, User, Edit2, Trash2, X } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { avatarColors } from "@/lib/data";
+import { API_URL } from "@/lib/apis";
 
-const initialMembers = [
-  { id: "avi", name: "Avi Singh", role: "Frontend Developer", department: "Engineering", status: "Active" },
-  { id: "rohit", name: "Rohit Verma", role: "Backend Developer", department: "Engineering", status: "Active" },
-  { id: "priya", name: "Priya Singh", role: "UI/UX Designer", department: "Design", status: "Active" },
-  { id: "neha", name: "Neha Sharma", role: "Product Manager", department: "Product", status: "Away" },
-  { id: "arjun", name: "Arjun Patel", role: "QA Engineer", department: "Engineering", status: "Active" },
-  { id: "rahul", name: "Rahul Sharma", role: "Marketing Lead", department: "Marketing", status: "Offline" },
-  { id: "vikram", name: "Vikram Joshi", role: "DevOps Engineer", department: "Engineering", status: "Active" },
-  { id: "ankit", name: "Ankit Patel", role: "Sales Executive", department: "Sales", status: "Active" },
-];
+const initialMembers: any[] = [];
 
 const departments = ["All Company", "Engineering", "Design", "Product", "Marketing", "Sales"];
 
@@ -137,7 +129,7 @@ export default function TeamsView() {
   useEffect(() => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (token) {
-      fetch("http://localhost:3001/auth/me", {
+      fetch(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => res.json())
@@ -149,7 +141,7 @@ export default function TeamsView() {
   }, []);
 
   useEffect(() => {
-    fetch("http://localhost:3001/users")
+    fetch(`${API_URL}/users`)
       .then(res => res.json())
       .then(data => {
         const realMembers = data.map((u: any) => ({
@@ -197,7 +189,7 @@ export default function TeamsView() {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     
     try {
-      const res = await fetch(`http://localhost:3001/users/${editForm.id}`, {
+      const res = await fetch(`${API_URL}/users/${editForm.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -244,7 +236,7 @@ export default function TeamsView() {
     
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     try {
-      const res = await fetch(`http://localhost:3001/users/${id}`, {
+      const res = await fetch(`${API_URL}/users/${id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`

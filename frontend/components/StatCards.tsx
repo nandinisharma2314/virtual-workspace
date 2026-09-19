@@ -1,7 +1,7 @@
 import { ArrowUp, ArrowDown } from "lucide-react";
-import { stats as mockStats } from "@/lib/data";
 
-export default function StatCards({ stats = mockStats }: { stats?: any[] }) {
+export default function StatCards({ stats = [] }: { stats?: any[] }) {
+  if (!stats || stats.length === 0) return null;
   return (
     <div className="grid grid-cols-2 gap-3.5 xl:grid-cols-4 shrink-0 w-full">
       {stats.map((s) => (

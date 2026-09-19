@@ -13,11 +13,12 @@ import {
   FileText, GitMerge, AtSign, CheckCircle2 as CheckCircleIcon, CheckSquare
 } from 'lucide-react';
 import { ChannelTemplate, channelTemplates } from '@/lib/templateData';
-import { initialInboxItems, InboxItem } from '@/lib/inboxData';
+import { InboxItem } from '@/lib/inboxData';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
 import Image from 'next/image';
+import { API_URL } from '@/lib/apis';
 
 // ─── Adapt a raw DB notification into the rich InboxItem shape ───────────────
 function adaptDbNotification(dbNotif: any, index: number): InboxItem {
@@ -53,7 +54,7 @@ function adaptDbNotification(dbNotif: any, index: number): InboxItem {
   ];
   return {
     id: dbNotif.id.toString(), title, subtitle: `Type: ${dbNotif.type}`,
-    preview: dbNotif.content.substring(0, 60) + '...', time: timeString,
+    preview: (dbNotif.content || '').substring(0, 60) + '...', time: timeString,
     dateGroup: 'Today', unread: !dbNotif.isRead, tag, tagStyle, iconType,
     avatarPerson: 'avi', senderName: 'System',
     channel: { name: '# general', project: 'System' },
@@ -122,7 +123,7 @@ export default function MyTasksBoard({
   useEffect(() => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (token) {
-      fetch(`http://localhost:3001/auth/me?_t=${Date.now()}`, {
+      fetch(`${API_URL}/auth/me?_t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => (res.ok ? res.json() : null))
@@ -201,7 +202,7 @@ export default function MyTasksBoard({
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     // Only call API for DB items (numeric IDs)
     if (!isNaN(Number(id)) && token) {
-      await fetch(`http://localhost:3001/user-notifications/${id}/read`, {
+      await fetch(`${API_URL}/user-notifications/${id}/read`, {
         method: 'PATCH', headers: { Authorization: `Bearer ${token}` }
       }).catch(() => {});
     }
@@ -211,7 +212,7 @@ export default function MyTasksBoard({
   const markAllInboxRead = async () => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (token) {
-      await fetch('http://localhost:3001/user-notifications/mark-all-read', {
+      await fetch(`${API_URL}/user-notifications/mark-all-read`, {
         method: 'PATCH', headers: { Authorization: `Bearer ${token}` }
       }).catch(() => {});
     }
@@ -227,7 +228,7 @@ export default function MyTasksBoard({
       try {
         const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
         if (!token) return;
-        const res = await fetch(`http://localhost:3001/user-notifications?_t=${Date.now()}`, {
+        const res = await fetch(`${API_URL}/user-notifications?_t=${Date.now()}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
@@ -236,7 +237,7 @@ export default function MyTasksBoard({
           setUnreadCount(data.filter((n: any) => !n.isRead).length);
           // Also populate rich inbox items
           const mapped = data.map((d: any, i: number) => adaptDbNotification(d, i));
-          setInboxItems([...mapped, ...initialInboxItems]);
+          setInboxItems(mapped);
         }
       } catch (e) {
         console.warn('Notifications fetch failed', e);
@@ -250,7 +251,7 @@ export default function MyTasksBoard({
     if (token) {
       try { userId = JSON.parse(atob(token.split('.')[1])).sub; } catch (e) {}
     }
-    const socket = io('http://localhost:3001', { auth: { token }, query: { userId } });
+    const socket = io(API_URL, { auth: { token }, query: { userId } });
     socket.on('new_notification', (notification) => {
       setNotifications(prev => [notification, ...prev]);
       setUnreadCount(prev => prev + 1);
@@ -267,7 +268,7 @@ export default function MyTasksBoard({
   const markAllAsRead = async () => {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      await fetch('http://localhost:3001/user-notifications/mark-all-read', {
+      await fetch(`${API_URL}/user-notifications/mark-all-read`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -279,7 +280,7 @@ export default function MyTasksBoard({
   const markAsRead = async (id: number) => {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      await fetch(`http://localhost:3001/user-notifications/${id}/read`, {
+      await fetch(`${API_URL}/user-notifications/${id}/read`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -436,7 +437,7 @@ export default function MyTasksBoard({
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       if (token) {
         try {
-          const res = await fetch('http://localhost:3001/dashboard', {
+          const res = await fetch(`${API_URL}/dashboard`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (res.ok) {
@@ -1474,14 +1475,14 @@ export default function MyTasksBoard({
                                   // Call API
                                   const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
                                   if (token) {
-                                    await fetch('http://localhost:3001/tasks', {
+                                    await fetch(`${API_URL}/tasks`, {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                                       body: JSON.stringify({ title, status: 'todo' })
                                     }).catch(console.error);
                                     
                                     // Also refresh calendar data so it shows up in meetings API
-                                    const res = await fetch('http://localhost:3001/dashboard', {
+                                    const res = await fetch(`${API_URL}/dashboard`, {
                                       headers: { Authorization: `Bearer ${token}` }
                                     });
                                     if (res.ok) {

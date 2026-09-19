@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { API_URL } from "@/lib/apis";
 
 export async function getUser() {
   const cookieStore = await cookies();
@@ -6,7 +7,7 @@ export async function getUser() {
   if (!token) return null;
 
   try {
-    const res = await fetch("http://localhost:3001/auth/me", {
+    const res = await fetch(`${API_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.ok) {

@@ -8,6 +8,10 @@ export class DatabaseService implements OnModuleDestroy {
   readonly db;
 
   constructor() {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is required');
+    }
+
     this.pool = new Pool({
       connectionString: process.env.DATABASE_URL,
     });

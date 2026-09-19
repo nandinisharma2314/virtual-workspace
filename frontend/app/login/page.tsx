@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { API_URL } from "@/lib/apis";
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -24,7 +25,7 @@ export default function LoginPage() {
     e.preventDefault();
     setErrors({});
     
-    fetch("http://localhost:3001/auth/login", {
+    fetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),

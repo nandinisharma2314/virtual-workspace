@@ -19,6 +19,7 @@ import {
   HardDrive
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { API_URL } from "@/lib/apis";
 
 // Custom Dropdown Component
 function Dropdown({ 
@@ -142,7 +143,7 @@ export default function FilesView() {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       if (!token) return;
-      const res = await fetch("http://localhost:3001/files", {
+      const res = await fetch(`${API_URL}/files`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -215,7 +216,7 @@ export default function FilesView() {
 
       // 1. Get presigned upload URL from backend (pointing to Cloudflare R2)
       const urlRes = await fetch(
-        `http://localhost:3001/files/upload-url?filename=${encodeURIComponent(selectedFile.name)}&contentType=${encodeURIComponent(selectedFile.type || 'application/octet-stream')}`,
+        `${API_URL}/files/upload-url?filename=${encodeURIComponent(selectedFile.name)}&contentType=${encodeURIComponent(selectedFile.type || 'application/octet-stream')}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -240,7 +241,7 @@ export default function FilesView() {
       }
 
       // 3. Register file metadata in backend
-      const createRes = await fetch('http://localhost:3001/files', {
+      const createRes = await fetch(`${API_URL}/files`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -274,7 +275,7 @@ export default function FilesView() {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       if (file.id && token) {
-        const res = await fetch(`http://localhost:3001/files/${file.id}/download-url`, {
+        const res = await fetch(`${API_URL}/files/${file.id}/download-url`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
@@ -313,7 +314,7 @@ export default function FilesView() {
 
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch(`http://localhost:3001/files/${fileId}`, {
+      const res = await fetch(`${API_URL}/files/${fileId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });

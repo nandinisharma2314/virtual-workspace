@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { chatMessages, ChatMessage } from "@/lib/chatData";
+import { ChatMessage } from "@/lib/chatData";
+import { API_URL } from "@/lib/apis";
 import Avatar from "@/components/Avatar";
 import { io, Socket } from "socket.io-client";
 import InviteModal from "./InviteModal";
@@ -44,13 +45,12 @@ import { BOARD_BACKGROUNDS } from "./templates/MyTasksBoard";
 import { channelTemplates } from "@/lib/templateData";
 import TemplateTabRenderer from "./templates/TemplateTabRenderer";
 
-// Mock Audio Player Component
-const MockAudioPlayer = ({ duration = 8, filename = "", url = "" }: { duration?: number, filename?: string, url?: string }) => {
+// Audio Player Component
+const AudioPlayer = ({ duration = 8, filename = "", url = "" }: { duration?: number, filename?: string, url?: string }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Extract duration from filename if possible, e.g. "Voice message (12s).m4a"
   const parsedDuration = parseInt(filename.match(/\((\d+)s\)/)?.[1] || `${duration}`);
 
   useEffect(() => {
@@ -80,28 +80,12 @@ const MockAudioPlayer = ({ duration = 8, filename = "", url = "" }: { duration?:
   }, [url]);
 
   useEffect(() => {
-    if (isPlaying) {
-      if (audioRef.current) {
-        audioRef.current.play().catch(e => console.error("Audio play failed", e));
-      } else {
-        // Fallback for mock if no URL exists
-        const interval = setInterval(() => {
-          setProgress(p => {
-            if (p >= 100) {
-              setIsPlaying(false);
-              return 0;
-            }
-            return p + (100 / (parsedDuration * 10)); // updates 10 times a second
-          });
-        }, 100);
-        return () => clearInterval(interval);
-      }
-    } else {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
+    if (isPlaying && audioRef.current) {
+      audioRef.current.play().catch(e => console.error("Audio play failed", e));
+    } else if (!isPlaying && audioRef.current) {
+      audioRef.current.pause();
     }
-  }, [isPlaying, parsedDuration]);
+  }, [isPlaying]);
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -198,7 +182,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
     setIsCreatingTask(true);
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch("http://localhost:3001/tasks", {
+      const res = await fetch(`${API_URL}/tasks`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -263,15 +247,15 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
       try {
         if (!token) return;
 
-        const res = await fetch(`http://localhost:3001/chat/messages/${channelId}`, {
+        const res = await fetch(`${API_URL}/chat/messages/${channelId}`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (res.ok) {
           const data = await res.json();
-          setMessages(data.length > 0 ? data : chatMessages.filter(m => m.channelId === channelId || (!m.channelId && channelId === "c-general")));
+          setMessages(Array.isArray(data) ? data : []);
         }
 
-        const infoRes = await fetch(`http://localhost:3001/chat/info/${channelId}`, {
+        const infoRes = await fetch(`${API_URL}/chat/info/${channelId}`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (infoRes.ok) {
@@ -279,13 +263,13 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
           setInfo(infoData);
         }
       } catch (e) {
-        setMessages(chatMessages);
+        setMessages([]);
       }
     };
     fetchMessages();
 
     // 2. Setup Socket
-    socketRef.current = io("http://localhost:3001", {
+    socketRef.current = io(API_URL, {
       auth: { token }
     });
 
@@ -389,7 +373,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
       try {
         const token = document.cookie.split("; ").find((row) => row.startsWith("token="))?.split("=")[1];
         if (token) {
-          await fetch(`http://localhost:3001/chat/info/${channelId}`, {
+          await fetch(`${API_URL}/chat/info/${channelId}`, {
             method: "PATCH",
             headers: {
               Authorization: `Bearer ${token}`,
@@ -425,7 +409,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
       try {
         const token = document.cookie.split("; ").find((row) => row.startsWith("token="))?.split("=")[1];
         if (token) {
-          await fetch(`http://localhost:3001/chat/info/${channelId}`, {
+          await fetch(`${API_URL}/chat/info/${channelId}`, {
             method: "PATCH",
             headers: {
               Authorization: `Bearer ${token}`,
@@ -473,29 +457,24 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
         const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
         
         // 1. Get signed URL
-        const res = await fetch(`http://localhost:3001/files/upload-url?filename=${encodeURIComponent(pendingAttachment.file.name)}&contentType=${encodeURIComponent(pendingAttachment.file.type)}`, {
+        const res = await fetch(`${API_URL}/files/upload-url?filename=${encodeURIComponent(pendingAttachment.file.name)}&contentType=${encodeURIComponent(pendingAttachment.file.type)}`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (!res.ok) throw new Error("Failed to get upload URL");
         const { uploadUrl, storageKey } = await res.json();
         
-        // 2. Upload to S3 (wrapped in try/catch to handle dummy credentials gracefully)
-        // 2. Upload to Cloudflare R2 (wrapped in try/catch to handle network/credentials gracefully)
-        try {
-          const uploadRes = await fetch(uploadUrl, {
-            method: 'PUT',
-            body: pendingAttachment.file,
-            headers: { 'Content-Type': pendingAttachment.file.type }
-          });
-          if (!uploadRes.ok) console.warn("Failed to upload to S3, proceeding with mock upload.");
-          if (!uploadRes.ok) console.warn("Failed to upload to Cloudflare R2, proceeding with mock upload.");
-        } catch (uploadError) {
-          console.warn("S3 Upload failed (likely due to dummy credentials or missing CORS). Skipping real upload.", uploadError);
-          console.warn("Cloudflare R2 upload encountered network/CORS issue. Skipping direct PUT.", uploadError);
+        // 2. Upload to Cloudflare R2
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: pendingAttachment.file,
+          headers: { 'Content-Type': pendingAttachment.file.type }
+        });
+        if (!uploadRes.ok) {
+          throw new Error("Failed to upload file to Cloudflare R2.");
         }
         
         // 3. Save metadata to backend
-        const fileRes = await fetch('http://localhost:3001/files', {
+        const fileRes = await fetch(`${API_URL}/files`, {
           method: 'POST',
           headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -566,7 +545,6 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
     setInputText("✨ AI is thinking...");
 
     setTimeout(() => {
-      // Mock AI formatting
       const rewritten = originalText.charAt(0).toUpperCase() + originalText.slice(1);
       setInputText(`Here is a more professional tone: "${rewritten}". Let me know if you need anything else.`);
       setIsAiLoading(false);
@@ -623,22 +601,21 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
 
   const handleDownloadAttachment = async (attachment: any) => {
     if (!attachment.fileId) {
-      // Fallback for mock attachments that don't have a fileId
-      const blob = new Blob([`Mock file content for: ${attachment.name}`], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = attachment.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      if (attachment.url) {
+        const a = document.createElement("a");
+        a.href = attachment.url;
+        a.download = attachment.name;
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
       return;
     }
 
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch(`http://localhost:3001/files/${attachment.fileId}/download-url`, {
+      const res = await fetch(`${API_URL}/files/${attachment.fileId}/download-url`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (!res.ok) throw new Error("Failed to get download URL");
@@ -648,7 +625,6 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
       const a = document.createElement("a");
       a.href = downloadUrl;
       a.download = attachment.name;
-      // We open in new tab so it handles S3 link properly
       a.target = "_blank";
       document.body.appendChild(a);
       a.click();
@@ -1216,7 +1192,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                     {/* Attachment Card if present */}
                     {m.attachment && (
                       m.attachment.name.endsWith('.m4a') ? (
-                        <MockAudioPlayer filename={m.attachment.name} url={m.attachment.url} />
+                        <AudioPlayer filename={m.attachment.name} url={m.attachment.url} />
                       ) : (
                         <div
                           onClick={() => handleDownloadAttachment(m.attachment!)}
@@ -1579,7 +1555,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                               }));
                               try {
                                 const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-                                await fetch(`http://localhost:3001/tasks/${t.id}`, {
+                                await fetch(`${API_URL}/tasks/${t.id}`, {
                                   method: "PATCH",
                                   headers: {
                                     "Authorization": `Bearer ${token}`,
@@ -1781,7 +1757,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                   <div className="text-[13px] text-gray-800">{activeThreadMessage.text}</div>
                   {activeThreadMessage.attachment && (
                     activeThreadMessage.attachment.name.endsWith('.m4a') ? (
-                      <MockAudioPlayer filename={activeThreadMessage.attachment.name} url={activeThreadMessage.attachment.url} />
+                      <AudioPlayer filename={activeThreadMessage.attachment.name} url={activeThreadMessage.attachment.url} />
                     ) : (
                       <div
                         onClick={() => handleDownloadAttachment(activeThreadMessage.attachment!)}
@@ -1818,7 +1794,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                     <div className="text-[12px] text-gray-800">{m.text}</div>
                     {m.attachment && (
                       m.attachment.name.endsWith('.m4a') ? (
-                        <MockAudioPlayer filename={m.attachment.name} url={m.attachment.url} />
+                        <AudioPlayer filename={m.attachment.name} url={m.attachment.url} />
                       ) : (
                         <div
                           onClick={() => handleDownloadAttachment(m.attachment!)}
@@ -1944,7 +1920,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                   if (editTaskTitle && editTaskTitle.trim() !== "" && editTaskTitle !== taskToEdit.title) {
                     try {
                       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-                      const res = await fetch(`http://localhost:3001/tasks/${taskToEdit.id}`, {
+                      const res = await fetch(`${API_URL}/tasks/${taskToEdit.id}`, {
                         method: "PATCH",
                         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
                         body: JSON.stringify({ title: editTaskTitle.trim() })
@@ -1997,7 +1973,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                 onClick={async () => {
                   try {
                     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-                    const res = await fetch(`http://localhost:3001/tasks/${taskToDelete.id}`, {
+                    const res = await fetch(`${API_URL}/tasks/${taskToDelete.id}`, {
                       method: "DELETE",
                       headers: { "Authorization": `Bearer ${token}` }
                     });

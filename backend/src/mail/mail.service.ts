@@ -28,6 +28,13 @@ export class MailService {
   async sendInvitation(email: string, inviterName: string = 'A teammate', channelName: string = 'WorkFlow') {
     const safeInviter = this.escapeHtml(inviterName);
     const safeChannel = this.escapeHtml(channelName);
+    const frontendUrl = process.env.FRONTEND_URL;
+    if (!frontendUrl) {
+      throw new Error('FRONTEND_URL environment variable is required');
+    }
+    if (!process.env.SMTP_USER) {
+      throw new Error('SMTP_USER environment variable is required');
+    }
     try {
       await this.transporter.sendMail({
         from: `"WorkFlow Connect" <${process.env.SMTP_USER}>`,
@@ -48,7 +55,7 @@ export class MailService {
                   WorkFlow Connect allows external partners to seamlessly communicate, share files, and manage projects without leaving their own workspace.
                 </p>
                 <div style="text-align: center;">
-                  <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/register?invite=true&email=${encodeURIComponent(email)}&channel=${encodeURIComponent(channelName)}" style="display: inline-block; background-color: #1164A3; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; font-size: 16px;">Accept Invitation</a>
+                  <a href="${frontendUrl}/register?invite=true&email=${encodeURIComponent(email)}&channel=${encodeURIComponent(channelName)}" style="display: inline-block; background-color: #1164A3; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; font-size: 16px;">Accept Invitation</a>
                 </div>
               </div>
               <div style="background-color: #f1f5f9; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">

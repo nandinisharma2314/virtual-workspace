@@ -1,26 +1,52 @@
 import { Injectable } from '@nestjs/common';
-import { CreateSettingDto } from './dto/create-setting.dto';
-import { UpdateSettingDto } from './dto/update-setting.dto';
+import { CreateSettingDto } from './dto/create-setting.dto.js';
+import { UpdateSettingDto } from './dto/update-setting.dto.js';
+import { DatabaseService } from '../database/database.service.js';
+import * as schema from '../database/schema.js';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class SettingsService {
-  create(createSettingDto: CreateSettingDto) {
-    return 'This action adds a new setting';
+  constructor(private readonly dbService: DatabaseService) {}
+
+  async create(createSettingDto: CreateSettingDto) {
+    const [setting] = await this.dbService.db
+      .insert(schema.settings)
+      .values({
+        key: (createSettingDto as any).key,
+        value: (createSettingDto as any).value,
+        userId: (createSettingDto as any).userId || null,
+      })
+      .returning();
+    return setting;
   }
 
-  findAll() {
-    return `This action returns all settings`;
+  async findAll() {
+    return this.dbService.db.select().from(schema.settings);
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} setting`;
+  async findOne(id: number) {
+    const [setting] = await this.dbService.db
+      .select()
+      .from(schema.settings)
+      .where(eq(schema.settings.id, id));
+    return setting || null;
   }
 
-  update(id: number, updateSettingDto: UpdateSettingDto) {
-    return `This action updates a #${id} setting`;
+  async update(id: number, updateSettingDto: UpdateSettingDto) {
+    const [updated] = await this.dbService.db
+      .update(schema.settings)
+      .set({
+        value: (updateSettingDto as any).value,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.settings.id, id))
+      .returning();
+    return updated;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} setting`;
+  async remove(id: number) {
+    await this.dbService.db.delete(schema.settings).where(eq(schema.settings.id, id));
+    return { success: true };
   }
 }

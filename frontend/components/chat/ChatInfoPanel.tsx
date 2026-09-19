@@ -1,7 +1,7 @@
 "use client";
 
 import Avatar from "@/components/Avatar";
-import { channelTasks, channelPinnedFiles, channelSharedFiles } from "@/lib/chatData";
+import { API_URL } from "@/lib/apis";
 import {
   X,
   Pencil,
@@ -124,7 +124,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
       try {
         const token = document.cookie.split("; ").find((row) => row.startsWith("token="))?.split("=")[1];
         if (token) {
-          await fetch(`http://localhost:3001/chat/info/${channelId}`, {
+          await fetch(`${API_URL}/chat/info/${channelId}`, {
             method: "PATCH",
             headers: {
               Authorization: `Bearer ${token}`,
@@ -160,7 +160,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
       try {
         const token = document.cookie.split("; ").find((row) => row.startsWith("token="))?.split("=")[1];
         if (token) {
-          await fetch(`http://localhost:3001/chat/info/${channelId}`, {
+          await fetch(`${API_URL}/chat/info/${channelId}`, {
             method: "PATCH",
             headers: {
               Authorization: `Bearer ${token}`,
@@ -194,7 +194,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
       if (!token) return;
       
       // Fetch channel info
-      const res = await fetch(`http://localhost:3001/chat/info/${channelId}`, {
+      const res = await fetch(`${API_URL}/chat/info/${channelId}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -206,7 +206,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
 
       // Fetch current user
       if (!currentUser) {
-        const userRes = await fetch(`http://localhost:3001/auth/me?_t=${Date.now()}`, {
+        const userRes = await fetch(`${API_URL}/auth/me?_t=${Date.now()}`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (userRes.ok) {
@@ -216,7 +216,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
       }
 
       // Fetch workspace users for member picker
-      fetch("http://localhost:3001/chat/direct-message-users", {
+      fetch(`${API_URL}/chat/direct-message-users`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
         .then(res => res.json())
@@ -241,7 +241,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
     setAddMemberSuccess("");
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch(`http://localhost:3001/chat/members/${channelId}`, {
+      const res = await fetch(`${API_URL}/chat/members/${channelId}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -275,7 +275,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
     if (!token) return;
     setMemberActionLoading(memberId);
     try {
-      const res = await fetch(`http://localhost:3001/chat/channels/${channelId}/members/${memberId}`, {
+      const res = await fetch(`${API_URL}/chat/channels/${channelId}/members/${memberId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -300,7 +300,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (!token) return;
     try {
-      const res = await fetch(`http://localhost:3001/chat/channels/${channelId}/invitations/${targetUserId}`, {
+      const res = await fetch(`${API_URL}/chat/channels/${channelId}/invitations/${targetUserId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -317,7 +317,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
     setPendingFeedback(null);
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch(`http://localhost:3001/chat/members/${channelId}`, {
+      const res = await fetch(`${API_URL}/chat/members/${channelId}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -346,7 +346,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       if (!token) return;
-      const res = await fetch(`http://localhost:3001/chat/info/${channelId}`, {
+      const res = await fetch(`${API_URL}/chat/info/${channelId}`, {
         method: "PATCH",
         headers: { 
           "Authorization": `Bearer ${token}`,
@@ -1025,7 +1025,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
                     }));
                     try {
                       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-                      await fetch(`http://localhost:3001/tasks/${t.id}`, {
+                      await fetch(`${API_URL}/tasks/${t.id}`, {
                         method: "PATCH",
                         headers: {
                           "Authorization": `Bearer ${token}`,
@@ -1070,30 +1070,31 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
             </button>
           </div>
           <ul className="space-y-1">
-            {channelSharedFiles.map((file, i) => (
-              <li key={i} className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => router.push('/files')}>
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
-                  file.icon === 'figma' ? 'bg-purple-100 text-purple-600' :
-                  file.icon === 'pdf' ? 'bg-rose-100 text-rose-600' :
-                  file.icon === 'zip' ? 'bg-emerald-100 text-emerald-600' :
-                  'bg-blue-100 text-blue-600'
-                }`}>
-                  {file.icon === 'figma' ? <PenTool size={14} /> : 
-                   file.icon === 'zip' ? <FileArchive size={14} /> : 
-                   <FileText size={14} />}
-                </div>
-                <div className="min-w-0 flex-1 flex flex-col">
-                  <span className="text-[12px] font-bold text-gray-800 truncate">
-                    {file.name}
-                  </span>
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-medium truncate">
-                    <span>{file.meta}</span>
-                    <span>•</span>
-                    <span>{file.time}</span>
+            {info?.files && info.files.length > 0 ? (
+              info.files.map((file: any, i: number) => (
+                <li key={i} className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => router.push('/files')}>
+                  <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-100 text-blue-600">
+                    <FileText size={14} />
                   </div>
-                </div>
-              </li>
-            ))}
+                  <div className="min-w-0 flex-1 flex flex-col">
+                    <span className="text-[12px] font-bold text-gray-800 truncate">
+                      {file.name}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-medium truncate">
+                      <span>{file.size ? (file.size / 1024 / 1024).toFixed(1) + ' MB' : 'File'}</span>
+                      {file.createdAt && (
+                        <>
+                          <span>•</span>
+                          <span>{new Date(file.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))
+            ) : (
+              <div className="text-[12px] text-gray-400 py-1">No files shared yet</div>
+            )}
           </ul>
         </div>
 

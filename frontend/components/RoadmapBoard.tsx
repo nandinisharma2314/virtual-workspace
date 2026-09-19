@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { MessageSquare, Plus, Filter, LayoutGrid, List, Milestone, GanttChartSquare, X } from "lucide-react";
-import { roadmap as mockRoadmap } from "@/lib/data";
+import { API_URL } from "@/lib/apis";
 import Avatar from "./Avatar";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,8 +15,15 @@ const tabs = [
   { key: "gantt", label: "Gantt", icon: GanttChartSquare },
 ];
 
+const defaultRoadmapColumns = [
+  { key: "todo", title: "To Do", count: 0, accent: "bg-gray-400", headerBg: "bg-gray-50", tasks: [] },
+  { key: "inprogress", title: "In Progress", count: 0, accent: "bg-blue-500", headerBg: "bg-blue-50", tasks: [] },
+  { key: "review", title: "Review", count: 0, accent: "bg-amber-500", headerBg: "bg-amber-50", tasks: [] },
+  { key: "done", title: "Done", count: 0, accent: "bg-emerald-500", headerBg: "bg-emerald-50", tasks: [] },
+];
+
 export default function RoadmapBoard({
-  roadmap = mockRoadmap,
+  roadmap = defaultRoadmapColumns,
   boardTitle = "Product Roadmap",
   bgGradient,
 }: {
@@ -43,7 +50,7 @@ export default function RoadmapBoard({
   const fetchTasks = async () => {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch("http://localhost:3001/tasks", {
+      const res = await fetch(`${API_URL}/tasks`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -61,10 +68,8 @@ export default function RoadmapBoard({
 
   const handleChangeStatus = async (task: any, currentColKey: string, targetColKey: string) => {
     if (currentColKey === targetColKey) return;
-    
-    const isMock = String(task.id).startsWith('c-') || String(task.id).startsWith('t-') || !task.tagColor?.includes('bg-indigo-100');
 
-    if (!isMock && task.id) {
+    if (task.id) {
       const statusMap: Record<string, string> = {
         todo: 'todo',
         inprogress: 'in_progress',
@@ -74,7 +79,7 @@ export default function RoadmapBoard({
       
       try {
         const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-        await fetch(`http://localhost:3001/tasks/${task.id}`, {
+        await fetch(`${API_URL}/tasks/${task.id}`, {
           method: "PATCH",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -109,9 +114,9 @@ export default function RoadmapBoard({
     }).map(t => ({
        id: t.id,
        title: t.title,
-       tag: 'NEW',
+       tag: 'TASK',
        tagColor: 'bg-indigo-100 text-indigo-700',
-       people: ['avi'], // placeholder user
+       people: [],
        comments: 0
     }));
 
@@ -144,7 +149,7 @@ export default function RoadmapBoard({
         done: 'completed'
       };
       
-      await fetch("http://localhost:3001/tasks", {
+      await fetch(`${API_URL}/tasks`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

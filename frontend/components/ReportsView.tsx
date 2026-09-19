@@ -14,6 +14,7 @@ import {
   Users,
   MoreVertical
 } from "lucide-react";
+import { API_URL } from "@/lib/apis";
 import {
   BarChart,
   Bar,
@@ -41,36 +42,15 @@ export default function ReportsView() {
   useEffect(() => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (token) {
-      fetch("http://localhost:3001/reports/dashboard", {
+      fetch(`${API_URL}/reports/dashboard`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       .then(res => res.json())
       .then(data => {
         if (data) {
-          if (data.velocityData) {
-            if (data.velocityData.length === 0) {
-              setVelocityData([
-                { name: 'Sprint 1', completed: 30, planned: 35 },
-                { name: 'Sprint 2', completed: 42, planned: 40 },
-                { name: 'Sprint 3', completed: 38, planned: 38 },
-                { name: 'Sprint 4', completed: 50, planned: 45 },
-                { name: 'Sprint 5', completed: 62, planned: 60 },
-                { name: 'Sprint 6', completed: 58, planned: 65 },
-              ]);
-            } else {
-              setVelocityData(data.velocityData);
-            }
-          }
+          if (data.velocityData) setVelocityData(data.velocityData);
           if (data.workloadData) setWorkloadData(data.workloadData);
-          if (data.projectPerformance && data.projectPerformance.length > 0) {
-            setProjectPerformance(data.projectPerformance);
-          } else {
-            setProjectPerformance([
-              { id: "p2", name: "Mobile App Launch", status: "At Risk", progress: 42, budget: "$120,000", health: "Fair" },
-              { id: "p3", name: "Q3 Marketing Campaign", status: "On Track", progress: 88, budget: "$25,000", health: "Good" },
-              { id: "p4", name: "Annual Security Audit", status: "Completed", progress: 100, budget: "$15,000", health: "Good" }
-            ]);
-          }
+          if (data.projectPerformance) setProjectPerformance(data.projectPerformance);
           if (data.teamPerformanceData) setTeamPerformanceData(data.teamPerformanceData);
           if (data.kpis) setKpis(data.kpis);
           if (data.timeTrackingLogs) setTimeTrackingLogs(data.timeTrackingLogs);

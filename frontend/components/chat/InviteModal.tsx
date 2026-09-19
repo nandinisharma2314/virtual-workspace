@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, HelpCircle } from 'lucide-react';
 import Image from 'next/image';
+import { API_URL } from '@/lib/apis';
 
 interface InviteModalProps {
   isOpen: boolean;
@@ -24,10 +25,12 @@ export default function InviteModal({ isOpen, onClose, onInvite, inviterName = '
     if (isValidEmail(email) && !isLoading) {
       setIsLoading(true);
       try {
-        const response = await fetch('http://localhost:3001/api/mail/invite', {
+        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+        const response = await fetch(`${API_URL}/api/mail/invite`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
           body: JSON.stringify({
             email,

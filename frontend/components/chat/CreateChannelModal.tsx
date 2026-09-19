@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { motion, AnimatePresence } from "framer-motion";
+import { API_URL } from "@/lib/apis";
 
 export const channelThemes = [
   {
@@ -93,7 +94,7 @@ export default function CreateChannelModal({
     if (!token) return;
 
     // Fetch team users
-    fetch("http://localhost:3001/chat/direct-message-users", {
+    fetch(`${API_URL}/chat/direct-message-users`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : []))
@@ -105,7 +106,7 @@ export default function CreateChannelModal({
       .catch(console.error);
 
     // Fetch current logged in user
-    fetch("http://localhost:3001/auth/me", {
+    fetch(`${API_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : null))
@@ -208,7 +209,7 @@ export default function CreateChannelModal({
         return;
       }
 
-      const res = await fetch("http://localhost:3001/chat/channels", {
+      const res = await fetch(`${API_URL}/chat/channels`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

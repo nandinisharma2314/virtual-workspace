@@ -17,6 +17,7 @@ import WelcomeModalWrapper from "@/components/WelcomeModalWrapper";
 import { ChevronDown } from "lucide-react";
 
 import { cookies } from "next/headers";
+import { API_URL } from "@/lib/apis";
 
 async function getUser() {
   const cookieStore = await cookies();
@@ -24,7 +25,7 @@ async function getUser() {
   if (!token) return null;
 
   try {
-    const res = await fetch("http://localhost:3001/auth/me", {
+    const res = await fetch(`${API_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.ok) {
@@ -37,7 +38,7 @@ async function getUser() {
 
 async function getDashboardData(token: string) {
   try {
-    const res = await fetch("http://localhost:3001/dashboard", {
+    const res = await fetch(`${API_URL}/dashboard`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.ok) {

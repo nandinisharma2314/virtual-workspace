@@ -19,10 +19,13 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
     try {
+      if (!process.env.JWT_SECRET) {
+        throw new UnauthorizedException('JWT_SECRET not configured');
+      }
       const payload = await this.jwtService.verifyAsync(
         token,
         {
-          secret: process.env.JWT_SECRET || 'fallback_secret'
+          secret: process.env.JWT_SECRET
         }
       );
       request['user'] = payload;

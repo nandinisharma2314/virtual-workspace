@@ -1,13 +1,28 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import { Play, Link as LinkIcon, CheckSquare, RefreshCw, BarChart2, Inbox, List, AlertCircle, FileText, Settings, Users, Folder, HelpCircle, Layout } from 'lucide-react';
+import { API_URL } from "@/lib/apis";
 
 export default function ServiceDeskPage() {
   const [isPlaying, setIsPlaying] = useState(false);
-  const userName = "Nandini Sharma"; // In real app, fetch from auth
+  const [userName, setUserName] = useState("User");
+
+  useEffect(() => {
+    const token = localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    if (token) {
+      fetch(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.name) setUserName(data.name);
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#FAFBFC]">

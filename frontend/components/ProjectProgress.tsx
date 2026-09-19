@@ -1,9 +1,8 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { projectProgress as mockProjectProgress } from "@/lib/data";
 
-export default function ProjectProgress({ projectProgress = mockProjectProgress }: { projectProgress?: any[] }) {
+export default function ProjectProgress({ projectProgress = [] }: { projectProgress?: any[] }) {
   const completedEntry = projectProgress?.find((p: any) => p.name === 'Completed');
   const overallProgress = completedEntry ? completedEntry.value : 0;
 
@@ -11,7 +10,8 @@ export default function ProjectProgress({ projectProgress = mockProjectProgress 
     <div className="w-full h-full flex-1 flex flex-col justify-between rounded-xl border border-gray-200/80 bg-white p-3.5 shadow-2xs overflow-hidden min-h-0">
       <h3 className="text-[13px] font-bold text-gray-900 tracking-tight shrink-0 mb-1">Project Progress</h3>
 
-      <div className="flex items-center justify-between gap-3 flex-1 min-h-0 py-0.5">
+      {projectProgress.length > 0 ? (
+        <div className="flex items-center justify-between gap-3 flex-1 min-h-0 py-0.5">
         {/* Donut Chart container matching photo proportions */}
         <div className="relative h-[94px] w-[94px] shrink-0 mx-auto sm:mx-0 flex items-center justify-center">
           <ResponsiveContainer width="100%" height="100%">
@@ -55,6 +55,11 @@ export default function ProjectProgress({ projectProgress = mockProjectProgress 
           ))}
         </ul>
       </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center text-[12px] text-gray-400">
+          No project progress data
+        </div>
+      )}
     </div>
   );
 }

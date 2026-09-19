@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Eye, EyeOff, ArrowLeft, Shield } from "lucide-react";
+import { API_URL } from "@/lib/apis";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -58,7 +59,7 @@ function ResetPasswordForm() {
     }
 
     try {
-      const res = await fetch("http://localhost:3001/auth/reset-password", {
+      const res = await fetch(`${API_URL}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff, User, Users, CheckSquare, BarChart2, Check, Home, FileText, Folder, Calendar, Settings, UserPlus, Briefcase, ChevronDown } from "lucide-react";
+import { API_URL } from "@/lib/apis";
 
 const DEPARTMENTS = [
   "Engineering",
@@ -55,7 +56,7 @@ export default function RegisterPage() {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      fetch("http://localhost:3001/auth/register", {
+      fetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: fullName, email, password, department }),

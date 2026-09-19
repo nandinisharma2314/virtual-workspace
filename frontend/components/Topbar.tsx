@@ -6,6 +6,7 @@ import { Search, Plus, HelpCircle, Bell, ChevronDown, Folder, Users, FileText, C
 import Avatar from "./Avatar";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
+import { API_URL } from "@/lib/apis";
 
 const profileMenuItems = [
   { name: "My Profile", icon: User, path: "/settings?tab=profile" },
@@ -54,7 +55,7 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
     if (!currentUser) {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       if (token) {
-        fetch(`http://localhost:3001/auth/me?_t=${Date.now()}`, {
+        fetch(`${API_URL}/auth/me?_t=${Date.now()}`, {
           headers: { "Authorization": `Bearer ${token}` }
         })
         .then(res => res.ok ? res.json() : null)
@@ -88,7 +89,7 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
       try {
         const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
         if (!token) return;
-        const res = await fetch(`http://localhost:3001/user-notifications?_t=${Date.now()}`, {
+        const res = await fetch(`${API_URL}/user-notifications?_t=${Date.now()}`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (res.ok) {
@@ -112,7 +113,7 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
        try { userId = JSON.parse(atob(token.split('.')[1])).sub; } catch(e) {}
     }
     
-    const socket = io("http://localhost:3001", {
+    const socket = io(API_URL, {
       auth: { token },
       query: { userId }
     });
@@ -131,7 +132,7 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
   const markAllAsRead = async () => {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      await fetch("http://localhost:3001/user-notifications/mark-all-read", {
+      await fetch(`${API_URL}/user-notifications/mark-all-read`, {
         method: "PATCH",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -145,7 +146,7 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
   const markAsRead = async (id: number) => {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      await fetch(`http://localhost:3001/user-notifications/${id}/read`, {
+      await fetch(`${API_URL}/user-notifications/${id}/read`, {
         method: "PATCH",
         headers: { "Authorization": `Bearer ${token}` }
       });

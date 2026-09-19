@@ -3,6 +3,7 @@ import CalendarView from "@/components/CalendarView";
 import Topbar from "@/components/Topbar";
 import { Metadata } from "next";
 import { cookies } from "next/headers";
+import { API_URL } from "@/lib/apis";
 
 export const metadata: Metadata = {
   title: "Calendar | WorkFlow",
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 
 async function getDashboardData(token: string) {
   try {
-    const res = await fetch("http://localhost:3001/dashboard", {
+    const res = await fetch(`${API_URL}/dashboard`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.ok) {

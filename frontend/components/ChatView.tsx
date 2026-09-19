@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import ChatSidebar from "./chat/ChatSidebar";
 import ChatFeed from "./chat/ChatFeed";
 import ChatInfoPanel from "./chat/ChatInfoPanel";
+import { API_URL } from "@/lib/apis";
 
 export default function ChatView() {
   const searchParams = useSearchParams();
@@ -26,7 +27,7 @@ export default function ChatView() {
     if (!token) return;
 
     if (acceptChannelParam) {
-      fetch(`http://localhost:3001/chat/invitations/${acceptChannelParam}/accept`, {
+      fetch(`${API_URL}/chat/invitations/${acceptChannelParam}/accept`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` }
       })
@@ -41,7 +42,7 @@ export default function ChatView() {
         })
         .catch(console.error);
     } else if (declineChannelParam) {
-      fetch(`http://localhost:3001/chat/invitations/${declineChannelParam}/decline`, {
+      fetch(`${API_URL}/chat/invitations/${declineChannelParam}/decline`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` }
       })

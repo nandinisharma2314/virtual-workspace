@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { initialInboxItems, InboxItem } from "@/lib/inboxData";
+import { InboxItem } from "@/lib/inboxData";
 import InboxSidebar from "./inbox/InboxSidebar";
 import InboxList from "./inbox/InboxList";
 import InboxDetail from "./inbox/InboxDetail";
 import { io } from "socket.io-client";
+import { API_URL } from "@/lib/apis";
 
 function adaptDbNotification(dbNotif: any, index: number): InboxItem {
   // Use DB id, unread, content, date
@@ -102,7 +103,7 @@ export default function InboxView() {
           setItems([]);
           return;
         }
-        const res = await fetch("http://localhost:3001/user-notifications", {
+        const res = await fetch(`${API_URL}/user-notifications`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (res.ok) {
@@ -130,7 +131,7 @@ export default function InboxView() {
        try { userId = JSON.parse(atob(token.split('.')[1])).sub; } catch(e) {}
     }
     
-    const socket = io("http://localhost:3001", {
+    const socket = io(API_URL, {
       auth: { token },
       query: { userId }
     });
@@ -200,7 +201,7 @@ export default function InboxView() {
   const handleMarkAllRead = async () => {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      await fetch("http://localhost:3001/user-notifications/mark-all-read", {
+      await fetch(`${API_URL}/user-notifications/mark-all-read`, {
         method: "PATCH",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -216,7 +217,7 @@ export default function InboxView() {
       const isCurrentlyUnread = items.find(i => i.id === id)?.unread;
       
       if (isCurrentlyUnread) {
-        await fetch(`http://localhost:3001/user-notifications/${id}/read`, {
+        await fetch(`${API_URL}/user-notifications/${id}/read`, {
           method: "PATCH",
           headers: { "Authorization": `Bearer ${token}` }
         });
@@ -236,7 +237,7 @@ export default function InboxView() {
   const handleDelete = async (id: string) => {
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      await fetch(`http://localhost:3001/user-notifications/${id}`, {
+      await fetch(`${API_URL}/user-notifications/${id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });

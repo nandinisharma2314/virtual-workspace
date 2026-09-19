@@ -55,8 +55,11 @@ export class AuthService {
     
     await this.usersService.saveResetToken(user.id, token, expires);
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    console.log(`[Email Mock] Sent password reset email to ${email}. Reset Link: ${frontendUrl}/reset-password?token=${token}`);
+    const frontendUrl = process.env.FRONTEND_URL;
+    if (!frontendUrl) {
+      throw new Error('FRONTEND_URL environment variable is required');
+    }
+    console.log(`[Email Notification] Sent password reset email to ${email}. Reset Link: ${frontendUrl}/reset-password?token=${token}`);
 
     return { message: 'Reset link sent' };
   }

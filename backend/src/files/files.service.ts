@@ -19,19 +19,38 @@ export class FilesService {
     private readonly dbService: DatabaseService,
     private readonly notificationsService: NotificationsService,
   ) {
-    const accountId = process.env.R2_ACCOUNT_ID || process.env.CLOUDFLARE_R2_ACCOUNT_ID || '';
-    const accessKeyId = process.env.R2_ACCESS_KEY_ID || process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID || 'dummy';
-    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY || process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY || 'dummy';
-    this.bucketName = process.env.R2_BUCKET_NAME || process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.AWS_S3_BUCKET || 'workflow-files';
-    this.publicUrl = (process.env.R2_PUBLIC_URL || process.env.CLOUDFLARE_R2_PUBLIC_URL || '').replace(/\/$/, '');
+    const accountId = process.env.R2_ACCOUNT_ID;
+    if (!accountId) {
+      throw new Error('R2_ACCOUNT_ID environment variable is required');
+    }
+
+    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+    if (!accessKeyId) {
+      throw new Error('R2_ACCESS_KEY_ID environment variable is required');
+    }
+
+    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+    if (!secretAccessKey) {
+      throw new Error('R2_SECRET_ACCESS_KEY environment variable is required');
+    }
+
+    const bucketName = process.env.R2_BUCKET_NAME;
+    if (!bucketName) {
+      throw new Error('R2_BUCKET_NAME environment variable is required');
+    }
+    this.bucketName = bucketName;
+
+    const publicUrl = process.env.R2_PUBLIC_URL;
+    if (!publicUrl) {
+      throw new Error('R2_PUBLIC_URL environment variable is required');
+    }
+    this.publicUrl = publicUrl.replace(/\/$/, '');
 
     // Cloudflare R2 S3-compatible endpoint: https://<account_id>.r2.cloudflarestorage.com
-    const endpoint = accountId
-      ? `https://${accountId}.r2.cloudflarestorage.com`
-      : undefined;
+    const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
 
     this.s3Client = new S3Client({
-      region: process.env.AWS_REGION || 'auto',
+      region: 'auto',
       endpoint: endpoint,
       credentials: {
         accessKeyId: accessKeyId,

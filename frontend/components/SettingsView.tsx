@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { User, Settings, Shield, Bell, Upload, Save, CheckCircle2 } from "lucide-react";
 import Avatar from "./Avatar";
+import { API_URL } from "@/lib/apis";
 
 export default function SettingsView({ user }: { user?: any }) {
   const searchParams = useSearchParams();
@@ -13,14 +14,14 @@ export default function SettingsView({ user }: { user?: any }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [isSaved, setIsSaved] = useState(false);
   
-  const initialFirstName = user?.name ? user.name.split(' ')[0] : "Avi";
-  const initialLastName = user?.name && user.name.split(' ').length > 1 ? user.name.split(' ').slice(1).join(' ') : "Sharma";
+  const initialFirstName = user?.name ? user.name.split(' ')[0] : "";
+  const initialLastName = user?.name && user.name.split(' ').length > 1 ? user.name.split(' ').slice(1).join(' ') : "";
 
   const [firstName, setFirstName] = useState(initialFirstName);
   const [lastName, setLastName] = useState(initialLastName);
-  const [email, setEmail] = useState(user?.email || "avi.sharma@acme.inc");
+  const [email, setEmail] = useState(user?.email || "");
   const [role, setRole] = useState(user?.role || "Member");
-  const [bio, setBio] = useState(user?.bio || "Product Manager passionate about building scalable, high-performance dashboards.");
+  const [bio, setBio] = useState(user?.bio || "");
   const [avatar, setAvatar] = useState<string | null>(user?.avatar || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,7 +63,7 @@ export default function SettingsView({ user }: { user?: any }) {
     
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch("http://localhost:3001/auth/me", {
+      const res = await fetch(`${API_URL}/auth/me`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -96,7 +97,7 @@ export default function SettingsView({ user }: { user?: any }) {
 
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch("http://localhost:3001/auth/password", {
+      const res = await fetch(`${API_URL}/auth/password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -125,7 +126,7 @@ export default function SettingsView({ user }: { user?: any }) {
     
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch("http://localhost:3001/auth/me", {
+      const res = await fetch(`${API_URL}/auth/me`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`

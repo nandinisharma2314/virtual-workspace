@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { motion, AnimatePresence } from "framer-motion";
 import VideoCall from "./chat/VideoCall";
+import { API_URL } from "@/lib/apis";
 
 import {
   Video,
@@ -26,75 +27,7 @@ import {
   Filter
 } from "lucide-react";
 
-const fallbackUpcomingMeetings = [
-  {
-    id: 1,
-    title: "Weekly Design Sync",
-    time: "10:00 AM - 11:00 AM",
-    date: "Today",
-    attendees: [
-      { initials: "AS", color: "bg-rose-400" },
-      { initials: "RV", color: "bg-indigo-400" },
-      { initials: "PS", color: "bg-amber-400" },
-    ],
-    isNow: true,
-  },
-  {
-    id: 2,
-    title: "Product Roadmap Review",
-    time: "1:00 PM - 2:30 PM",
-    date: "Today",
-    attendees: [
-      { initials: "NS", color: "bg-emerald-400" },
-      { initials: "AP", color: "bg-sky-400" },
-      { initials: "VJ", color: "bg-purple-500" },
-      { initials: "RS", color: "bg-indigo-500" },
-    ],
-    isNow: false,
-  },
-  {
-    id: 3,
-    title: "Client Pitch: Project Orion",
-    time: "3:30 PM - 4:30 PM",
-    date: "Tomorrow",
-    attendees: [
-      { initials: "JD", color: "bg-cyan-400" },
-      { initials: "MK", color: "bg-pink-400" }
-    ],
-    isNow: false,
-  }
-];
-
-const recordedMeetings = [
-  {
-    id: 101,
-    title: "Q3 Planning Session",
-    date: "Yesterday",
-    duration: "1h 15m",
-    thumbnail: "bg-gradient-to-br from-indigo-100 via-purple-100 to-fuchsia-100 border border-indigo-200/60",
-  },
-  {
-    id: 102,
-    title: "Engineering All-Hands",
-    date: "May 15",
-    duration: "55m",
-    thumbnail: "bg-gradient-to-br from-emerald-100 via-teal-100 to-cyan-100 border border-emerald-200/60",
-  },
-  {
-    id: 103,
-    title: "Marketing Campaign Kickoff",
-    date: "May 12",
-    duration: "42m",
-    thumbnail: "bg-gradient-to-br from-rose-100 via-orange-100 to-amber-100 border border-rose-200/60",
-  },
-  {
-    id: 104,
-    title: "Design System Updates",
-    date: "May 10",
-    duration: "30m",
-    thumbnail: "bg-gradient-to-br from-sky-100 via-blue-100 to-indigo-100 border border-sky-200/60",
-  },
-];
+const recordedMeetings: any[] = [];
 
 const containerVariants: any = {
   hidden: { opacity: 0 },
@@ -127,7 +60,7 @@ export default function MeetingsView() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isInCall, setIsInCall] = useState(false);
-  const [upcomingMeetings, setUpcomingMeetings] = useState<any[]>(fallbackUpcomingMeetings);
+  const [upcomingMeetings, setUpcomingMeetings] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewMeetingModal, setShowNewMeetingModal] = useState(false);
   const [showEditMeetingModal, setShowEditMeetingModal] = useState(false);
@@ -141,12 +74,12 @@ export default function MeetingsView() {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (!token) return;
     
-    fetch("http://localhost:3001/meetings", {
+    fetch(`${API_URL}/meetings`, {
       headers: { "Authorization": `Bearer ${token}` }
     })
     .then(res => res.ok ? res.json() : [])
     .then(data => {
-      if (data && data.length > 0) {
+      if (Array.isArray(data)) {
         const now = new Date();
         const parsed = data.map((m: any, idx: number) => {
           const start = new Date(m.startTime);
@@ -180,6 +113,8 @@ export default function MeetingsView() {
           };
         });
         setUpcomingMeetings(parsed);
+      } else {
+        setUpcomingMeetings([]);
       }
     })
     .catch(() => {});
@@ -188,7 +123,7 @@ export default function MeetingsView() {
   useEffect(() => {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (token) {
-      fetch("http://localhost:3001/auth/me", {
+      fetch(`${API_URL}/auth/me`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       .then(res => res.ok ? res.json() : null)
@@ -200,7 +135,7 @@ export default function MeetingsView() {
       fetchMeetings();
     }
 
-    socketRef.current = io("http://localhost:3001", {
+    socketRef.current = io(API_URL, {
       auth: { token }
     });
 
@@ -218,7 +153,7 @@ export default function MeetingsView() {
       const startDateTime = new Date(`${newMeetingForm.date}T${newMeetingForm.startTime}:00`).toISOString();
       const endDateTime = new Date(`${newMeetingForm.date}T${newMeetingForm.endTime}:00`).toISOString();
 
-      const res = await fetch("http://localhost:3001/meetings", {
+      const res = await fetch(`${API_URL}/meetings`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -248,7 +183,7 @@ export default function MeetingsView() {
       const startDateTime = new Date(`${editMeetingForm.date}T${editMeetingForm.startTime}:00`).toISOString();
       const endDateTime = new Date(`${editMeetingForm.date}T${editMeetingForm.endTime}:00`).toISOString();
 
-      const res = await fetch(`http://localhost:3001/meetings/${editMeetingForm.id}`, {
+      const res = await fetch(`${API_URL}/meetings/${editMeetingForm.id}`, {
         method: "PATCH",
         headers: { 
           "Content-Type": "application/json",
@@ -272,7 +207,7 @@ export default function MeetingsView() {
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (!token) return;
     try {
-      const res = await fetch(`http://localhost:3001/meetings/${id}`, {
+      const res = await fetch(`${API_URL}/meetings/${id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -300,7 +235,8 @@ export default function MeetingsView() {
   };
 
   const copyLink = (id: number) => {
-    navigator.clipboard.writeText(`http://localhost:3000/meetings/join/${id}`);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    navigator.clipboard.writeText(`${origin}/meetings/join/${id}`);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -373,7 +309,7 @@ export default function MeetingsView() {
               {/* Soft fluid gradient Background */}
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 opacity-80"></div>
               
-              {activeMeeting && (
+              {activeMeeting ? (
                 <div className="relative z-10 flex flex-col lg:flex-row items-center gap-10 p-10 lg:p-14">
                   <div className="flex-1 space-y-6">
                     <div className="flex items-center gap-3">
@@ -391,30 +327,28 @@ export default function MeetingsView() {
                         {activeMeeting.title}
                       </h3>
                       <p className="text-[16px] text-gray-600 font-medium max-w-2xl leading-relaxed">
-                        Discussing Q3 goals and marketing roadmap with stakeholders. Please make sure to review the Figma documents and Q2 analytics report prior to joining the session.
+                        {activeMeeting.description || "No description provided."}
                       </p>
                     </div>
                     
                     <div className="flex items-center gap-6 pt-4">
-                      <div className="flex items-center">
-                        <div className="flex -space-x-3">
-                          {activeMeeting.attendees.map((a: { initials: string; color: string }, i: number) => (
-                            <div
-                              key={i}
-                              className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-white text-[11px] font-bold text-white shadow-md ${a.color}`}
-                            >
-                              {a.initials}
-                            </div>
-                          ))}
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-gray-100 text-[11px] font-bold text-gray-600 shadow-md">
-                            +2
+                      {activeMeeting.attendees && activeMeeting.attendees.length > 0 && (
+                        <div className="flex items-center">
+                          <div className="flex -space-x-3">
+                            {activeMeeting.attendees.map((a: { initials: string; color: string }, i: number) => (
+                              <div
+                                key={i}
+                                className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-white text-[11px] font-bold text-white shadow-md ${a.color}`}
+                              >
+                                {a.initials}
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
-                      <div className="h-10 w-[1px] bg-gray-200"></div>
+                      )}
                       <div className="flex flex-col">
                         <span className="text-[12px] text-gray-400 font-medium">Host</span>
-                        <span className="text-[14px] text-gray-900 font-bold">Nandini S.</span>
+                        <span className="text-[14px] text-gray-900 font-bold">{currentUser?.fullName || currentUser?.username || "You"}</span>
                       </div>
                     </div>
                   </div>
@@ -443,6 +377,17 @@ export default function MeetingsView() {
                       </button>
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div className="relative z-10 flex flex-col items-center justify-center p-12 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500 mb-3">
+                    <Video size={24} />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">No Meetings Scheduled</h3>
+                  <p className="text-sm text-gray-500 max-w-sm mt-1 mb-4">You have no upcoming or active meetings at this time. Create one to get started.</p>
+                  <button onClick={() => setShowNewMeetingModal(true)} className="flex items-center gap-2 rounded-xl bg-[#4F46E5] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-600 transition-colors">
+                    <Plus size={16} /> Schedule Meeting
+                  </button>
                 </div>
               )}
             </motion.div>
@@ -477,7 +422,8 @@ export default function MeetingsView() {
               animate="show"
               className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
             >
-              {filteredUpcoming.map((meeting) => (
+              {filteredUpcoming.length > 0 ? (
+                filteredUpcoming.map((meeting) => (
                 <motion.div
                   variants={itemVariants}
                   key={meeting.id}
@@ -539,7 +485,7 @@ export default function MeetingsView() {
                   
                   <div className="mt-8 flex items-center justify-between">
                     <div className="flex -space-x-2">
-                      {meeting.attendees.map((a: { initials: string; color: string }, i: number) => (
+                      {meeting.attendees && meeting.attendees.map((a: { initials: string; color: string }, i: number) => (
                         <div
                           key={i}
                           className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow-sm ${a.color}`}
@@ -569,7 +515,11 @@ export default function MeetingsView() {
                     )}
                   </div>
                 </motion.div>
-              ))}
+              ))) : (
+                <div className="col-span-full py-8 text-center text-sm font-medium text-gray-400">
+                  No upcoming meetings scheduled.
+                </div>
+              )}
             </motion.div>
           </section>
 
@@ -588,7 +538,8 @@ export default function MeetingsView() {
               animate="show"
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
             >
-              {filteredRecorded.map((recording) => (
+              {filteredRecorded.length > 0 ? (
+                filteredRecorded.map((recording) => (
                 <motion.div whileHover="hover" variants={itemVariants} key={recording.id} className="group cursor-pointer">
                   <div className={`relative mb-4 aspect-[16/10] w-full overflow-hidden rounded-[20px] shadow-sm transition-all duration-300 group-hover:shadow-[0_12px_30px_rgba(0,0,0,0.1)] ${recording.thumbnail}`}>
                     
@@ -616,7 +567,11 @@ export default function MeetingsView() {
                     </span>
                   </div>
                 </motion.div>
-              ))}
+              ))) : (
+                <div className="col-span-full py-8 text-center text-sm font-medium text-gray-400">
+                  No recorded meetings yet.
+                </div>
+              )}
             </motion.div>
           </section>
 

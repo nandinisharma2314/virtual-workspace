@@ -21,11 +21,11 @@ export default function RecentFilesCard({ recentFiles = [] }: { recentFiles?: an
 
       {recentFiles.length > 0 ? (
         <ul className="flex-1 min-h-0 divide-y divide-gray-100/80 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex flex-col">
-          {recentFiles.map((f) => {
+          {recentFiles.map((f, index) => {
             const cfg = iconMap[f.icon] || { icon: FileText, bgClass: "bg-[#F43F5E] text-white" };
             const Icon = cfg.icon;
             return (
-              <li key={f.name} className="flex items-center gap-3.5 py-2 sm:py-2.5 px-1 hover:bg-gray-50/60 rounded-xl transition-colors min-w-0">
+              <li key={`${f.name}-${index}`} className="flex items-center gap-3.5 py-2 sm:py-2.5 px-1 hover:bg-gray-50/60 rounded-xl transition-colors min-w-0">
                 <span className={`flex h-9 w-9 sm:h-[38px] sm:w-[38px] shrink-0 items-center justify-center rounded-xl sm:rounded-[14px] ${cfg.bgClass}`}>
                   <Icon size={18} strokeWidth={2.3} />
                 </span>

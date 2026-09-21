@@ -7,7 +7,7 @@ import RoadmapBoard from "@/components/RoadmapBoard";
 import EmptyBoardState from "@/components/boards/EmptyBoardState";
 import CreateBoardModal, { CustomBoard } from "@/components/boards/CreateBoardModal";
 import MyTasksBoard from "@/components/chat/templates/MyTasksBoard";
-import { getTemplateById, ChannelTemplate } from "@/lib/templateData";
+import { getTemplateById, ChannelTemplate } from "@/lib/templateConfig";
 import { Plus, ChevronDown, Check, FolderKanban } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 

@@ -630,7 +630,7 @@ export const channelTemplates: ChannelTemplate[] = [
         { id: "a3", name: "Auto-close triaged feedback after 14 days of no response", active: false },
       ],
       triageIssues: [
-        { id: "T-101", title: "Payment checkout fails intermittently on Safari iOS", type: "Bug", priority: "Critical", status: "Investigating", author: "jessica@acme.com", time: "10 mins ago" },
+        { id: "T-101", title: "Payment checkout fails intermittently on Safari iOS", type: "Bug", priority: "Critical", status: "Investigating", author: "jessica@workspace.com", time: "10 mins ago" },
         { id: "T-102", title: "Support export to CSV and Excel in Reports tab", type: "Feature", priority: "Medium", status: "Triaged", author: "alex.m@client.io", time: "2 hours ago" },
         { id: "T-103", title: "Add keyboard shortcut (Cmd+K) for global search", type: "Enhancement", priority: "Low", status: "Incoming", author: "david.chen@studio.com", time: "Yesterday" },
         { id: "T-104", title: "Dark mode sidebar contrast on smaller screens", type: "UX", priority: "Low", status: "Resolved", author: "sophie@design.co", time: "2 days ago" },
@@ -694,7 +694,7 @@ export const channelTemplates: ChannelTemplate[] = [
     bannerImage: "/template_banner_4.png",
     bannerGradient: "from-emerald-700 to-cyan-900",
     starterTasks: [
-      { id: "sd-1", title: "Send revised enterprise contract to Acme Corp ($45K)", status: "in_progress", priority: "High", date: "Today", tag: "Contract" },
+      { id: "sd-1", title: "Send revised enterprise contract to Apex Enterprise ($45K)", status: "in_progress", priority: "High", date: "Today", tag: "Contract" },
       { id: "sd-2", title: "Host technical deep-dive demo with Stark Industries", status: "todo", priority: "High", date: "Tomorrow", tag: "Demo" },
       { id: "sd-3", title: "Complete security questionnaire for Wayne Enterprises", status: "todo", priority: "Medium", date: "Sep 22", tag: "Security" },
       { id: "sd-4", title: "Prepare quarterly sales commission & quota report", status: "done", priority: "Low", date: "Sep 10", tag: "Reporting" },
@@ -723,7 +723,7 @@ export const channelTemplates: ChannelTemplate[] = [
           id: "col-sd-proposal",
           title: "Proposal Sent (2)",
           cards: [
-            { id: "sdc-5", title: "Acme Corp — $45,000 (Annual Enterprise Tier)", cover: "/social_media_cover.jpg", attachments: 1, hasDesc: true },
+            { id: "sdc-5", title: "Apex Enterprise — $45,000 (Annual Enterprise Tier)", cover: "/social_media_cover.jpg", attachments: 1, hasDesc: true },
             { id: "sdc-6", title: "Massive Dynamic — $80,000 (Multi-Region Cluster)", checklist: "1/3" }
           ]
         },
@@ -769,7 +769,7 @@ export const channelTemplates: ChannelTemplate[] = [
           id: "proposal",
           name: "Proposal Sent",
           deals: [
-            { id: "d3", company: "Acme Corp", value: "$45,000", owner: "David C.", probability: "75%" },
+            { id: "d3", company: "Apex Enterprise", value: "$45,000", owner: "David C.", probability: "75%" },
           ]
         },
         {

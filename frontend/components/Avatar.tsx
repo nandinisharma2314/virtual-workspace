@@ -1,6 +1,6 @@
 "use client";
 
-import { avatarColors } from "@/lib/data";
+import { avatarColors } from "@/lib/uiConstants";
 import { useEffect, useState } from "react";
 
 export default function Avatar({

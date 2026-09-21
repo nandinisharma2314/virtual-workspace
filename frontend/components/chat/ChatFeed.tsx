@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ChatMessage } from "@/lib/chatData";
+import { ChatMessage } from "@/lib/chatTypes";
 import { API_URL } from "@/lib/apis";
 import { toast, confirmDialog } from "@/lib/toast";
 import Avatar from "@/components/Avatar";
@@ -43,7 +43,8 @@ import { useRouter } from "next/navigation";
 import EmojiPicker from 'emoji-picker-react';
 import ChatWallpaperModal from "./ChatWallpaperModal";
 import { BOARD_BACKGROUNDS } from "./templates/MyTasksBoard";
-import { channelTemplates } from "@/lib/templateData";
+import { channelTemplates, ChannelTemplate } from "@/lib/templateConfig";
+import { useBoardBackgrounds } from "@/lib/useAdminData";
 import TemplateTabRenderer from "./templates/TemplateTabRenderer";
 
 // Audio Player Component
@@ -124,6 +125,7 @@ const AudioPlayer = ({ duration = 8, filename = "", url = "" }: { duration?: num
 };
 
 export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }: { channelId?: string, refreshTrigger?: number }) {
+  const dynamicBackgrounds = useBoardBackgrounds();
   const [activeTab, setActiveTab] = useState("Messages");
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -150,6 +152,14 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
     }
     return null;
   });
+  const [dynamicTemplates, setDynamicTemplates] = useState<ChannelTemplate[]>(channelTemplates);
+
+  useEffect(() => {
+    fetch(`${API_URL}/admin/templates`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (Array.isArray(data) && data.length > 0) setDynamicTemplates(data); })
+      .catch(() => {});
+  }, []);
 
   // Video Call states
   const [isInCall, setIsInCall] = useState(false);
@@ -439,10 +449,10 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
   const isGradBg = Boolean(chatBg && (chatBg.startsWith("from-") || chatBg.startsWith("bg-")));
   const hasCustomBg = Boolean(isPhotoBg || isGradBg);
 
-  const matchingTemplate = channelTemplates.find(
+  const matchingTemplate = dynamicTemplates.find(
     (t) => t.id === activeTemplateId || t.templateConfig?.bgImage === chatBg
   );
-  const matchingPhotoName = BOARD_BACKGROUNDS.find((b) => b.image === chatBg)?.name;
+  const matchingPhotoName = dynamicBackgrounds.find((b: any) => b.image === chatBg)?.name;
 
   const baseTabs = ["Messages", "Tasks", "Files", "Wiki"];
   const templateTabs = matchingTemplate?.customTabs?.map((t) => t.name) || [];
@@ -708,7 +718,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
   const renderMessageText = (text: string) => {
     const lines = text.split("\n");
     return lines.map((line, idx) => {
-      const parts = line.split(/(@team|@Avi Sharma|@Rohit Verma|@Neha Sharma)/g);
+      const parts = line.split(/(@\w+(?:\s+\w+)?)/g);
       return (
         <React.Fragment key={idx}>
           {parts.map((part, pIdx) => {

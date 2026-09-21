@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Plus, Search, Filter, Calendar as CalendarIcon, Settings, MoreHorizontal } from "lucide-react";
-import { calendarWeekdays } from "@/lib/data";
+import { calendarWeekdays } from "@/lib/uiConstants";
 import { API_URL } from "@/lib/apis";
 import { toast } from "@/lib/toast";
 

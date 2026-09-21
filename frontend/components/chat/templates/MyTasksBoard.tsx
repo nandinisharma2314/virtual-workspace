@@ -12,14 +12,15 @@ import {
   Image as ImageIcon, ArrowLeft as BackArrow,
   FileText, GitMerge, AtSign, CheckCircle2 as CheckCircleIcon, CheckSquare
 } from 'lucide-react';
-import { ChannelTemplate, channelTemplates } from '@/lib/templateData';
-import { InboxItem } from '@/lib/inboxData';
+import { ChannelTemplate, channelTemplates } from '@/lib/templateConfig';
+import { InboxItem } from '@/lib/inboxTypes';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
 import Image from 'next/image';
 import { API_URL } from '@/lib/apis';
 import { toast, confirmDialog } from '@/lib/toast';
+import { useBoardBackgrounds, DEFAULT_BOARD_BACKGROUNDS } from "@/lib/useAdminData";
 
 // ─── Adapt a raw DB notification into the rich InboxItem shape ───────────────
 function adaptDbNotification(dbNotif: any, index: number): InboxItem {
@@ -65,15 +66,7 @@ function adaptDbNotification(dbNotif: any, index: number): InboxItem {
   };
 }
 
-export const BOARD_BACKGROUNDS = [
-  { id: 'cosmic', name: 'Deep Space Galaxy', image: '/cosmic_board_bg.jpg', desc: 'Nebula galaxy and stars (My Tasks)' },
-  { id: 'moon', name: 'Crescent Moon Night', image: '/crescent_moon_night_bg.jpg', desc: 'Starry sky over mountains (Feedback & Triage)' },
-  { id: 'track', name: 'Athletic Sprint Track', image: '/track_sprint_bg.jpg', desc: 'Vivid blue stadium lanes (Tier List)' },
-  { id: 'wood', name: 'Natural Oak Planks', image: '/wood_planks_bg.jpg', desc: 'Warm vertical timber wall (Sales & Deals)' },
-  { id: 'ocean', name: 'Calm Ocean Horizon', image: '/calm_ocean_bg.jpg', desc: 'Tranquil turquoise sea (Daily Standup)' },
-  { id: 'library', name: 'Vintage Library', image: '/library_books_bg.jpg', desc: 'Classic cozy bookshelves (Team Academy)' },
-  { id: 'desk', name: 'Modern Workspace Desk', image: '/workspace_desk_bg.jpg', desc: 'Clean laptop & coffee flat lay (Onboarding)' },
-];
+export const BOARD_BACKGROUNDS = DEFAULT_BOARD_BACKGROUNDS;
 
 export interface TaskCard {
   id: string;
@@ -117,6 +110,7 @@ export default function MyTasksBoard({
   onSwitchTemplate
 }: MyTasksBoardProps) {
   const router = useRouter();
+  const dynamicBackgrounds = useBoardBackgrounds();
 
   // --- Current User (real, from backend) ---
   const [currentUser, setCurrentUser] = useState<{ name: string; email: string; role?: string; avatar?: string } | null>(null);
@@ -1725,7 +1719,7 @@ export default function MyTasksBoard({
                 }`}
               >
                 <ImageIcon size={13} />
-                <span>Backgrounds ({BOARD_BACKGROUNDS.length})</span>
+                <span>Backgrounds ({dynamicBackgrounds.length})</span>
               </button>
             </div>
 
@@ -1800,11 +1794,11 @@ export default function MyTasksBoard({
             {switcherTab === 'backgrounds' && (
               <div className="space-y-2 overflow-y-auto flex-1 pr-1 custom-scrollbar">
                 <div className="text-[10px] font-extrabold uppercase tracking-wider text-white/40 px-1 py-0.5">
-                  Photographic Backgrounds ({BOARD_BACKGROUNDS.length})
+                  Photographic Backgrounds ({dynamicBackgrounds.length})
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5">
-                  {BOARD_BACKGROUNDS.map((bg) => {
+                  {dynamicBackgrounds.map((bg) => {
                     const isSelected = boardBg === bg.image;
                     return (
                       <button

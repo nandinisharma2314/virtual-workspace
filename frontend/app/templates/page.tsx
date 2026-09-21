@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import Image from 'next/image';
@@ -26,7 +26,8 @@ import {
   GraduationCap,
   Layout,
 } from 'lucide-react';
-import { channelTemplates, templateCategories, ChannelTemplate } from '@/lib/templateData';
+import { channelTemplates, templateCategories, ChannelTemplate } from '@/lib/templateConfig';
+import { API_URL } from '@/lib/apis';
 import TemplateModal from "@/components/chat/TemplateModal";
 
 export default function TemplatesPage() {
@@ -35,6 +36,19 @@ export default function TemplatesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ChannelTemplate | null>(null);
+  const [dynamicTemplates, setDynamicTemplates] = useState<ChannelTemplate[]>(channelTemplates);
+  const [dynamicCategories, setDynamicCategories] = useState(templateCategories);
+
+  useEffect(() => {
+    fetch(`${API_URL}/admin/templates`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (Array.isArray(data) && data.length > 0) setDynamicTemplates(data); })
+      .catch(() => {});
+    fetch(`${API_URL}/admin/categories`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (Array.isArray(data) && data.length > 0) setDynamicCategories(data); })
+      .catch(() => {});
+  }, []);
 
   const getCategoryIcon = (iconName: string, className = "w-5 h-5") => {
     switch (iconName) {
@@ -52,14 +66,14 @@ export default function TemplatesPage() {
   // Calculate template count per category
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    templateCategories.forEach(cat => {
-      counts[cat.id] = channelTemplates.filter(t => t.category === cat.id).length;
+    dynamicCategories.forEach(cat => {
+      counts[cat.id] = dynamicTemplates.filter(t => t.category === cat.id).length;
     });
     return counts;
-  }, []);
+  }, [dynamicCategories, dynamicTemplates]);
 
   const filteredTemplates = useMemo(() => {
-    return channelTemplates.filter(t => {
+    return dynamicTemplates.filter(t => {
       const matchesCategory = !activeCategory || t.category === activeCategory;
       const query = searchQuery.trim().toLowerCase();
       if (!query) return matchesCategory;
@@ -70,9 +84,9 @@ export default function TemplatesPage() {
         (t.tagline && t.tagline.toLowerCase().includes(query))
       );
     });
-  }, [activeCategory, searchQuery]);
+  }, [activeCategory, searchQuery, dynamicTemplates]);
 
-  const activeCategoryObj = templateCategories.find(c => c.id === activeCategory);
+  const activeCategoryObj = dynamicCategories.find(c => c.id === activeCategory);
 
   const handleApplyTemplate = (template: ChannelTemplate) => {
     if (typeof window !== 'undefined') {
@@ -143,7 +157,7 @@ export default function TemplatesPage() {
                     Categories
                   </span>
                   <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                    {channelTemplates.length}
+                    {dynamicTemplates.length}
                   </span>
                 </div>
 
@@ -165,11 +179,11 @@ export default function TemplatesPage() {
                     <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
                       activeCategory === null ? 'bg-indigo-100 text-indigo-800' : 'text-gray-400'
                     }`}>
-                      {channelTemplates.length}
+                      {dynamicTemplates.length}
                     </span>
                   </button>
 
-                  {templateCategories.map(cat => {
+                  {dynamicCategories.map(cat => {
                     const count = categoryCounts[cat.id] || 0;
                     const isActive = activeCategory === cat.id;
                     return (
@@ -271,9 +285,9 @@ export default function TemplatesPage() {
                       : 'bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-gray-200/80 shadow-2xs'
                   }`}
                 >
-                  All Templates ({channelTemplates.length})
+                  All Templates ({dynamicTemplates.length})
                 </button>
-                {templateCategories.map(cat => (
+                {dynamicCategories.map(cat => (
                   <button
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
@@ -327,7 +341,7 @@ export default function TemplatesPage() {
 
                   {/* 7 Category Cards Grid */}
                   <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-3.5">
-                    {templateCategories.map(cat => (
+                    {dynamicCategories.map(cat => (
                       <div
                         key={cat.id}
                         onClick={() => setActiveCategory(cat.id)}
@@ -397,7 +411,7 @@ export default function TemplatesPage() {
                 {filteredTemplates.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {filteredTemplates.map(template => {
-                      const categoryInfo = templateCategories.find(c => c.id === template.category);
+                      const categoryInfo = dynamicCategories.find(c => c.id === template.category);
                       return (
                         <div
                           key={template.id}

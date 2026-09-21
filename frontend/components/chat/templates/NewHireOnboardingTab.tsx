@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, UserCheck, BookOpen, ExternalLink, Calendar, Users, Sparkles, Coffee } from 'lucide-react';
-import { ChannelTemplate } from '@/lib/templateData';
+import { ChannelTemplate } from '@/lib/templateConfig';
 import Avatar from '@/components/Avatar';
 
 interface NewHireOnboardingTabProps {

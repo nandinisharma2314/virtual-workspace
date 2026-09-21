@@ -183,9 +183,9 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
       <button className="flex items-center justify-between gap-2 rounded-lg border border-gray-200/80 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 shadow-2xs transition-colors shrink-0">
         <span className="flex items-center gap-1.5">
           <span className="flex h-4 w-4 items-center justify-center rounded bg-gray-900 text-[9px] font-bold text-white">
-            A
+            {currentUser?.name ? currentUser.name[0].toUpperCase() : 'W'}
           </span>
-          Acme Inc.
+          {currentUser?.name ? `${currentUser.name.split(' ')[0]}'s Workspace` : 'Workspace'}
         </span>
         <ChevronDown size={13} className="text-gray-400" />
       </button>

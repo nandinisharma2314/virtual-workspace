@@ -10,16 +10,7 @@ export type Member = {
   status: string;
 };
 
-const initialMembers: Member[] = [
-  { id: "avi", name: "Avi Singh", role: "Frontend Developer", department: "Engineering", status: "Active" },
-  { id: "rohit", name: "Rohit Verma", role: "Backend Developer", department: "Engineering", status: "Active" },
-  { id: "priya", name: "Priya Singh", role: "UI/UX Designer", department: "Design", status: "Active" },
-  { id: "neha", name: "Neha Sharma", role: "Product Manager", department: "Product", status: "Away" },
-  { id: "arjun", name: "Arjun Patel", role: "QA Engineer", department: "Engineering", status: "Active" },
-  { id: "rahul", name: "Rahul Sharma", role: "Marketing Lead", department: "Marketing", status: "Offline" },
-  { id: "vikram", name: "Vikram Joshi", role: "DevOps Engineer", department: "Engineering", status: "Active" },
-  { id: "ankit", name: "Ankit Patel", role: "Sales Executive", department: "Sales", status: "Active" },
-];
+const initialMembers: Member[] = [];
 
 type TeamsContextType = {
   members: Member[];

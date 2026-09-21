@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { InboxItem } from "@/lib/inboxData";
+import { InboxItem } from "@/lib/inboxTypes";
 import InboxSidebar from "./inbox/InboxSidebar";
 import InboxList from "./inbox/InboxList";
 import InboxDetail from "./inbox/InboxDetail";
@@ -13,17 +13,19 @@ function adaptDbNotification(dbNotif: any, index: number): InboxItem {
   const dateObj = new Date(dbNotif.createdAt);
   const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
+  const now = new Date();
+  const isToday = dateObj.toDateString() === now.toDateString();
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = dateObj.toDateString() === yesterday.toDateString();
+  const dateGroup: InboxItem["dateGroup"] = isToday ? "Today" : isYesterday ? "Yesterday" : "Earlier";
+
   // Try to determine tags and icons based on type or content
   let tag: InboxItem["tag"] = "System";
   let tagStyle = { bg: "bg-gray-100", text: "text-gray-700", border: "border-gray-200/60" };
   let iconType: InboxItem["iconType"] = "system";
   let title = `New ${dbNotif.type} Notification`;
-  let aiSuggestedAction: InboxItem["aiSuggestedAction"] = {
-    title: "AI Suggested Action",
-    reason: "Based on real-time data.",
-    buttonLabel: "View Details",
-    confidence: "High",
-  };
+  let aiSuggestedAction: InboxItem["aiSuggestedAction"] = undefined;
 
   const contentLower = dbNotif.content?.toLowerCase() || "";
   let parsedContent: any = null;
@@ -36,33 +38,40 @@ function adaptDbNotification(dbNotif: any, index: number): InboxItem {
   let displayPreview = parsedContent?.preview || (dbNotif.content ? dbNotif.content.substring(0, 50) + "..." : "");
   let displayFullMessage = parsedContent ? JSON.stringify(parsedContent, null, 2) : dbNotif.content;
 
-  if (contentLower.includes("mention") || dbNotif.type === "Mention") { tag = "Mention"; tagStyle = { bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-200/60" }; iconType = "avatar"; }
-  else if (contentLower.includes("task") || dbNotif.type === "Task") { tag = "High"; tagStyle = { bg: "bg-rose-50", text: "text-rose-600", border: "border-rose-200/60" }; iconType = "check"; displayTitle = parsedContent?.title || "Task Assignment"; }
-  else if (contentLower.includes("meet") || dbNotif.type === "Meeting") { 
+  if (contentLower.includes("mention") || dbNotif.type === "Mention") {
+    tag = "Mention";
+    tagStyle = { bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-200/60" };
+    iconType = "avatar";
+  } else if (contentLower.includes("task") || dbNotif.type === "Task") {
+    tag = "High";
+    tagStyle = { bg: "bg-rose-50", text: "text-rose-600", border: "border-rose-200/60" };
+    iconType = "check";
+    displayTitle = parsedContent?.title || "Task Notification";
+  } else if (contentLower.includes("meet") || dbNotif.type === "Meeting") { 
     tag = "Meeting"; 
     tagStyle = { bg: "bg-indigo-50", text: "text-indigo-600", border: "border-indigo-200/60" }; 
     iconType = "meeting"; 
     displayTitle = parsedContent?.title || "Upcoming Meeting"; 
-    aiSuggestedAction = {
-      title: "Join Google Meet",
-      reason: "This meeting is starting soon. Ensure you join on time.",
-      buttonLabel: "Join Google Meet",
-      confidence: "Very High",
-      actionUrl: "https://meet.google.com/abc-mno-xyz"
-    };
+    if (parsedContent?.actionUrl) {
+      aiSuggestedAction = {
+        title: "Join Meeting",
+        reason: "Scheduled team meeting.",
+        buttonLabel: "Join Meeting",
+        confidence: "High",
+        actionUrl: parsedContent.actionUrl
+      };
+    }
+  } else if (contentLower.includes("file") || dbNotif.type === "File") {
+    tag = "File";
+    tagStyle = { bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200/60" };
+    iconType = "file";
+    displayTitle = parsedContent?.title || "File Shared";
   }
-  else if (contentLower.includes("file") || dbNotif.type === "File") { tag = "File"; tagStyle = { bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200/60" }; iconType = "file"; displayTitle = parsedContent?.title || "File Shared"; }
 
-  // Cycle through some mock projects and priorities so the UI looks alive
-  const projects = [
-    { name: "Mobile App", dotColor: "bg-pink-500" },
-    { name: "Marketing Campaign", dotColor: "bg-orange-500" }
-  ];
-  const priorities = [
-    { label: "High", color: "text-rose-600", dotClass: "bg-rose-500" },
-    { label: "Medium", color: "text-amber-500", dotClass: "bg-amber-500" },
-    { label: "Low", color: "text-emerald-600", dotClass: "bg-emerald-500" }
-  ];
+  const projectName = parsedContent?.project || "General";
+  const priorityLabel = parsedContent?.priority || (tag === "High" ? "High" : "Medium");
+  const priorityColor = priorityLabel === "High" ? "text-rose-600" : priorityLabel === "Low" ? "text-emerald-600" : "text-amber-500";
+  const priorityDot = priorityLabel === "High" ? "bg-rose-500" : priorityLabel === "Low" ? "bg-emerald-500" : "bg-amber-500";
 
   return {
     id: dbNotif.id.toString(),
@@ -70,16 +79,16 @@ function adaptDbNotification(dbNotif: any, index: number): InboxItem {
     subtitle: displaySubtitle,
     preview: displayPreview,
     time: timeString,
-    dateGroup: "Today",
+    dateGroup: dateGroup,
     unread: !dbNotif.isRead,
     tag: tag,
     tagStyle: tagStyle,
     iconType: iconType,
-    avatarPerson: "avi",
-    senderName: "System",
-    channel: { name: "# general", project: "System" },
-    project: projects[index % projects.length],
-    priority: priorities[index % priorities.length],
+    avatarPerson: parsedContent?.avatarPerson || "system",
+    senderName: parsedContent?.senderName || dbNotif.type || "System",
+    channel: { name: parsedContent?.channel || "#general", project: projectName },
+    project: { name: projectName, dotColor: "bg-indigo-500" },
+    priority: { label: priorityLabel, color: priorityColor, dotClass: priorityDot },
     fullMessage: displayFullMessage,
     aiSuggestedAction: aiSuggestedAction,
   };

@@ -25,7 +25,8 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { channelTemplates, ChannelTemplate, templateCategories } from '../../lib/templateData';
+import { channelTemplates, ChannelTemplate, templateCategories } from '../../lib/templateConfig';
+import { API_URL } from '@/lib/apis';
 import EmptyBoardState from '../boards/EmptyBoardState';
 
 interface TemplateModalProps {
@@ -49,6 +50,19 @@ export default function TemplateModal({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(initialTemplateId || null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dynamicTemplates, setDynamicTemplates] = useState<ChannelTemplate[]>(channelTemplates);
+  const [dynamicCategories, setDynamicCategories] = useState(templateCategories);
+
+  useEffect(() => {
+    fetch(`${API_URL}/admin/templates`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (Array.isArray(data) && data.length > 0) setDynamicTemplates(data); })
+      .catch(() => {});
+    fetch(`${API_URL}/admin/categories`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (Array.isArray(data) && data.length > 0) setDynamicCategories(data); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (isOpen && initialTemplateId) {
@@ -57,9 +71,9 @@ export default function TemplateModal({
     }
   }, [isOpen, initialTemplateId]);
 
-  const selectedTemplate = channelTemplates.find(t => t.id === selectedTemplateId) || channelTemplates[0];
+  const selectedTemplate = dynamicTemplates.find(t => t.id === selectedTemplateId) || dynamicTemplates[0];
 
-  const filteredTemplates = channelTemplates.filter(t => {
+  const filteredTemplates = dynamicTemplates.filter(t => {
     const matchesCategory = selectedCategory ? t.category === selectedCategory : true;
     const query = searchQuery.trim().toLowerCase();
     if (!query) return matchesCategory;
@@ -179,7 +193,7 @@ export default function TemplateModal({
                   <div className="pt-3 border-t border-gray-200/60">
                     <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider px-2.5 mb-2 flex items-center justify-between">
                       <span>Categories</span>
-                      <span>{channelTemplates.length}</span>
+                      <span>{dynamicTemplates.length}</span>
                     </div>
                     <nav className="space-y-0.5">
                       <button
@@ -191,12 +205,12 @@ export default function TemplateModal({
                         }`}
                       >
                         <span>All Categories</span>
-                        <span className="text-[10px] text-gray-400">{channelTemplates.length}</span>
+                        <span className="text-[10px] text-gray-400">{dynamicTemplates.length}</span>
                       </button>
 
-                      {templateCategories.map(cat => {
+                      {dynamicCategories.map(cat => {
                         const isCatActive = selectedCategory === cat.id;
-                        const count = channelTemplates.filter(t => t.category === cat.id).length;
+                        const count = dynamicTemplates.filter(t => t.category === cat.id).length;
                         return (
                           <button
                             key={cat.id}
@@ -252,7 +266,7 @@ export default function TemplateModal({
                         {searchQuery
                           ? `Search results for "${searchQuery}"`
                           : selectedCategory
-                            ? `${templateCategories.find(c => c.id === selectedCategory)?.name} Templates`
+                            ? `${dynamicCategories.find(c => c.id === selectedCategory)?.name} Templates`
                             : "Explore Templates"}
                       </h2>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -283,7 +297,7 @@ export default function TemplateModal({
                   {/* Category Pills */}
                   {!searchQuery && (
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
-                      {templateCategories.map(cat => {
+                      {dynamicCategories.map(cat => {
                         const isSelected = selectedCategory === cat.id;
                         return (
                           <div
@@ -312,7 +326,7 @@ export default function TemplateModal({
                   {filteredTemplates.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filteredTemplates.map(template => {
-                        const cat = templateCategories.find(c => c.id === template.category);
+                        const cat = dynamicCategories.find(c => c.id === template.category);
                         return (
                           <div
                             key={template.id}

@@ -18,6 +18,7 @@ import {
 import Avatar from "@/components/Avatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_URL } from "@/lib/apis";
+import { useChannelThemes, DEFAULT_CHANNEL_THEMES } from "@/lib/useAdminData";
 
 export const channelThemes = [
   {
@@ -69,6 +70,7 @@ export default function CreateChannelModal({
   onClose,
   onChannelCreated,
 }: CreateChannelModalProps) {
+  const dynamicThemes = useChannelThemes();
   const [channelName, setChannelName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedTheme, setSelectedTheme] = useState(channelThemes[0]);
@@ -81,6 +83,10 @@ export default function CreateChannelModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [showValidation, setShowValidation] = useState(false);
+
+  useEffect(() => {
+    if (dynamicThemes.length > 0) setSelectedTheme(dynamicThemes[0]);
+  }, [dynamicThemes]);
 
   // Fetch workspace users and current user for member selection
   useEffect(() => {
@@ -378,7 +384,7 @@ export default function CreateChannelModal({
                   Channel Color Theme
                 </label>
                 <div className="grid grid-cols-6 gap-2">
-                  {channelThemes.map((theme) => {
+                  {dynamicThemes.map((theme) => {
                     const isSelected = selectedTheme.id === theme.id;
                     return (
                       <button

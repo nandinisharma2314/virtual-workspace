@@ -1,6 +1,6 @@
 "use client";
 
-import { InboxItem } from "@/lib/inboxData";
+import { InboxItem } from "@/lib/inboxTypes";
 import Avatar from "@/components/Avatar";
 import {
   ChevronDown,

@@ -1,26 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Avatar from "@/components/Avatar";
+import { API_URL } from "@/lib/apis";
 import {
   Star,
   UserPlus,
   MoreHorizontal,
-  Search,
-  Filter,
-  ArrowUpDown,
-  Layers,
-  Zap,
-  SlidersHorizontal,
 } from "lucide-react";
 
 export default function ProjectHeader({ 
+  projectId,
   activeTab, 
   setActiveTab 
 }: { 
+  projectId?: string;
   activeTab: string;
   setActiveTab: (tab: string) => void;
 }) {
+  const [project, setProject] = useState<any>(null);
+
+  useEffect(() => {
+    if (!projectId) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
+    fetch(`${API_URL}/projects/${projectId}`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setProject(data); })
+      .catch(() => {});
+  }, [projectId]);
+
+  const projectName = project?.name || (projectId ? `Project #${projectId}` : "Project Overview");
+  const projectDesc = project?.description || "Collaborate on tasks, documents, and timelines.";
+  const projectStatus = project?.status === "completed" ? "Completed" : project?.status === "at_risk" ? "At Risk" : "Active";
 
   const tabs = [
     "Overview",
@@ -41,20 +54,24 @@ export default function ProjectHeader({
         <div className="flex items-center gap-1 text-[11.5px] font-semibold text-gray-400 mb-1">
           <span>Projects</span>
           <span>&gt;</span>
-          <span className="text-gray-600 font-bold">Mobile App Launch</span>
+          <span className="text-gray-600 font-bold">{projectName}</span>
         </div>
 
         {/* Title and Right Actions Row */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5 min-w-0">
             <h1 className="text-[22px] font-black text-gray-900 tracking-tight leading-none">
-              Mobile App Launch
+              {projectName}
             </h1>
             <button className="text-gray-400 hover:text-amber-500 transition-colors">
               <Star size={18} strokeWidth={2.2} />
             </button>
-            <span className="bg-emerald-50 text-emerald-600 font-black text-[11px] px-2.5 py-0.5 rounded-lg border border-emerald-200/60 uppercase tracking-wide ml-1">
-              On Track
+            <span className={`font-black text-[11px] px-2.5 py-0.5 rounded-lg border uppercase tracking-wide ml-1 ${
+              projectStatus === "Completed" ? "bg-emerald-50 text-emerald-600 border-emerald-200/60" :
+              projectStatus === "At Risk" ? "bg-rose-50 text-rose-600 border-rose-200/60" :
+              "bg-blue-50 text-blue-600 border-blue-200/60"
+            }`}>
+              {projectStatus}
             </span>
           </div>
 
@@ -83,7 +100,7 @@ export default function ProjectHeader({
 
         {/* Subtitle */}
         <p className="text-[12px] text-gray-500 font-medium mt-1">
-          Launch iOS and Android versions of our core product.
+          {projectDesc}
         </p>
 
         {/* Tabs Row */}
@@ -106,7 +123,6 @@ export default function ProjectHeader({
           })}
         </div>
       </div>
-
     </div>
   );
 }

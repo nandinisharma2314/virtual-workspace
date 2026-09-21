@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Award, Plus, RotateCcw, ChevronUp, ChevronDown, Sparkles, Tag, Check } from 'lucide-react';
-import { ChannelTemplate } from '@/lib/templateData';
+import { ChannelTemplate } from '@/lib/templateConfig';
 
 interface TierListTabProps {
   template: ChannelTemplate;

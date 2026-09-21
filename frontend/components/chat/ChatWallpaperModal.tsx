@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Check,
@@ -14,9 +14,9 @@ import {
   Sliders,
   CheckCircle2,
 } from "lucide-react";
-import { channelTemplates, ChannelTemplate } from "@/lib/templateData";
-import { BOARD_BACKGROUNDS } from "./templates/MyTasksBoard";
-import { channelThemes } from "./CreateChannelModal";
+import { channelTemplates, ChannelTemplate } from "@/lib/templateConfig";
+import { useChannelThemes, useBoardBackgrounds } from "@/lib/useAdminData";
+import { API_URL } from "@/lib/apis";
 
 interface ChatWallpaperModalProps {
   isOpen: boolean;
@@ -39,10 +39,29 @@ export default function ChatWallpaperModal({
   onSelectWallpaper,
   onResetDefault,
 }: ChatWallpaperModalProps) {
+  const dynamicThemes = useChannelThemes();
+  const dynamicBackgrounds = useBoardBackgrounds();
+
   const [activeTab, setActiveTab] = useState<"photos" | "templates" | "gradients">("photos");
-  const [selectedBg, setSelectedBg] = useState<string>(currentBg || BOARD_BACKGROUNDS[0].image);
+  const [selectedBg, setSelectedBg] = useState<string>(
+    currentBg || dynamicBackgrounds[0]?.image || '/cosmic_board_bg.jpg'
+  );
   const [selectedTemplate, setSelectedTemplate] = useState<string | undefined>(currentTemplateId || undefined);
   const [overlayOpacity, setOverlayOpacity] = useState<number>(35); // 0 to 60%
+
+  const [wallpapersList, setWallpapersList] = useState<any[]>(dynamicBackgrounds);
+  const [themesList, setThemesList] = useState<any[]>(dynamicThemes);
+  const [templatesList, setTemplatesList] = useState<any[]>(channelTemplates);
+
+  useEffect(() => { setWallpapersList(dynamicBackgrounds); }, [dynamicBackgrounds]);
+  useEffect(() => { setThemesList(dynamicThemes); }, [dynamicThemes]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/admin/templates`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (Array.isArray(data) && data.length > 0) setTemplatesList(data); })
+      .catch(() => {});
+  }, []);
 
   if (!isOpen) return null;
 
@@ -57,7 +76,7 @@ export default function ChatWallpaperModal({
   const handleSelectPhoto = (photoUrl: string) => {
     setSelectedBg(photoUrl);
     // Find matching template if any
-    const matchingTemplate = channelTemplates.find(
+    const matchingTemplate = templatesList.find(
       (t) => t.templateConfig?.bgImage === photoUrl
     );
     if (matchingTemplate) {
@@ -67,7 +86,7 @@ export default function ChatWallpaperModal({
 
   const handleSelectTemplate = (template: ChannelTemplate) => {
     setSelectedTemplate(template.id);
-    const bgUrl = template.templateConfig?.bgImage || BOARD_BACKGROUNDS[0].image;
+    const bgUrl = template.templateConfig?.bgImage || dynamicBackgrounds[0]?.image || '/cosmic_board_bg.jpg';
     setSelectedBg(bgUrl);
   };
 
@@ -124,7 +143,7 @@ export default function ChatWallpaperModal({
               }`}
             >
               <ImageIcon size={13} />
-              <span>Template Wallpapers ({BOARD_BACKGROUNDS.length})</span>
+              <span>Template Wallpapers ({dynamicBackgrounds.length})</span>
             </button>
 
             <button
@@ -183,7 +202,7 @@ export default function ChatWallpaperModal({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {BOARD_BACKGROUNDS.map((bg) => {
+                  {wallpapersList.map((bg) => {
                     const isSelected = selectedBg === bg.image;
                     return (
                       <div
@@ -236,8 +255,8 @@ export default function ChatWallpaperModal({
                 </div>
 
                 <div className="grid grid-cols-1 gap-2.5">
-                  {channelTemplates.map((t) => {
-                    const bgThumb = t.templateConfig?.bgImage || BOARD_BACKGROUNDS[0].image;
+                  {templatesList.map((t) => {
+                    const bgThumb = t.templateConfig?.bgImage || dynamicBackgrounds[0]?.image || '/cosmic_board_bg.jpg';
                     const isSelected = selectedTemplate === t.id;
 
                     return (
@@ -328,7 +347,7 @@ export default function ChatWallpaperModal({
                     Vibrant Color Gradients
                   </span>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {channelThemes.map((theme) => {
+                    {themesList.map((theme) => {
                       const isSelected = selectedBg === theme.gradient;
                       return (
                         <button

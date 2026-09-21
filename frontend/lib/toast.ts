@@ -75,3 +75,4 @@ class ToastManager {
 
 export const toast = new ToastManager();
 export const confirmDialog = (options: ConfirmOptions) => toast.confirm(options);
+

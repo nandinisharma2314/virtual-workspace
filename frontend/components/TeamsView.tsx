@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Search, Plus, Filter, MoreVertical, Mail, Phone, Calendar, User, Edit2, Trash2, X } from "lucide-react";
 import Avatar from "@/components/Avatar";
-import { avatarColors } from "@/lib/data";
+import { avatarColors } from "@/lib/uiConstants";
 import { API_URL } from "@/lib/apis";
 
 const initialMembers: any[] = [];
@@ -399,7 +399,7 @@ export default function TeamsView() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-500">Email</span>
-                <span className="text-sm font-semibold text-gray-900">{viewingMember.id}@acme.inc</span>
+                <span className="text-sm font-semibold text-gray-900">{viewingMember.email || `${viewingMember.name?.toLowerCase().replace(/\\s+/g, '.')}@workspace.com`}</span>
               </div>
             </div>
             

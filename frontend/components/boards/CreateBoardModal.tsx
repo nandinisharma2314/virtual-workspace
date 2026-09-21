@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useBoardGradients, DEFAULT_BOARD_GRADIENTS } from "@/lib/useAdminData";
 import {
   X,
   Layout,
@@ -69,11 +70,16 @@ export default function CreateBoardModal({
   isOpen,
   onClose,
   onBoardCreated,
-  defaultWorkspace = "Acme Inc.",
+  defaultWorkspace = "Workspace",
 }: CreateBoardModalProps) {
   const router = useRouter();
+  const dynamicGradients = useBoardGradients();
   const [boardTitle, setBoardTitle] = useState("");
   const [selectedBg, setSelectedBg] = useState(boardGradients[0]);
+
+  useEffect(() => {
+    if (dynamicGradients.length > 0) setSelectedBg(dynamicGradients[0]);
+  }, [dynamicGradients]);
   const [visibility, setVisibility] = useState<"workspace" | "private" | "public">("workspace");
   const [selectedTemplate, setSelectedTemplate] = useState<string>("blank");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -203,7 +209,7 @@ export default function CreateBoardModal({
                 Background
               </label>
               <div className="grid grid-cols-6 gap-2">
-                {boardGradients.map((bg) => {
+                {dynamicGradients.map((bg) => {
                   const isSelected = selectedBg.id === bg.id;
                   return (
                     <button
@@ -271,7 +277,7 @@ export default function CreateBoardModal({
                   onChange={(e) => setVisibility(e.target.value as "workspace" | "private" | "public")}
                   className="w-full px-2.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 font-semibold focus:outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer"
                 >
-                  <option value="workspace">Workspace (Acme Inc.)</option>
+                  <option value="workspace">Workspace ({defaultWorkspace})</option>
                   <option value="private">Private (Only members)</option>
                   <option value="public">Public (Anyone)</option>
                 </select>

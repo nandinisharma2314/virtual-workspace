@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { ChannelTemplate } from '@/lib/templateData';
+import { ChannelTemplate } from '@/lib/templateConfig';
 import MyTasksBoard from './MyTasksBoard';
 import FeedbackIntakeTab from './FeedbackIntakeTab';
 import NewHireOnboardingTab from './NewHireOnboardingTab';

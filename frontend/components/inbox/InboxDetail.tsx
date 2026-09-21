@@ -1,6 +1,6 @@
 "use client";
 
-import { InboxItem } from "@/lib/inboxData";
+import { InboxItem } from "@/lib/inboxTypes";
 import Avatar from "@/components/Avatar";
 import {
   Mail,
@@ -88,9 +88,7 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
 
   // Format message to highlight @mentions dynamically
   const renderFormattedMessage = (msg: string) => {
-    const nameToMatch = currentUser?.name || "Avi Sharma";
-    const regex = new RegExp(`(@You|@${nameToMatch}|@Arjun Patel|@Rohit Verma|@Priya Singh)`, "g");
-    const parts = msg.split(regex);
+    const parts = msg.split(/(@\w+(?:\s+\w+)?)/g);
     return parts.map((part, i) => {
       if (part.startsWith("@")) {
         return (
@@ -202,7 +200,7 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
                   {item.senderName}
                 </span>
                 <span className="text-[12px] font-medium text-gray-400">
-                  {item.time === "Yesterday" ? "Yesterday, 4:15 PM" : item.time === "Jul 26" ? "Jul 26, 2:30 PM" : `10:24 AM`}
+                  {item.time}
                 </span>
               </div>
               
@@ -301,10 +299,10 @@ export default function InboxDetail({ item, onClose, onMarkRead, onDelete }: Pro
               </div>
               <span className="font-normal text-gray-700">
                 {item.dateGroup === "Today"
-                  ? `Today at ${item.time === "Yesterday" ? "10:24 AM" : item.time}`
+                  ? `Today at ${item.time}`
                   : item.dateGroup === "Yesterday"
-                  ? "Yesterday at 4:15 PM"
-                  : "Jul 26 at 2:30 PM"}
+                  ? `Yesterday at ${item.time}`
+                  : item.time}
               </span>
             </div>
             <div className="flex items-center justify-between text-[13px]">

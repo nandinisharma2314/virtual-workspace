@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { calendarWeekdays } from "@/lib/data";
+import { calendarWeekdays } from "@/lib/uiConstants";
 import Link from "next/link";
 
 interface ScheduleItem {

@@ -13,7 +13,7 @@ import {
   Settings,
   SlidersHorizontal,
 } from "lucide-react";
-import { inboxCategories, inboxPriorities, inboxProjects } from "@/lib/inboxData";
+import { inboxCategories, inboxPriorities, inboxProjects } from "@/lib/inboxTypes";
 
 const iconMap: Record<string, React.ElementType> = {
   Inbox: InboxIcon,

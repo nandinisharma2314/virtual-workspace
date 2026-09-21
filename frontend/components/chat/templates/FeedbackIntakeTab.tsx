@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Play, Plus, AlertCircle, CheckCircle2, Sliders, ExternalLink, Send, Clock, User, Filter, ShieldAlert, Sparkles, X } from 'lucide-react';
-import { ChannelTemplate } from '@/lib/templateData';
+import { ChannelTemplate } from '@/lib/templateConfig';
 
 interface FeedbackIntakeTabProps {
   template: ChannelTemplate;

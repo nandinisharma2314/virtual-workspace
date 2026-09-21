@@ -1,7 +1,7 @@
 "use client";
 
 import { Sparkles, Paperclip, Clock, FileText, Send, X, Bot, User } from "lucide-react";
-import { aiSuggestions } from "@/lib/data";
+import { useAiSuggestions } from "@/lib/useAdminData";
 import { useState, useRef, useEffect } from "react";
 
 const icons = [Paperclip, Clock, FileText];
@@ -12,6 +12,7 @@ interface Message {
 }
 
 export default function AIAssistantCard() {
+  const aiSuggestions = useAiSuggestions();
   const [view, setView] = useState<"idle" | "chat">("idle");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");

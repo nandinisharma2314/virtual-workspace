@@ -261,7 +261,7 @@ export default function WorkspacesPage() {
   };
 
   const userInitials = getInitials(currentUser?.name);
-  const workspaceName = "Acme Inc.";
+  const workspaceName = currentUser?.name ? `${currentUser.name.split(' ')[0]}'s Workspace` : "Workspace";
 
   // Send quick reply via socket or fallback
   const handleSendQuickReply = async (channelId: string) => {
@@ -434,7 +434,7 @@ export default function WorkspacesPage() {
                   </span>
                 </div>
 
-                {/* Workspace Header Item: Acme Inc. */}
+                {/* Workspace Header Item */}
                 <div className="space-y-1">
                   <button
                     onClick={() => setIsWorkspaceAccordionOpen((prev) => !prev)}
@@ -443,7 +443,7 @@ export default function WorkspacesPage() {
                     <div className="flex items-center gap-2.5">
                       {/* Square Workspace Icon with lettermark */}
                       <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white font-black text-[11px] shadow-xs">
-                        A
+                        {workspaceName[0]?.toUpperCase() || 'W'}
                       </div>
                       <span className="font-bold text-gray-900 text-xs">{workspaceName}</span>
                     </div>

@@ -32,7 +32,8 @@ import {
   FolderKanban,
 } from "lucide-react";
 import { BOARD_BACKGROUNDS } from "./templates/MyTasksBoard";
-import { channelTemplates } from "@/lib/templateData";
+import { channelTemplates } from "@/lib/templateConfig";
+import { useBoardBackgrounds } from "@/lib/useAdminData";
 import { useRouter } from "next/navigation";
 
 import { useEffect, useState, useRef } from "react";
@@ -45,6 +46,8 @@ type Props = {
 
 export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpdate }: Props) {
   const router = useRouter();
+  const dynamicBackgrounds = useBoardBackgrounds();
+  const [dynamicTemplates, setDynamicTemplates] = useState<any[]>(channelTemplates);
   const [info, setInfo] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -104,9 +107,16 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
     return () => window.removeEventListener("chat-wallpaper-updated" as any, handleUpdate);
   }, [channelId]);
 
+  useEffect(() => {
+    fetch(`${API_URL}/admin/templates`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (Array.isArray(data) && data.length > 0) setDynamicTemplates(data); })
+      .catch(() => {});
+  }, []);
+
   const handleQuickSelectBg = async (bgUrl: string) => {
     setPanelBg(bgUrl);
-    const matchingTemplate = channelTemplates.find((t) => t.templateConfig?.bgImage === bgUrl);
+    const matchingTemplate = dynamicTemplates.find((t) => t.templateConfig?.bgImage === bgUrl);
     const templateId = matchingTemplate?.id;
     if (typeof window !== "undefined") {
       localStorage.setItem(`chat_bg_${channelId}`, bgUrl);
@@ -631,12 +641,12 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[11.5px] font-extrabold text-gray-900 truncate">
-                {BOARD_BACKGROUNDS.find((b) => b.image === panelBg)?.name ||
-                  (panelTemplateId && channelTemplates.find((t) => t.id === panelTemplateId)?.name) ||
+                {dynamicBackgrounds.find((b) => b.image === panelBg)?.name ||
+                  (panelTemplateId && dynamicTemplates.find((t) => t.id === panelTemplateId)?.name) ||
                   (panelBg?.startsWith("from-") ? "Gradient Theme" : "Clean Light (Default)")}
               </div>
               <div className="text-[10px] text-gray-400 truncate font-medium">
-                {BOARD_BACKGROUNDS.find((b) => b.image === panelBg)?.desc || "Clean white background"}
+                {dynamicBackgrounds.find((b) => b.image === panelBg)?.desc || "Clean white background"}
               </div>
             </div>
           </div>
@@ -648,7 +658,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
               <span className="text-gray-400 font-normal">7 templates</span>
             </div>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              {BOARD_BACKGROUNDS.map((bg) => {
+              {dynamicBackgrounds.map((bg) => {
                 const isSelected = panelBg === bg.image;
                 return (
                   <button
@@ -970,7 +980,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
             </button>
           </div>
           <ul className="space-y-1">
-            {channelTemplates.slice(0, 3).map((template, idx) => {
+            {dynamicTemplates.slice(0, 3).map((template, idx) => {
               // Extract gradient from the template category or fallback to a default
               let gradient = "from-indigo-500 to-purple-600";
               if (template.category === "design") gradient = "from-purple-600 to-pink-500";

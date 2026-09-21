@@ -18,7 +18,7 @@ import {
   HelpCircle,
   Layers,
 } from "lucide-react";
-import { sidebarPrimary, favorites } from "@/lib/data";
+import { sidebarPrimary, favorites } from "@/lib/uiConstants";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";

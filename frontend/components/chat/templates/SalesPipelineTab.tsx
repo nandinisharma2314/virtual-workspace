@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DollarSign, Plus, ArrowRight, ArrowLeft, Building2, User, TrendingUp, CheckCircle, X, Sparkles } from 'lucide-react';
-import { ChannelTemplate } from '@/lib/templateData';
+import { ChannelTemplate } from '@/lib/templateConfig';
 
 interface SalesPipelineTabProps {
   template: ChannelTemplate;
@@ -216,7 +216,7 @@ export default function SalesPipelineTab({ template, subTab = 'deal-hub', onAddT
                 <label className="font-bold text-gray-700 block mb-1">Company / Client Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. Acme Corporation"
+                  placeholder="e.g. Enterprise Client"
                   value={newDealCompany}
                   onChange={(e) => setNewDealCompany(e.target.value)}
                   required

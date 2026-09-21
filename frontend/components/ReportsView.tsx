@@ -30,6 +30,7 @@ import {
 
 export default function ReportsView() {
   const [dateRange, setDateRange] = useState("Last 30 Days");
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
   const [velocityData, setVelocityData] = useState<any[]>([]);
@@ -39,10 +40,13 @@ export default function ReportsView() {
   const [timeTrackingLogs, setTimeTrackingLogs] = useState<any[]>([]);
   const [kpis, setKpis] = useState<any>({ tasksCompleted: 0, overdueTasks: 0, teamUtilization: 0 });
 
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
+    setIsLoading(true);
     const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     if (token) {
-      fetch(`${API_URL}/reports/dashboard`, {
+      fetch(`${API_URL}/reports/dashboard?range=${encodeURIComponent(dateRange)}`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       .then(res => res.json())
@@ -56,9 +60,12 @@ export default function ReportsView() {
           if (data.timeTrackingLogs) setTimeTrackingLogs(data.timeTrackingLogs);
         }
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
     }
-  }, []);
+  }, [dateRange]);
 
   return (
     <div className="flex w-full h-full min-h-0 flex-col bg-transparent overflow-hidden">
@@ -92,13 +99,40 @@ export default function ReportsView() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="flex h-9 items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 text-[13px] font-semibold text-gray-700 transition-all hover:bg-gray-50 shadow-sm w-40">
-            <div className="flex items-center gap-2">
-              <CalendarIcon size={14} className="text-gray-400" />
-              <span>{dateRange}</span>
-            </div>
-            <ChevronDown size={14} className="text-gray-400" />
-          </button>
+          <div className="relative">
+            <button 
+              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+              className="flex h-9 items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 text-[13px] font-semibold text-gray-700 transition-all hover:bg-gray-50 shadow-sm w-40"
+            >
+              <div className="flex items-center gap-2">
+                <CalendarIcon size={14} className="text-gray-400" />
+                <span>{dateRange}</span>
+              </div>
+              <ChevronDown size={14} className="text-gray-400" />
+            </button>
+            
+            {isDateDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsDateDropdownOpen(false)} />
+                <div className="absolute right-0 top-full mt-1.5 w-40 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1.5 flex flex-col animate-in fade-in zoom-in-95 duration-100">
+                  {["Today", "Last 7 Days", "Last 30 Days", "This Quarter", "This Year"].map((range) => (
+                    <button
+                      key={range}
+                      onClick={() => {
+                        setDateRange(range);
+                        setIsDateDropdownOpen(false);
+                      }}
+                      className={`text-left px-4 py-2 text-[12px] font-semibold transition-colors hover:bg-gray-50 ${
+                        dateRange === range ? "text-indigo-600 bg-indigo-50/50" : "text-gray-700"
+                      }`}
+                    >
+                      {range}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           <button className="flex h-9 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm">
             <Filter size={15} />
             <span>Filter</span>
@@ -111,7 +145,7 @@ export default function ReportsView() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto bg-[#FAFBFC]">
+      <main className={`flex-1 overflow-y-auto bg-[#FAFBFC] transition-opacity duration-200 ${isLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
         <div className="py-4 px-6 space-y-4 w-full">
           
           {activeTab === "overview" && (
@@ -133,8 +167,8 @@ export default function ReportsView() {
                 {kpis.tasksCompleted}
               </div>
               <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600">
-                <TrendingUp size={12} />
-                <span>+18% from last month</span>
+                <TrendingUp size={12} className={kpis.tasksCompletedTrend?.startsWith('-') ? "rotate-180 text-rose-500" : "text-emerald-500"} />
+                <span className={kpis.tasksCompletedTrend?.startsWith('-') ? "text-rose-600" : "text-emerald-600"}>{kpis.tasksCompletedTrend || '+0% from previous period'}</span>
               </div>
             </div>
 
@@ -149,11 +183,11 @@ export default function ReportsView() {
                 Avg. Completion Time
               </div>
               <div className="text-xl font-black text-gray-900 tracking-tight">
-                2.1 <span className="text-[13px] text-gray-500 font-semibold">days</span>
+                {kpis.avgCompletionDays || '0.0'} <span className="text-[13px] text-gray-500 font-semibold">days</span>
               </div>
               <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600">
-                <TrendingUp size={12} className="rotate-180" />
-                <span>-0.3 days</span>
+                <TrendingUp size={12} className={kpis.avgCompletionTrend?.startsWith('+') ? "rotate-180 text-rose-500" : "text-emerald-500"} />
+                <span className={kpis.avgCompletionTrend?.startsWith('+') ? "text-rose-600" : "text-emerald-600"}>{kpis.avgCompletionTrend || '-0.0 days'}</span>
               </div>
             </div>
 
@@ -171,8 +205,8 @@ export default function ReportsView() {
                 {kpis.overdueTasks}
               </div>
               <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600">
-                <TrendingUp size={12} className="rotate-180" />
-                <span>-33% from last month</span>
+                <TrendingUp size={12} className={kpis.overdueTasksTrend?.startsWith('+') ? "rotate-180 text-rose-500" : "text-emerald-500"} />
+                <span className={kpis.overdueTasksTrend?.startsWith('+') ? "text-rose-600" : "text-emerald-600"}>{kpis.overdueTasksTrend || '-0% from previous period'}</span>
               </div>
             </div>
 
@@ -187,11 +221,13 @@ export default function ReportsView() {
                 Team Utilization
               </div>
               <div className="text-xl font-black text-gray-900 tracking-tight">
-                {kpis.teamUtilization}<span className="text-[13px] text-gray-500 font-semibold">%</span>
+                {kpis.teamUtilization || 0}<span className="text-[13px] text-gray-500 font-semibold">%</span>
               </div>
               <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                <span>Optimal range</span>
+                <span className={`h-1.5 w-1.5 rounded-full ${(kpis.teamUtilization || 0) > 90 ? "bg-rose-500" : (kpis.teamUtilization || 0) < 50 ? "bg-amber-500" : "bg-emerald-500"}`}></span>
+                <span className={(kpis.teamUtilization || 0) > 90 ? "text-rose-600" : (kpis.teamUtilization || 0) < 50 ? "text-amber-600" : "text-emerald-600"}>
+                  {(kpis.teamUtilization || 0) > 90 ? "Overloaded" : (kpis.teamUtilization || 0) < 50 ? "Underutilized" : "Optimal range"}
+                </span>
               </div>
             </div>
           </div>

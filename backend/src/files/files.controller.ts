@@ -21,8 +21,8 @@ export class FilesController {
   }
 
   @Get(':id/download-url')
-  getDownloadUrl(@Param('id') id: string) {
-    return this.filesService.generateDownloadUrl(+id);
+  getDownloadUrl(@Param('id') id: string, @Query('name') name?: string) {
+    return this.filesService.generateDownloadUrl(+id, name);
   }
 
   @Post()

@@ -25,6 +25,57 @@ export class MailService {
       .replace(/'/g, '&#039;');
   }
 
+  async sendPasswordReset(email: string, resetLink: string) {
+    const safeEmail = this.escapeHtml(email);
+    if (!process.env.SMTP_USER) {
+      throw new Error('SMTP_USER environment variable is required');
+    }
+    try {
+      await this.transporter.sendMail({
+        from: `"WorkFlow" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: 'Reset your WorkFlow password',
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; background-color: #F8FAFC;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+              <div style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: -0.5px;">WorkFlow</h1>
+                <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 14px;">Secure. Reliable. Built for teams.</p>
+              </div>
+              <div style="padding: 40px;">
+                <h2 style="color: #1e293b; font-size: 22px; margin-top: 0; font-weight: 700;">Reset your password</h2>
+                <p style="color: #475569; font-size: 16px; line-height: 1.6;">
+                  We received a request to reset the password for your account associated with <strong>${safeEmail}</strong>.
+                </p>
+                <p style="color: #475569; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+                  Click the button below to choose a new password. This link will expire in <strong>1 hour</strong>.
+                </p>
+                <div style="text-align: center; margin-bottom: 30px;">
+                  <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 700; font-size: 16px; letter-spacing: 0.2px;">Reset Password</a>
+                </div>
+                <p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin-bottom: 0;">
+                  If you didn't request a password reset, you can safely ignore this email — your password will remain unchanged.<br><br>
+                  Or copy and paste this URL into your browser:<br>
+                  <a href="${resetLink}" style="color: #7c3aed; word-break: break-all;">${resetLink}</a>
+                </p>
+              </div>
+              <div style="background-color: #f1f5f9; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+                <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                  Sent from WorkFlow. Secure collaboration for modern teams.
+                </p>
+              </div>
+            </div>
+          </div>
+        `,
+      });
+      this.logger.log(`Password reset email sent to ${email}`);
+      return { success: true };
+    } catch (error) {
+      this.logger.error(`Failed to send password reset email to ${email}`, error);
+      throw error;
+    }
+  }
+
   async sendInvitation(email: string, inviterName: string = 'A teammate', channelName: string = 'WorkFlow') {
     const safeInviter = this.escapeHtml(inviterName);
     const safeChannel = this.escapeHtml(channelName);

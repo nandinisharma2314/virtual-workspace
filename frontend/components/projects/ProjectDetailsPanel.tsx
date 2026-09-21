@@ -16,7 +16,7 @@ import {
   FolderOpen
 } from "lucide-react";
 
-export default function ProjectDetailsPanel({ projectId }: { projectId?: string }) {
+export default function ProjectDetailsPanel({ projectId, project }: { projectId?: string, project?: any }) {
   const [activeTab, setActiveTab] = useState("Details");
   const [recentFiles, setRecentFiles] = useState<any[]>([]);
   const tabs = ["Details", "Activity", "Insights"];
@@ -109,11 +109,21 @@ export default function ProjectDetailsPanel({ projectId }: { projectId?: string 
             <div className="flex items-center gap-2.5 text-[12.5px]">
               <Flag size={15} className="text-gray-400 shrink-0" strokeWidth={2.2} />
               <div className="flex items-center gap-1.5 font-bold text-gray-900">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-blue-700">
-                  Active
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-blue-700 capitalize">
+                  {project?.status || "Active"}
                 </span>
               </div>
             </div>
+            
+            {project?.createdAt && (
+              <div className="flex items-center gap-2.5 text-[12.5px]">
+                <Calendar size={15} className="text-gray-400 shrink-0" strokeWidth={2.2} />
+                <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                  <span className="text-gray-500 text-[11px] font-medium">Created:</span>
+                  <span className="text-[12px]">{new Date(project.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

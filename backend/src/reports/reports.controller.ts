@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { ReportsService } from './reports.service.js';
 import { CreateReportDto } from './dto/create-report.dto.js';
 import { UpdateReportDto } from './dto/update-report.dto.js';
@@ -15,8 +15,8 @@ export class ReportsController {
   }
 
   @Get('dashboard')
-  getDashboardData() {
-    return this.reportsService.getDashboardData();
+  getDashboardData(@Query('range') range: string) {
+    return this.reportsService.getDashboardData(range);
   }
 
   @Get()

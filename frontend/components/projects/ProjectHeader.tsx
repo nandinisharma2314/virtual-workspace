@@ -12,25 +12,14 @@ import {
 export default function ProjectHeader({ 
   projectId,
   activeTab, 
-  setActiveTab 
+  setActiveTab,
+  project
 }: { 
   projectId?: string;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  project?: any;
 }) {
-  const [project, setProject] = useState<any>(null);
-
-  useEffect(() => {
-    if (!projectId) return;
-    const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
-    fetch(`${API_URL}/projects/${projectId}`, {
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-    })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => { if (data) setProject(data); })
-      .catch(() => {});
-  }, [projectId]);
-
   const projectName = project?.name || (projectId ? `Project #${projectId}` : "Project Overview");
   const projectDesc = project?.description || "Collaborate on tasks, documents, and timelines.";
   const projectStatus = project?.status === "completed" ? "Completed" : project?.status === "at_risk" ? "At Risk" : "Active";

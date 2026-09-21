@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, BarChart2 } from "lucide-react";
+import { Loader2, BarChart2, Calendar, Download, ChevronDown } from "lucide-react";
 import { API_URL } from "@/lib/apis";
 
 export default function ProjectReports({ projectId }: { projectId?: string }) {
@@ -35,16 +35,17 @@ export default function ProjectReports({ projectId }: { projectId?: string }) {
 
   const total = tasks.length;
   const completed = tasks.filter(t => t.status === 'completed' || t.status === 'done').length;
-  const inProgress = tasks.filter(t => t.status === 'in_progress' || t.status === 'in-progress' || t.status === 'inprogress').length;
+  const inProgress = tasks.filter(t => t.status === 'in_progress' || t.status === 'in-progress' || t.status === 'inprogress' || t.status === 'review').length;
   const todo = tasks.filter(t => t.status === 'todo' || (!t.status && t.status !== 'completed' && t.status !== 'done')).length;
 
   const completedPct = total > 0 ? Math.round((completed / total) * 100) : 0;
   const inProgressPct = total > 0 ? Math.round((inProgress / total) * 100) : 0;
   const todoPct = total > 0 ? Math.max(0, 100 - completedPct - inProgressPct) : 0;
 
-  const highPriority = tasks.filter(t => (t.priority || '').toLowerCase() === 'high').length;
+  const highPriority = tasks.filter(t => (t.priority || '').toLowerCase() === 'high' || (t.priority || '').toLowerCase() === 'urgent').length;
   const medPriority = tasks.filter(t => (t.priority || '').toLowerCase() === 'medium' || !t.priority).length;
   const lowPriority = tasks.filter(t => (t.priority || '').toLowerCase() === 'low').length;
+  const maxPriority = Math.max(highPriority, medPriority, lowPriority, 1);
 
   // Group tasks by assignee
   const assigneeMap: Record<string, number> = {};
@@ -63,6 +64,18 @@ export default function ProjectReports({ projectId }: { projectId?: string }) {
         <div className="flex items-center gap-2">
           <BarChart2 size={16} className="text-indigo-600" />
           <span className="text-[13px] font-bold text-gray-900">Live Project Metrics</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-2 rounded-lg border border-gray-200/80 bg-white px-3 py-1.5 text-[11.5px] font-bold text-gray-700 shadow-2xs hover:bg-gray-50 transition-all">
+            <Calendar size={13} className="text-gray-400" />
+            <span>Last 30 Days</span>
+            <ChevronDown size={13} className="text-gray-400 ml-1" />
+          </button>
+          <button className="flex items-center gap-1.5 rounded-lg border border-gray-200/80 bg-white px-3 py-1.5 text-[11.5px] font-bold text-gray-700 hover:bg-gray-50 shadow-2xs transition-all">
+            <Download size={13} className="text-gray-500" />
+            <span>Export</span>
+            <ChevronDown size={13} className="text-gray-400 ml-1" />
+          </button>
         </div>
       </div>
 
@@ -141,7 +154,7 @@ export default function ProjectReports({ projectId }: { projectId?: string }) {
                 {/* Tasks by Assignee */}
                 <div className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-2xs h-64 flex flex-col">
                   <h3 className="text-[13px] font-bold text-gray-800 mb-4">Tasks by Assignee</h3>
-                  <div className="flex-1 flex flex-col justify-between pt-2 overflow-y-auto">
+                  <div className="flex-1 flex flex-col justify-start gap-3 pt-2 overflow-y-auto">
                     {assigneesList.length === 0 ? (
                       <p className="text-xs text-gray-400 text-center my-auto">No assignees recorded yet.</p>
                     ) : (
@@ -167,17 +180,17 @@ export default function ProjectReports({ projectId }: { projectId?: string }) {
                   <div className="flex-1 flex items-end justify-center gap-10 pb-4">
                     <div className="flex flex-col items-center gap-2">
                       <span className="text-[11px] font-bold text-gray-500">{highPriority}</span>
-                      <div className="w-10 bg-rose-500 rounded-t-lg transition-all" style={{ height: `${total > 0 ? Math.max(16, (highPriority / total) * 120) : 16}px` }}></div>
+                      <div className="w-10 bg-rose-500 rounded-t-lg transition-all" style={{ height: `${maxPriority > 0 ? Math.max(16, (highPriority / maxPriority) * 120) : 16}px` }}></div>
                       <span className="text-[11.5px] font-semibold text-gray-600">High</span>
                     </div>
                     <div className="flex flex-col items-center gap-2">
                       <span className="text-[11px] font-bold text-gray-500">{medPriority}</span>
-                      <div className="w-10 bg-amber-500 rounded-t-lg transition-all" style={{ height: `${total > 0 ? Math.max(16, (medPriority / total) * 120) : 16}px` }}></div>
+                      <div className="w-10 bg-amber-500 rounded-t-lg transition-all" style={{ height: `${maxPriority > 0 ? Math.max(16, (medPriority / maxPriority) * 120) : 16}px` }}></div>
                       <span className="text-[11.5px] font-semibold text-gray-600">Medium</span>
                     </div>
                     <div className="flex flex-col items-center gap-2">
                       <span className="text-[11px] font-bold text-gray-500">{lowPriority}</span>
-                      <div className="w-10 bg-emerald-500 rounded-t-lg transition-all" style={{ height: `${total > 0 ? Math.max(16, (lowPriority / total) * 120) : 16}px` }}></div>
+                      <div className="w-10 bg-emerald-500 rounded-t-lg transition-all" style={{ height: `${maxPriority > 0 ? Math.max(16, (lowPriority / maxPriority) * 120) : 16}px` }}></div>
                       <span className="text-[11.5px] font-semibold text-gray-600">Low</span>
                     </div>
                   </div>

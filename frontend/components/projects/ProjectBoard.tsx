@@ -42,7 +42,7 @@ export default function ProjectBoard({ projectId }: { projectId?: string }) {
 
   const fetchTasks = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const res = await fetch(`${API_URL}/tasks`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -74,7 +74,7 @@ export default function ProjectBoard({ projectId }: { projectId?: string }) {
 
     setSubmitting(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const res = await fetch(`${API_URL}/tasks`, {
         method: "POST",
         headers: {

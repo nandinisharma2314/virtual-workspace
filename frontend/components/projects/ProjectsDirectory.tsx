@@ -19,7 +19,7 @@ export default function ProjectsDirectory() {
 
   const fetchProjects = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const res = await fetch(`${API_URL}/projects`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -48,7 +48,7 @@ export default function ProjectsDirectory() {
 
     setCreating(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const res = await fetch(`${API_URL}/projects`, {
         method: "POST",
         headers: {

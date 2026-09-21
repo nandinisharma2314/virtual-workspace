@@ -1,5 +1,7 @@
 "use client";
 
+import { motion, AnimatePresence } from "framer-motion";
+
 import { useEffect, useState, useCallback } from "react";
 import {
   toast,
@@ -107,70 +109,99 @@ export default function ToastContainer() {
   return (
     <>
       {/* Toast Notification Stack */}
-      <div className="fixed top-5 right-5 z-[9999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`pointer-events-auto flex items-start gap-3 rounded-2xl border p-3.5 shadow-lg backdrop-blur-md transition-all animate-in slide-in-from-top-3 fade-in duration-200 ${getToastStyle(
-              t.type
-            )}`}
-          >
-            <div className="mt-0.5">{getToastIcon(t.type)}</div>
-            <div className="flex-1 text-[13px] font-semibold leading-snug text-gray-800">
-              {t.message}
-            </div>
-            <button
-              onClick={() => removeToast(t.id)}
-              className="text-gray-400 hover:text-gray-600 p-0.5 rounded-lg transition-colors"
+      <div className="fixed top-5 right-5 z-[9999] flex flex-col gap-3 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+        <AnimatePresence>
+          {toasts.map((t) => (
+            <motion.div
+              key={t.id}
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className={`pointer-events-auto flex items-start gap-3 rounded-2xl border p-4 shadow-xl backdrop-blur-xl ${getToastStyle(
+                t.type
+              )}`}
             >
-              <X size={14} />
-            </button>
-          </div>
-        ))}
+              <div className="mt-0.5">{getToastIcon(t.type)}</div>
+              <div className="flex-1 text-[14px] font-medium leading-relaxed text-gray-800">
+                {t.message}
+              </div>
+              <button
+                onClick={() => removeToast(t.id)}
+                className="text-gray-400 hover:text-gray-900 p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       {/* Confirmation Modal */}
-      {confirmOptions && (
-        <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+      <AnimatePresence>
+        {confirmOptions && (
+          <motion.div
+            key="confirm-modal"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 sm:p-6"
           onClick={handleCancel}
         >
-          <div
-            className="bg-white rounded-2xl p-6 shadow-2xl max-w-md w-full border border-gray-100 flex flex-col gap-4 animate-in zoom-in-95 duration-200"
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+            className="bg-white rounded-3xl p-6 shadow-2xl max-w-[400px] w-full border border-gray-100/50 flex flex-col overflow-hidden relative"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start gap-4">
+            {/* Background decorative blob */}
+            <div
+              className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none ${
+                confirmOptions.variant === "danger"
+                  ? "bg-rose-500"
+                  : confirmOptions.variant === "warning"
+                  ? "bg-amber-500"
+                  : "bg-indigo-500"
+              }`}
+            />
+
+            <div className="flex flex-col items-center text-center relative z-10">
               <div
-                className={`p-3 rounded-2xl shrink-0 ${
+                className={`p-4 rounded-2xl mb-5 ${
                   confirmOptions.variant === "danger"
-                    ? "bg-rose-50 text-rose-600"
+                    ? "bg-rose-50 text-rose-600 shadow-inner shadow-rose-100"
                     : confirmOptions.variant === "warning"
-                    ? "bg-amber-50 text-amber-600"
-                    : "bg-indigo-50 text-indigo-600"
+                    ? "bg-amber-50 text-amber-600 shadow-inner shadow-amber-100"
+                    : "bg-indigo-50 text-indigo-600 shadow-inner shadow-indigo-100"
                 }`}
               >
                 {confirmOptions.variant === "danger" || confirmOptions.variant === "warning" ? (
-                  <AlertTriangle size={24} strokeWidth={2.3} />
+                  <AlertTriangle size={32} strokeWidth={2} />
                 ) : (
-                  <Info size={24} strokeWidth={2.3} />
+                  <Info size={32} strokeWidth={2} />
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-[17px] font-black text-gray-900 leading-tight">
-                  {confirmOptions.title || "Confirm Action"}
-                </h3>
-                <p className="text-[13px] text-gray-600 font-medium leading-relaxed mt-1.5">
+              
+              <h3 className={`text-[19px] font-bold text-gray-900 ${confirmOptions.message ? 'mb-2' : 'mb-8'}`}>
+                {confirmOptions.title || "Confirm Action"}
+              </h3>
+              
+              {!!confirmOptions.message && (
+                <p className="text-[15px] text-gray-500 font-medium leading-relaxed mb-8 px-2">
                   {confirmOptions.message}
                 </p>
-              </div>
+              )}
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100 mt-2">
+            <div className="flex items-center justify-center gap-3 w-full relative z-10">
               <button
                 type="button"
                 disabled={isConfirming}
                 onClick={handleCancel}
-                className="px-4 py-2 text-[13px] font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+                className="flex-1 py-3 px-4 text-[14px] font-semibold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-gray-200"
               >
                 {confirmOptions.cancelText || "Cancel"}
               </button>
@@ -178,21 +209,22 @@ export default function ToastContainer() {
                 type="button"
                 disabled={isConfirming}
                 onClick={handleConfirmAction}
-                className={`px-4.5 py-2 text-[13px] font-bold text-white rounded-xl shadow-xs transition-all flex items-center gap-2 ${
+                className={`flex-1 py-3 px-4 text-[14px] font-semibold text-white rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                   confirmOptions.variant === "danger"
-                    ? "bg-rose-600 hover:bg-rose-700 active:scale-95"
+                    ? "bg-rose-600 hover:bg-rose-700 focus-visible:ring-rose-500 active:scale-[0.98]"
                     : confirmOptions.variant === "warning"
-                    ? "bg-amber-600 hover:bg-amber-700 active:scale-95"
-                    : "bg-indigo-600 hover:bg-indigo-700 active:scale-95"
+                    ? "bg-amber-500 hover:bg-amber-600 focus-visible:ring-amber-400 active:scale-[0.98]"
+                    : "bg-indigo-600 hover:bg-indigo-700 focus-visible:ring-indigo-500 active:scale-[0.98]"
                 } disabled:opacity-50`}
               >
-                {isConfirming && <Loader2 size={14} className="animate-spin" />}
+                {isConfirming && <Loader2 size={16} className="animate-spin" />}
                 <span>{confirmOptions.confirmText || "Confirm"}</span>
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

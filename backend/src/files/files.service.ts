@@ -87,6 +87,7 @@ export class FilesService {
       type: createFileDto.type,
       uploadedById: validUserId,
       projectId: createFileDto.projectId,
+      createdAt: new Date(),
     }).returning();
 
     if (validUserId) {
@@ -129,14 +130,24 @@ export class FilesService {
     return { uploadUrl, storageKey };
   }
 
-  async generateDownloadUrl(id: number) {
-    const [file] = await this.dbService.db
+  async generateDownloadUrl(id: number, fallbackName?: string) {
+    let [file] = await this.dbService.db
       .select()
       .from(schema.files)
       .where(eq(schema.files.id, id));
 
+    if (!file && fallbackName) {
+      const files = await this.dbService.db
+        .select()
+        .from(schema.files)
+        .where(eq(schema.files.name, fallbackName))
+        .orderBy(desc(schema.files.createdAt))
+        .limit(1);
+      file = files[0];
+    }
+
     if (!file) {
-      throw new NotFoundException(`File with ID ${id} not found`);
+      throw new NotFoundException(`File not found`);
     }
 
     if (file.url && file.url !== '#' && file.url !== '') {

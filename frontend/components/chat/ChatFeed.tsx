@@ -124,6 +124,20 @@ const AudioPlayer = ({ duration = 8, filename = "", url = "" }: { duration?: num
   );
 };
 
+const getFileIconProps = (name: string, type?: string) => {
+  const ext = name.includes('.') ? name.split('.').pop()?.toLowerCase() || '' : '';
+  const typeLower = (type || '').toLowerCase();
+  
+  if (typeLower === 'pdf' || ext === 'pdf') return { label: 'PDF', bg: 'bg-rose-500' };
+  if (['zip', 'rar', 'tar', 'gz', '7z'].includes(ext) || typeLower.includes('zip') || typeLower.includes('archive')) return { label: 'ZIP', bg: 'bg-emerald-500' };
+  if (ext === 'fig' || typeLower === 'figma') return { label: 'FIG', bg: 'bg-fuchsia-600' };
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext) || typeLower.startsWith('image/')) return { label: 'IMG', bg: 'bg-blue-500' };
+  if (['mp3', 'wav', 'm4a', 'ogg', 'flac'].includes(ext) || typeLower.startsWith('audio/')) return { label: 'AUD', bg: 'bg-violet-500' };
+  if (['doc', 'docx', 'txt', 'rtf', 'odt', 'md'].includes(ext) || typeLower.includes('word') || typeLower.includes('text')) return { label: 'DOC', bg: 'bg-indigo-500' };
+  
+  return { label: ext ? ext.substring(0, 3).toUpperCase() : 'FILE', bg: 'bg-gray-700' };
+};
+
 export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }: { channelId?: string, refreshTrigger?: number }) {
   const dynamicBackgrounds = useBoardBackgrounds();
   const [activeTab, setActiveTab] = useState("Messages");
@@ -620,16 +634,25 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        return;
       }
+      toast.error("This is a mock file and cannot be downloaded.");
       return;
     }
 
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch(`${API_URL}/files/${attachment.fileId}/download-url`, {
+      if (!token) {
+        toast.error("You are not authenticated.");
+        return;
+      }
+      const res = await fetch(`${API_URL}/files/${attachment.fileId}/download-url?name=${encodeURIComponent(attachment.name || '')}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error("Failed to get download URL");
+      if (!res.ok) {
+        toast.error("Failed to get download URL. The file might no longer exist.");
+        return;
+      }
       
       const { downloadUrl } = await res.json();
       
@@ -1221,8 +1244,8 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                           }`}
                           title="Click to download"
                         >
-                          <div className="h-9 w-9 rounded-xl text-white font-black text-[12px] flex items-center justify-center shrink-0 shadow-xs bg-gray-900">
-                            Fig
+                          <div className={`h-9 w-9 rounded-xl text-white font-black text-[12px] flex items-center justify-center shrink-0 shadow-xs ${getFileIconProps(m.attachment.name, (m.attachment as any).type).bg}`}>
+                            {getFileIconProps(m.attachment.name, (m.attachment as any).type).label}
                           </div>
                           <div className="min-w-0 pr-2">
                             <span className={`block text-[12.5px] font-extrabold truncate group-hover:text-blue-400 transition-colors ${
@@ -1314,8 +1337,8 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                   <div className={`flex items-center gap-3 border rounded-xl p-2 px-3 shadow-2xs mb-2 ${
                     hasCustomBg ? "bg-slate-800/90 border-white/20 text-white" : "border-gray-200/90 bg-gray-50"
                   }`}>
-                    <div className="h-8 w-8 rounded-lg bg-blue-100 text-blue-600 font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs">
-                      FILE
+                    <div className={`h-8 w-8 rounded-lg text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs ${getFileIconProps(pendingAttachment.name, pendingAttachment.file?.type).bg}`}>
+                      {getFileIconProps(pendingAttachment.name, pendingAttachment.file?.type).label}
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
                       <span className={`block text-[12px] font-extrabold truncate ${hasCustomBg ? "text-white" : "text-gray-900"}`}>
@@ -1782,8 +1805,8 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                         className="mt-2 inline-flex items-center gap-2 border border-gray-200/90 rounded-xl p-1.5 px-2.5 bg-white shadow-2xs hover:border-gray-300 transition-all cursor-pointer group"
                         title="Click to download"
                       >
-                        <div className="h-7 w-7 rounded-lg text-white font-black text-[10px] flex items-center justify-center shrink-0 bg-gray-900">
-                          Fig
+                        <div className={`h-7 w-7 rounded-lg text-white font-black text-[10px] flex items-center justify-center shrink-0 ${getFileIconProps(activeThreadMessage.attachment.name, (activeThreadMessage.attachment as any).type).bg}`}>
+                          {getFileIconProps(activeThreadMessage.attachment.name, (activeThreadMessage.attachment as any).type).label}
                         </div>
                         <div className="min-w-0 pr-1">
                           <span className="block text-[11.5px] font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
@@ -1819,8 +1842,8 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                           className="mt-2 inline-flex items-center gap-2 border border-gray-200/90 rounded-xl p-1.5 px-2.5 bg-white shadow-2xs hover:border-gray-300 transition-all cursor-pointer group"
                           title="Click to download"
                         >
-                          <div className="h-7 w-7 rounded-lg text-white font-black text-[10px] flex items-center justify-center shrink-0 bg-gray-900">
-                            Fig
+                          <div className={`h-7 w-7 rounded-lg text-white font-black text-[10px] flex items-center justify-center shrink-0 ${getFileIconProps(m.attachment.name, (m.attachment as any).type).bg}`}>
+                            {getFileIconProps(m.attachment.name, (m.attachment as any).type).label}
                           </div>
                           <div className="min-w-0 pr-1">
                             <span className="block text-[11.5px] font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">

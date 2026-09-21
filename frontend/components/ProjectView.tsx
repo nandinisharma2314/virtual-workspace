@@ -55,7 +55,16 @@ export default function ProjectView({ projectId }: { projectId?: string }) {
     <div className="flex w-full h-full min-h-0 overflow-hidden bg-white">
       {/* Center section: Header and Content */}
       <div className="flex min-w-0 flex-1 flex-col h-full overflow-hidden bg-[#FAFBFC]">
-        <ProjectHeader projectId={projectId} activeTab={activeTab} setActiveTab={setActiveTab} project={project} />
+        <ProjectHeader activeTab={activeTab} setActiveTab={setActiveTab} project={project} />
+        {activeTab === "Overview" && <ProjectBoard projectId={projectId} />} {/* Fallback for Overview */}
+        {activeTab === "Board" && <ProjectBoard projectId={projectId} />}
+        {activeTab === "List" && <ProjectList />}
+        {activeTab === "Timeline" && <ProjectTimeline />}
+        {activeTab === "Calendar" && <ProjectCalendar />}
+        {activeTab === "Files" && <ProjectFiles projectId={projectId ? parseInt(projectId, 10) : undefined} />}
+        {activeTab === "Reports" && <ProjectReports />}
+        {activeTab === "Settings" && <ProjectSettings />}
+        <ProjectHeader projectId={projectId} activeTab={activeTab} setActiveTab={setActiveTab} />
         {activeTab === "Overview" && <ProjectBoard projectId={projectId} />}
         {activeTab === "Board" && <ProjectBoard projectId={projectId} />}
         {activeTab === "List" && <ProjectList projectId={projectId} />}
@@ -66,8 +75,15 @@ export default function ProjectView({ projectId }: { projectId?: string }) {
         {activeTab === "Settings" && <ProjectSettings projectId={projectId} />}
       </div>
 
+<<<<<<< Updated upstream
+      {/* Right details panel (hide on Settings and Reports for full width if desired, but we can keep it as is for consistency unless requested) */}
+      <ProjectDetailsPanel />
+      {/* Right details panel */}
+      <ProjectDetailsPanel projectId={projectId} />
+=======
       {/* Right details panel */}
       <ProjectDetailsPanel projectId={projectId} project={project} />
+>>>>>>> Stashed changes
     </div>
   );
 }

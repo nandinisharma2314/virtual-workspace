@@ -14,9 +14,17 @@ export default function AcceptInvitePage() {
   const token = params?.token as string;
   const { refreshWorkspaces, setCurrentWorkspaceId } = useWorkspace();
 
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const userToken = typeof window !== "undefined"
+      ? localStorage.getItem("token") || document.cookie.split("; ").find((row) => row.startsWith("token="))?.split("=")[1]
+      : null;
+    setIsAuthenticated(!!userToken);
+  }, []);
 
   const handleAcceptInvite = async () => {
     if (!token) return;
@@ -84,6 +92,27 @@ export default function AcceptInvitePage() {
             <p className="text-xs text-emerald-600 mt-1">
               Redirecting you to your workflow dashboard...
             </p>
+          </div>
+        ) : isAuthenticated === false ? (
+          <div className="mt-6 space-y-4">
+            <div className="rounded-2xl bg-indigo-50/80 border border-indigo-100 p-4 text-xs font-medium text-indigo-900">
+              Please sign in or create an account to accept this invitation and access your new workspace.
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <Link
+                href={`/register?invite=${encodeURIComponent(token)}`}
+                className="w-full rounded-2xl bg-indigo-600 py-3 text-xs font-extrabold text-white shadow-md hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 cursor-pointer group"
+              >
+                <span>Create New Account</span>
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link
+                href={`/login?invite=${encodeURIComponent(token)}`}
+                className="w-full rounded-2xl bg-gray-100 py-3 text-xs font-extrabold text-gray-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Sign In to Existing Account</span>
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="mt-6 space-y-4">

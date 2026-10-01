@@ -60,9 +60,6 @@ export default function ReportsView() {
       })
       .catch(console.error)
       .finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
-    }
   }, [dateRange]);
 
   return (

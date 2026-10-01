@@ -270,7 +270,7 @@ export default function TeamsView() {
           body: JSON.stringify({
             email: addForm.email,
             roleId: addForm.roleId || defaultRoleId,
-            customRoleLabel: addForm.customRoleLabel || addForm.role || undefined,
+            customRoleLabel: addForm.customRoleLabel || undefined,
           }),
         });
 

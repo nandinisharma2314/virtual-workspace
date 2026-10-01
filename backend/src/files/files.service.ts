@@ -4,7 +4,7 @@ import { UpdateFileDto } from './dto/update-file.dto.js';
 import { DatabaseService } from '../database/database.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import * as schema from '../database/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as crypto from 'crypto';
@@ -87,6 +87,7 @@ export class FilesService {
       type: createFileDto.type,
       uploadedById: validUserId,
       projectId: createFileDto.projectId,
+      workspaceId: (createFileDto as any).workspaceId || workspaceId || null,
       createdAt: new Date(),
     }).returning();
 
@@ -97,14 +98,33 @@ export class FilesService {
         .where(eq(schema.users.id, validUserId));
         
       if (user && user.role === 'Admin') {
-        await this.notificationsService.notifyAllExcept(validUserId, `Admin ${user.name} uploaded a new file: "${createFileDto.name}"`);
+        const notifMsg = `Admin ${user.name} uploaded a new file: "${createFileDto.name}"`;
+        if (workspaceId) {
+          await this.notificationsService.notifyWorkspaceMembers(workspaceId, notifMsg, 'File');
+        } else {
+          await this.notificationsService.notifyAllExcept(validUserId, notifMsg, 'File');
+        }
       }
     }
 
     return inserted;
   }
 
-  async findAll(projectId?: number) {
+  async findAll(projectId?: number, workspaceId?: number) {
+    if (workspaceId && projectId) {
+      return this.dbService.db
+        .select()
+        .from(schema.files)
+        .where(and(eq(schema.files.workspaceId, workspaceId), eq(schema.files.projectId, projectId)))
+        .orderBy(desc(schema.files.createdAt));
+    }
+    if (workspaceId) {
+      return this.dbService.db
+        .select()
+        .from(schema.files)
+        .where(eq(schema.files.workspaceId, workspaceId))
+        .orderBy(desc(schema.files.createdAt));
+    }
     if (projectId) {
       return this.dbService.db
         .select()

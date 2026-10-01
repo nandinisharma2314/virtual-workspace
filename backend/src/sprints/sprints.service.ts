@@ -14,13 +14,21 @@ export class SprintsService {
       name: createSprintDto.name,
       status: createSprintDto.status || 'planned',
       projectId: createSprintDto.projectId || null,
+      workspaceId: createSprintDto.workspaceId || null,
       startDate: createSprintDto.startDate ? new Date(createSprintDto.startDate) : null,
       endDate: createSprintDto.endDate ? new Date(createSprintDto.endDate) : null,
     }).returning();
     return newSprint;
   }
 
-  async findAll() {
+  async findAll(workspaceId?: number) {
+    if (workspaceId) {
+      return this.dbService.db
+        .select()
+        .from(schema.sprints)
+        .where(eq(schema.sprints.workspaceId, workspaceId))
+        .orderBy(schema.sprints.id);
+    }
     return this.dbService.db.select().from(schema.sprints).orderBy(schema.sprints.id);
   }
 

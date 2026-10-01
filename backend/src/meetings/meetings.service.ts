@@ -13,7 +13,7 @@ export class MeetingsService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async create(createMeetingDto: CreateMeetingDto, userId: number) {
+  async create(createMeetingDto: CreateMeetingDto, userId: number, workspaceId?: number) {
     const user = await this.dbService.db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user || user.length === 0 || user[0].role !== 'Admin') {
       throw new ForbiddenException('Only admins can create events.');
@@ -25,18 +25,28 @@ export class MeetingsService {
       startTime: new Date(createMeetingDto.startTime),
       endTime: new Date(createMeetingDto.endTime),
       organizerId: userId,
+      workspaceId: workspaceId || null,
     }).returning();
 
-    await this.notificationsService.notifyAllExcept(
-      userId,
-      `Admin ${user[0].name} created a new event: "${createMeetingDto.title}"`,
-      'Meeting'
-    );
+    const notifMsg = `Admin ${user[0].name} created a new event: "${createMeetingDto.title}"`;
+    if (workspaceId) {
+      await this.notificationsService.notifyWorkspaceMembers(workspaceId, notifMsg, 'Meeting');
+    } else {
+      await this.notificationsService.notifyAllExcept(userId, notifMsg, 'Meeting');
+    }
 
     return newMeeting;
   }
 
-  async findAll(userId: number) {
+  async findAll(userId: number, workspaceId?: number) {
+    if (workspaceId) {
+      return await this.dbService.db
+        .select()
+        .from(meetings)
+        .where(eq(meetings.workspaceId, workspaceId))
+        .orderBy(meetings.startTime);
+    }
+
     const user = await this.dbService.db.select().from(users).where(eq(users.id, userId)).limit(1);
     const isAdmin = user && user.length > 0 && user[0].role === 'Admin';
     

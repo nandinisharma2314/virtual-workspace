@@ -1,9 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
-import { notifications } from '../database/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { notifications, users, workspaceMembers } from '../database/schema.js';
+import { eq, desc, and } from 'drizzle-orm';
 import { NotificationsGateway } from './notifications.gateway.js';
-import { users } from '../database/schema.js';
 
 @Injectable()
 export class NotificationsService {
@@ -16,8 +15,15 @@ export class NotificationsService {
     console.log('[NotificationsService] DB:', !!databaseService, 'Gateway:', !!notificationsGateway);
   }
 
-  async getUserNotifications(userId: number) {
+  async getUserNotifications(userId: number, workspaceId?: number) {
     try {
+      if (workspaceId) {
+        return await this.databaseService.db
+          .select()
+          .from(notifications)
+          .where(and(eq(notifications.userId, userId), eq(notifications.workspaceId, workspaceId)))
+          .orderBy(desc(notifications.createdAt));
+      }
       return await this.databaseService.db
         .select()
         .from(notifications)
@@ -45,7 +51,7 @@ export class NotificationsService {
       .returning();
   }
 
-  async createNotification(userId: number, content: string, type: string = 'system') {
+  async createNotification(userId: number, content: string, type: string = 'system', workspaceId?: number) {
     try {
       const [notification] = await this.databaseService.db
         .insert(notifications)
@@ -53,6 +59,7 @@ export class NotificationsService {
           userId,
           content,
           type,
+          workspaceId: workspaceId || null,
         })
         .returning();
       
@@ -61,6 +68,21 @@ export class NotificationsService {
     } catch (e) {
       this.logger.error('Failed to create notification', e);
       return null;
+    }
+  }
+
+  async notifyWorkspaceMembers(workspaceId: number, content: string, type: string = 'system') {
+    try {
+      const members = await this.databaseService.db
+        .select({ userId: workspaceMembers.userId })
+        .from(workspaceMembers)
+        .where(eq(workspaceMembers.workspaceId, workspaceId));
+
+      for (const m of members) {
+        await this.createNotification(m.userId, content, type, workspaceId);
+      }
+    } catch (e: any) {
+      this.logger.error(`Failed to notify workspace members: ${e.message}`);
     }
   }
 

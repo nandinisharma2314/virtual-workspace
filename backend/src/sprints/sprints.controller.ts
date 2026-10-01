@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Headers, Query } from '@nestjs/common';
 import { SprintsService } from './sprints.service.js';
 import { CreateSprintDto } from './dto/create-sprint.dto.js';
 import { UpdateSprintDto } from './dto/update-sprint.dto.js';
@@ -10,13 +10,24 @@ export class SprintsController {
   constructor(private readonly sprintsService: SprintsService) {}
 
   @Post()
-  create(@Body() createSprintDto: CreateSprintDto) {
+  create(
+    @Body() createSprintDto: CreateSprintDto,
+    @Headers('x-workspace-id') wsIdHeader?: string,
+  ) {
+    if (!createSprintDto.workspaceId && wsIdHeader && !isNaN(Number(wsIdHeader))) {
+      createSprintDto.workspaceId = Number(wsIdHeader);
+    }
     return this.sprintsService.create(createSprintDto);
   }
 
   @Get()
-  findAll() {
-    return this.sprintsService.findAll();
+  findAll(
+    @Headers('x-workspace-id') wsIdHeader?: string,
+    @Query('workspaceId') wsIdQuery?: string,
+  ) {
+    const rawWsId = wsIdHeader || wsIdQuery;
+    const workspaceId = rawWsId && !isNaN(Number(rawWsId)) ? Number(rawWsId) : undefined;
+    return this.sprintsService.findAll(workspaceId);
   }
 
   @Get(':id')

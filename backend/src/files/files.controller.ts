@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query, Headers, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { FilesService } from './files.service.js';
 import { CreateFileDto } from './dto/create-file.dto.js';
 import { UpdateFileDto } from './dto/update-file.dto.js';
@@ -26,18 +26,30 @@ export class FilesController {
   }
 
   @Post()
-  async create(@Body() createFileDto: CreateFileDto, @Req() req: any) {
+  async create(
+    @Body() createFileDto: CreateFileDto,
+    @Req() req: any,
+    @Headers('x-workspace-id') wsIdHeader?: string,
+  ) {
     try {
       const userId = req.user.sub;
-      return await this.filesService.create(createFileDto, userId);
+      const rawWsId = (createFileDto as any).workspaceId || wsIdHeader;
+      const workspaceId = rawWsId && !isNaN(Number(rawWsId)) ? Number(rawWsId) : undefined;
+      return await this.filesService.create(createFileDto, userId, workspaceId);
     } catch (err: any) {
       throw new InternalServerErrorException(`FilesController error: ${err.message || JSON.stringify(err)}`);
     }
   }
 
   @Get()
-  findAll(@Query('projectId') projectId?: string) {
-    return this.filesService.findAll(projectId ? +projectId : undefined);
+  findAll(
+    @Query('projectId') projectId?: string,
+    @Headers('x-workspace-id') wsIdHeader?: string,
+    @Query('workspaceId') wsIdQuery?: string,
+  ) {
+    const rawWsId = wsIdHeader || wsIdQuery;
+    const workspaceId = rawWsId && !isNaN(Number(rawWsId)) ? Number(rawWsId) : undefined;
+    return this.filesService.findAll(projectId ? +projectId : undefined, workspaceId);
   }
 
   @Get(':id')

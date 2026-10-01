@@ -19,4 +19,8 @@ export class CreateSprintDto {
   @IsDateString()
   @IsOptional()
   endDate?: string;
+
+  @IsNumber()
+  @IsOptional()
+  workspaceId?: number;
 }

@@ -204,8 +204,9 @@ function RegisterContent() {
         if (res.ok) {
           const data = await res.json();
           document.cookie = `token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
-          const redirectUrl = searchParams.get("invite")
-            ? `/chat?${searchParams.toString()}`
+          const inviteToken = searchParams.get("invite");
+          const redirectUrl = inviteToken
+            ? `/invite/${encodeURIComponent(inviteToken)}`
             : "/";
           window.location.href = redirectUrl;
         } else {

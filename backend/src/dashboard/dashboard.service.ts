@@ -7,14 +7,16 @@ import { eq, or, and, sql, isNull, desc, inArray } from 'drizzle-orm';
 export class DashboardService {
   constructor(private readonly dbService: DatabaseService) {}
 
-  async getDashboardData(userId: number) {
+  async getDashboardData(userId: number, workspaceId?: number) {
     const db = this.dbService.db;
     
     // Fetch user details for personalizing the payload if needed
     const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
 
     // Tasks due today / in progress / completed / overdue
-    const allTasks = await db.select().from(schema.tasks).where(eq(schema.tasks.assigneeId, userId));
+    const allTasks = workspaceId
+      ? await db.select().from(schema.tasks).where(and(eq(schema.tasks.workspaceId, workspaceId), eq(schema.tasks.assigneeId, userId)))
+      : await db.select().from(schema.tasks).where(eq(schema.tasks.assigneeId, userId));
     
     let dueToday = 0;
     let inProgress = 0;
@@ -104,9 +106,22 @@ export class DashboardService {
       }
     });
 
-    // Calculate team workload dynamically based on role
-    let allUsers = await db.select().from(schema.users);
-    let globalTasks = await db.select().from(schema.tasks);
+    // Calculate team workload dynamically based on role and workspace
+    let allUsers: any[] = [];
+    let globalTasks: any[] = [];
+
+    if (workspaceId) {
+      const memberRows = await db
+        .select({ user: schema.users })
+        .from(schema.workspaceMembers)
+        .innerJoin(schema.users, eq(schema.workspaceMembers.userId, schema.users.id))
+        .where(eq(schema.workspaceMembers.workspaceId, workspaceId));
+      allUsers = memberRows.map(r => r.user);
+      globalTasks = await db.select().from(schema.tasks).where(eq(schema.tasks.workspaceId, workspaceId));
+    } else {
+      allUsers = await db.select().from(schema.users);
+      globalTasks = await db.select().from(schema.tasks);
+    }
 
     if (user[0]?.role !== 'Admin') {
       allUsers = allUsers.filter(u => u.id === userId);
@@ -164,7 +179,9 @@ export class DashboardService {
     }
 
     // Fetch meetings for the calendar
-    let dbMeetings = await db.select().from(schema.meetings);
+    let dbMeetings = workspaceId
+      ? await db.select().from(schema.meetings).where(eq(schema.meetings.workspaceId, workspaceId))
+      : await db.select().from(schema.meetings);
     if (user[0]?.role !== 'Admin') {
       dbMeetings = dbMeetings.filter(m => m.organizerId === userId);
     }
@@ -281,7 +298,9 @@ export class DashboardService {
     });
 
     // Populate recentFiles
-    let dbFiles = await db.select().from(schema.files);
+    let dbFiles = workspaceId
+      ? await db.select().from(schema.files).where(eq(schema.files.workspaceId, workspaceId))
+      : await db.select().from(schema.files);
     if (user[0]?.role !== 'Admin') {
       dbFiles = dbFiles.filter(f => f.uploadedById === userId);
     }
@@ -315,12 +334,16 @@ export class DashboardService {
       };
     });
 
-    // Fetch user channels according to role-based access:
-    // Admin: see all channels created by admin (or all channels)
-    // Member: see ONLY channels they are added to by admin
+    // Fetch user channels according to role-based access & workspace
     const [currentUser] = user;
     let userChannels: any[] = [];
-    if (currentUser && currentUser.role === 'Admin') {
+    if (workspaceId) {
+      userChannels = await db
+        .select()
+        .from(schema.channels)
+        .where(eq(schema.channels.workspaceId, workspaceId))
+        .orderBy(desc(schema.channels.createdAt));
+    } else if (currentUser && currentUser.role === 'Admin') {
       userChannels = await db
         .select()
         .from(schema.channels)

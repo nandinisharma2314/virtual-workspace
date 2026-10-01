@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Post, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Delete, Body, Param, UseGuards, Req, Headers, Query } from '@nestjs/common';
 import { ChatService } from './chat.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 
@@ -41,23 +41,37 @@ export class ChatController {
   }
 
   @Get('direct-message-users')
-  getDirectMessageUsers() {
-    return this.chatService.getDirectMessageUsers();
+  getDirectMessageUsers(
+    @Headers('x-workspace-id') wsIdHeader?: string,
+    @Query('workspaceId') wsIdQuery?: string,
+  ) {
+    const rawWsId = wsIdHeader || wsIdQuery;
+    const workspaceId = rawWsId && !isNaN(Number(rawWsId)) ? Number(rawWsId) : undefined;
+    return this.chatService.getDirectMessageUsers(workspaceId);
   }
 
   @Get('channels')
-  getChannels(@Req() req: any) {
+  getChannels(
+    @Req() req: any,
+    @Headers('x-workspace-id') wsIdHeader?: string,
+    @Query('workspaceId') wsIdQuery?: string,
+  ) {
     const userId = req.user?.sub;
-    return this.chatService.getChannelsForUser(userId);
+    const rawWsId = wsIdHeader || wsIdQuery;
+    const workspaceId = rawWsId && !isNaN(Number(rawWsId)) ? Number(rawWsId) : undefined;
+    return this.chatService.getChannelsForUser(userId, workspaceId);
   }
 
   @Post('channels')
   createChannel(
-    @Body() body: { name: string; description: string; bgGradient?: string; memberEmails?: string[] }, 
-    @Req() req: any
+    @Body() body: { name: string; description: string; bgGradient?: string; memberEmails?: string[]; workspaceId?: number }, 
+    @Req() req: any,
+    @Headers('x-workspace-id') wsIdHeader?: string,
   ) {
     const userId = req.user?.sub;
-    return this.chatService.createChannel(body.name, body.description, userId, body.bgGradient, body.memberEmails);
+    const rawWsId = body.workspaceId || wsIdHeader;
+    const workspaceId = rawWsId && !isNaN(Number(rawWsId)) ? Number(rawWsId) : undefined;
+    return this.chatService.createChannel(body.name, body.description, userId, body.bgGradient, body.memberEmails, workspaceId);
   }
 
   @Patch('messages/:id')

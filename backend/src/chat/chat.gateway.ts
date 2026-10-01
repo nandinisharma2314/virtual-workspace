@@ -48,7 +48,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
       
       (client as any).user = payload;
-      this.logger.log(`Client authenticated: ${client.id} (User: ${payload.sub})`);
+
+      const rawWsId = client.handshake.auth?.workspaceId || 
+                      client.handshake.headers?.['x-workspace-id'] || 
+                      client.handshake.query?.workspaceId;
+      if (rawWsId && !isNaN(Number(rawWsId))) {
+        (client.data as any).workspaceId = Number(rawWsId);
+      }
+
+      this.logger.log(`Client authenticated: ${client.id} (User: ${payload.sub}, Workspace: ${(client.data as any)?.workspaceId || 'none'})`);
     } catch (error) {
       this.logger.error(`Unauthorized client (invalid token): ${client.id}`);
       client.disconnect();
@@ -59,12 +67,27 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
+  private getScopedRoom(channelId: string, client?: Socket): string {
+    const wsId = (client?.data as any)?.workspaceId;
+    return wsId ? `ws_${wsId}_${channelId}` : channelId;
+  }
+
   @SubscribeMessage('join_channel')
   handleJoinChannel(@MessageBody() payload: { channelId: string }, @ConnectedSocket() client: Socket) {
     if (payload.channelId) {
-      // client can leave previous rooms if needed, but for now just join
-      client.join(payload.channelId);
-      this.logger.log(`Client ${client.id} joined ${payload.channelId}`);
+      const room = this.getScopedRoom(payload.channelId, client);
+      client.join(room);
+      this.logger.log(`Client ${client.id} joined ${room}`);
+    }
+  }
+
+  @SubscribeMessage('join-room')
+  handleJoinRoomLegacy(@MessageBody() payload: { channelId: string; user?: any }, @ConnectedSocket() client: Socket) {
+    if (payload.channelId) {
+      const room = this.getScopedRoom(payload.channelId, client);
+      client.join(room);
+      client.to(room).emit('user-connected', payload.user);
+      this.logger.log(`Client ${client.id} joined WebRTC room ${room}`);
     }
   }
 
@@ -76,6 +99,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`Message received: ${payload.text}`);
     
     const channelId = payload.channelId || 'c-general';
+    const room = this.getScopedRoom(channelId, client);
     
     // Save to database via ChatService
     const message = await this.chatService.saveMessage(
@@ -86,8 +110,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload.attachment
     );
 
-    // Broadcast to the specific channel room
-    this.server.to(channelId).emit('chat_message', message);
+    // Broadcast to the workspace-namespaced channel room
+    this.server.to(room).emit('chat_message', message);
     
     return message;
   }
@@ -97,8 +121,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { messageId: number; text: string; userId: number; channelId: string },
     @ConnectedSocket() client: Socket,
   ) {
+    const room = this.getScopedRoom(payload.channelId, client);
     const message = await this.chatService.editMessage(payload.messageId, payload.userId, payload.text);
-    this.server.to(payload.channelId).emit('message_edited', { messageId: payload.messageId, text: payload.text, isEdited: true });
+    this.server.to(room).emit('message_edited', { messageId: payload.messageId, text: payload.text, isEdited: true });
     return message;
   }
 
@@ -107,8 +132,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { messageId: number; userId: number; channelId: string },
     @ConnectedSocket() client: Socket,
   ) {
+    const room = this.getScopedRoom(payload.channelId, client);
     await this.chatService.deleteMessage(payload.messageId, payload.userId);
-    this.server.to(payload.channelId).emit('message_deleted', { messageId: payload.messageId });
+    this.server.to(room).emit('message_deleted', { messageId: payload.messageId });
     return { success: true };
   }
 
@@ -117,51 +143,78 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { messageId: number; emoji: string; userId: number; channelId: string },
     @ConnectedSocket() client: Socket,
   ) {
+    const room = this.getScopedRoom(payload.channelId, client);
     const reactions = await this.chatService.addReaction(payload.messageId, payload.userId, payload.emoji);
-    this.server.to(payload.channelId).emit('reaction_updated', { messageId: payload.messageId, reactions });
+    this.server.to(room).emit('reaction_updated', { messageId: payload.messageId, reactions });
     return reactions;
   }
 
   // WebRTC Signaling
   @SubscribeMessage('join_video_call')
   handleJoinVideoCall(@MessageBody() payload: { channelId: string; senderId: string; senderName?: string }, @ConnectedSocket() client: Socket) {
-    client.to(payload.channelId).emit('join_video_call', payload);
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('join_video_call', payload);
   }
 
   @SubscribeMessage('invite_video_call')
   handleInviteVideoCall(@MessageBody() payload: { channelId: string; senderId: string; targetId: string; channelName?: string; senderName?: string }, @ConnectedSocket() client: Socket) {
-    client.to(payload.channelId).emit('invite_video_call', payload);
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('invite_video_call', payload);
   }
 
   // In-Call Chat & Admin Controls
   @SubscribeMessage('in_call_message')
   handleInCallMessage(@MessageBody() payload: { channelId: string; senderId: string; senderName: string; text: string; timestamp: string }, @ConnectedSocket() client: Socket) {
-    client.to(payload.channelId).emit('in_call_message', payload);
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('in_call_message', payload);
   }
 
   @SubscribeMessage('toggle_in_call_chat')
   handleToggleInCallChat(@MessageBody() payload: { channelId: string; isEnabled: boolean; adminId: string }, @ConnectedSocket() client: Socket) {
-    client.to(payload.channelId).emit('toggle_in_call_chat', payload);
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('toggle_in_call_chat', payload);
   }
 
   @SubscribeMessage('in_call_file')
   handleInCallFile(@MessageBody() payload: { channelId: string; senderId: string; senderName: string; file: any; timestamp: string }, @ConnectedSocket() client: Socket) {
-    client.to(payload.channelId).emit('in_call_file', payload);
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('in_call_file', payload);
   }
 
   @SubscribeMessage('webrtc_offer')
   handleWebRtcOffer(@MessageBody() payload: { channelId: string; offer: any; senderId: string }, @ConnectedSocket() client: Socket) {
-    client.to(payload.channelId).emit('webrtc_offer', payload);
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('webrtc_offer', payload);
+  }
+
+  @SubscribeMessage('webrtc-offer')
+  handleWebRtcOfferKebab(@MessageBody() payload: { channelId: string; offer: any; senderId: string }, @ConnectedSocket() client: Socket) {
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('webrtc-offer', payload);
   }
 
   @SubscribeMessage('webrtc_answer')
   handleWebRtcAnswer(@MessageBody() payload: { channelId: string; answer: any; senderId: string }, @ConnectedSocket() client: Socket) {
-    client.to(payload.channelId).emit('webrtc_answer', payload);
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('webrtc_answer', payload);
+  }
+
+  @SubscribeMessage('webrtc-answer')
+  handleWebRtcAnswerKebab(@MessageBody() payload: { channelId: string; answer: any; senderId: string }, @ConnectedSocket() client: Socket) {
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('webrtc-answer', payload);
   }
 
   @SubscribeMessage('webrtc_ice_candidate')
   handleWebRtcIceCandidate(@MessageBody() payload: { channelId: string; candidate: any; senderId: string }, @ConnectedSocket() client: Socket) {
-    client.to(payload.channelId).emit('webrtc_ice_candidate', payload);
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('webrtc_ice_candidate', payload);
+  }
+
+  @SubscribeMessage('webrtc-ice-candidate')
+  handleWebRtcIceCandidateKebab(@MessageBody() payload: { channelId: string; candidate: any; senderId: string }, @ConnectedSocket() client: Socket) {
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('webrtc-ice-candidate', payload);
   }
 }
 

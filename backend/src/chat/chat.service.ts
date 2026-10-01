@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { JwtService } from '@nestjs/jwt';
 import { DatabaseService } from '../database/database.service.js';
 import * as schema from '../database/schema.js';
-import { messages, users, channels, channelMembers } from '../database/schema.js';
+import { messages, users, channels, channelMembers, workspaceMembers } from '../database/schema.js';
 import { eq, desc, inArray, or, and, sql, isNull, ilike } from 'drizzle-orm';
 import * as nodemailer from 'nodemailer';
 import { NotificationsService } from '../notifications/notifications.service.js';
@@ -173,9 +173,25 @@ export class ChatService {
     return reactions;
   }
 
-  async getChannelsForUser(userId: number) {
+  async getChannelsForUser(userId: number, workspaceId?: number) {
     const [currentUser] = await this.dbService.db.select().from(users).where(eq(users.id, userId));
     if (!currentUser) return [];
+
+    const defaultWsChannelId = workspaceId ? `c-general-ws-${workspaceId}` : 'c-general';
+    const whereConditions = workspaceId
+      ? and(
+          eq(channels.workspaceId, workspaceId),
+          or(
+            and(eq(channelMembers.userId, userId), eq(channelMembers.status, 'accepted')),
+            eq(channels.creatorId, userId),
+            eq(channels.id, defaultWsChannelId)
+          )
+        )
+      : or(
+          and(eq(channelMembers.userId, userId), eq(channelMembers.status, 'accepted')),
+          eq(channels.creatorId, userId),
+          eq(channels.id, 'c-general')
+        );
 
     // Strict privacy for all users:
     // Only return channels where the user is an accepted member, or the creator, or the default general channel
@@ -191,11 +207,7 @@ export class ChatService {
       })
       .from(channels)
       .leftJoin(channelMembers, eq(channels.id, channelMembers.channelId))
-      .where(or(
-        and(eq(channelMembers.userId, userId), eq(channelMembers.status, 'accepted')),
-        eq(channels.creatorId, userId),
-        eq(channels.id, 'c-general')
-      ))
+      .where(whereConditions)
       .orderBy(desc(channels.createdAt));
 
     const seen = new Set<string>();
@@ -245,7 +257,7 @@ export class ChatService {
     return enhanced;
   }
 
-  async createChannel(name: string, description: string, creatorId: number, bgGradient?: string, memberEmails?: string[]) {
+  async createChannel(name: string, description: string, creatorId: number, bgGradient?: string, memberEmails?: string[], workspaceId?: number) {
     const cleanName = name.replace(/^#\s*/, '').trim();
     const baseSlug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'channel';
     let channelId = 'c-' + baseSlug;
@@ -273,6 +285,7 @@ export class ChatService {
         name: cleanName,
         description: description || '',
         creatorId,
+        workspaceId: workspaceId || null,
         bgGradient: gradient,
         isTemplate: false,
       });
@@ -945,7 +958,24 @@ export class ChatService {
     return this.getChannelInfo(channelId, userId);
   }
 
-  async getDirectMessageUsers() {
+  async getDirectMessageUsers(workspaceId?: number) {
+    if (workspaceId) {
+      const dmUsers = await this.dbService.db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          avatar: users.avatar,
+          status: users.status,
+          role: users.role,
+          department: users.department,
+        })
+        .from(workspaceMembers)
+        .innerJoin(users, eq(workspaceMembers.userId, users.id))
+        .where(eq(workspaceMembers.workspaceId, workspaceId));
+      return dmUsers;
+    }
+
     const dmUsers = await this.dbService.db
       .select({
         id: users.id,

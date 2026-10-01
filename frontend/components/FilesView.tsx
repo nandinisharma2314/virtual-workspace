@@ -19,7 +19,7 @@ import {
   HardDrive
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
 import { toast, confirmDialog } from "@/lib/toast";
 
 // Custom Dropdown Component
@@ -142,10 +142,8 @@ export default function FilesView() {
 
   const fetchFiles = async () => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      if (!token) return;
       const res = await fetch(`${API_URL}/files`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         const data = await res.json();
@@ -221,17 +219,10 @@ export default function FilesView() {
 
     setIsUploading(true);
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      if (!token) {
-        toast.error("Authentication required. Please log in.");
-        setIsUploading(false);
-        return;
-      }
-
       // 1. Get presigned upload URL from backend (pointing to Cloudflare R2)
       const urlRes = await fetch(
         `${API_URL}/files/upload-url?filename=${encodeURIComponent(selectedFile.name)}&contentType=${encodeURIComponent(selectedFile.type || 'application/octet-stream')}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: getAuthHeaders() }
       );
 
       if (!urlRes.ok) {
@@ -255,17 +246,16 @@ export default function FilesView() {
       }
 
       // 3. Register file metadata in backend
+      const wsId = getActiveWorkspaceId();
       const createRes = await fetch(`${API_URL}/files`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           name: selectedFile.name,
           size: selectedFile.size,
           type: selectedFile.type || 'application/octet-stream',
           storageKey: storageKey,
+          workspaceId: wsId || undefined,
         }),
       });
 
@@ -288,10 +278,9 @@ export default function FilesView() {
   // Open or download file using signed URL from Cloudflare R2
   const handleFileClick = async (file: any) => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      if (file.id && token) {
+      if (file.id) {
         const res = await fetch(`${API_URL}/files/${file.id}/download-url`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: getAuthHeaders(),
         });
         if (res.ok) {
           const { downloadUrl } = await res.json();
@@ -332,10 +321,9 @@ export default function FilesView() {
       confirmText: "Delete File",
       onConfirm: async () => {
         try {
-          const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
           const res = await fetch(`${API_URL}/files/${fileId}`, {
             method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` }
+            headers: getAuthHeaders(),
           });
           if (res.ok) {
             setFiles(prev => prev.filter(f => f.id !== fileId));

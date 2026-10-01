@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Avatar from "@/components/Avatar";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
 import {
   Plus,
   MoreVertical,
@@ -42,11 +42,8 @@ export default function ProjectBoard({ projectId }: { projectId?: string }) {
 
   const fetchTasks = async () => {
     try {
-      const token = localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const res = await fetch(`${API_URL}/tasks`, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         const data = await res.json();
@@ -74,19 +71,17 @@ export default function ProjectBoard({ projectId }: { projectId?: string }) {
 
     setSubmitting(true);
     try {
-      const token = localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      const wsId = getActiveWorkspaceId();
       const res = await fetch(`${API_URL}/tasks`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           title: newTitle.trim(),
           description: newDescription.trim() || undefined,
           status: targetStatus,
           priority: newPriority,
           projectId: projectId ? parseInt(projectId, 10) : undefined,
+          workspaceId: wsId || undefined,
         }),
       });
 

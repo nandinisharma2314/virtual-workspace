@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, Plus, Filter, LayoutGrid, List, ArrowUpDown, FolderOpen, MoreHorizontal, Clock, CheckCircle2, AlertCircle, X } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { useRouter } from "next/navigation";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
 import { useWorkspace } from "@/lib/WorkspaceContext";
 
 export default function ProjectsDirectory() {
@@ -23,15 +23,12 @@ export default function ProjectsDirectory() {
 
   const fetchProjects = async () => {
     try {
-      const token = localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const headers = {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        "x-workspace-id": currentWorkspace?.id ? String(currentWorkspace.id) : "",
-      };
+      const activeWsId = currentWorkspace?.id || getActiveWorkspaceId();
+      const headers = getAuthHeaders(activeWsId ? { "x-workspace-id": String(activeWsId) } : {});
 
       const [projRes, teamRes] = await Promise.all([
         fetch(`${API_URL}/projects`, { headers }),
-        fetch(`${API_URL}/teams?workspaceId=${currentWorkspace?.id}`, { headers })
+        fetch(`${API_URL}/teams?workspaceId=${activeWsId || ''}`, { headers })
       ]);
 
       if (projRes.ok) {
@@ -62,17 +59,14 @@ export default function ProjectsDirectory() {
 
     setCreating(true);
     try {
-      const token = localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      const activeWsId = currentWorkspace?.id || getActiveWorkspaceId();
       const res = await fetch(`${API_URL}/projects`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           name: newName.trim(),
           description: newDescription.trim() || undefined,
-          workspaceId: currentWorkspace?.id,
+          workspaceId: activeWsId || undefined,
           teamId: newTeamId ? Number(newTeamId) : undefined,
         }),
       });

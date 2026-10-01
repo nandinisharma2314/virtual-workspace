@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { motion, AnimatePresence } from "framer-motion";
 import VideoCall from "./chat/VideoCall";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
 
 import {
   Video,
@@ -71,11 +71,8 @@ export default function MeetingsView() {
   const socketRef = useRef<Socket | null>(null);
 
   const fetchMeetings = () => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) return;
-    
     fetch(`${API_URL}/meetings`, {
-      headers: { "Authorization": `Bearer ${token}` }
+      headers: getAuthHeaders(),
     })
     .then(res => res.ok ? res.json() : [])
     .then(data => {
@@ -121,22 +118,20 @@ export default function MeetingsView() {
   };
 
   useEffect(() => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (token) {
-      fetch(`${API_URL}/auth/me`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data) setCurrentUser(data);
-      })
-      .catch(() => {});
+    fetch(`${API_URL}/auth/me`, {
+      headers: getAuthHeaders(),
+    })
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if (data) setCurrentUser(data);
+    })
+    .catch(() => {});
 
-      fetchMeetings();
-    }
+    fetchMeetings();
 
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
     socketRef.current = io(API_URL, {
-      auth: { token }
+      auth: { token, workspaceId: getActiveWorkspaceId() }
     });
 
     return () => {
@@ -146,24 +141,19 @@ export default function MeetingsView() {
 
   const handleCreateMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) return;
-
     try {
       const startDateTime = new Date(`${newMeetingForm.date}T${newMeetingForm.startTime}:00`).toISOString();
       const endDateTime = new Date(`${newMeetingForm.date}T${newMeetingForm.endTime}:00`).toISOString();
 
       const res = await fetch(`${API_URL}/meetings`, {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
-        },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           title: newMeetingForm.title,
           description: newMeetingForm.description,
           startTime: startDateTime,
-          endTime: endDateTime
+          endTime: endDateTime,
+          workspaceId: getActiveWorkspaceId() || undefined,
         })
       });
       if (res.ok) {
@@ -176,19 +166,13 @@ export default function MeetingsView() {
 
   const handleUpdateMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) return;
-
     try {
       const startDateTime = new Date(`${editMeetingForm.date}T${editMeetingForm.startTime}:00`).toISOString();
       const endDateTime = new Date(`${editMeetingForm.date}T${editMeetingForm.endTime}:00`).toISOString();
 
       const res = await fetch(`${API_URL}/meetings/${editMeetingForm.id}`, {
         method: "PATCH",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
-        },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           title: editMeetingForm.title,
           description: editMeetingForm.description,
@@ -204,12 +188,10 @@ export default function MeetingsView() {
   };
 
   const handleDeleteMeeting = async (id: number) => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) return;
     try {
       const res = await fetch(`${API_URL}/meetings/${id}`, {
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         fetchMeetings();

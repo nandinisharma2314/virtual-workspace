@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Search, Plus, Filter, MoreVertical, Mail, Phone, Calendar, User, Edit2, Trash2, X } from "lucide-react";
+import { Search, Plus, Filter, MoreVertical, Mail, Phone, Calendar, User, Edit2, Trash2, X, Copy, Check } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { avatarColors } from "@/lib/uiConstants";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getActiveWorkspaceId, getAuthHeaders } from "@/lib/apis";
 
 const initialMembers: any[] = [];
 
@@ -140,34 +140,55 @@ export default function TeamsView() {
     }
   }, []);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
+  const [workspaceRolesList, setWorkspaceRolesList] = useState<any[]>([]);
+  const [copiedInvite, setCopiedInvite] = useState(false);
+  const [createdInviteUrl, setCreatedInviteUrl] = useState<string | null>(null);
 
-    fetch(`${API_URL}/users`, {
-      headers: { Authorization: `Bearer ${token}` }
+  const fetchMembers = () => {
+    const wsId = getActiveWorkspaceId();
+    const url = wsId ? `${API_URL}/workspaces/${wsId}/members` : `${API_URL}/users`;
+
+    fetch(url, {
+      headers: getAuthHeaders(),
     })
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch users');
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch members");
         return res.json();
       })
-      .then(data => {
+      .then((data) => {
         if (Array.isArray(data)) {
           const realMembers = data.map((u: any) => ({
-            id: u.id,
+            id: u.userId ?? u.id,
+            memberId: u.memberId,
             name: u.name,
-            role: u.role || "Member",
+            role: u.customRoleLabel || u.roleName || u.role || "Member",
+            roleId: u.roleId,
             department: u.department || "Engineering",
             status: u.status || "Active",
             email: u.email,
-            avatar: u.avatar
+            avatar: u.avatar,
           }));
           setMembers(realMembers);
         }
       })
-      .catch(err => {
-        console.error("Error loading users:", err);
+      .catch((err) => {
+        console.error("Error loading workspace members:", err);
       });
+
+    if (wsId) {
+      fetch(`${API_URL}/workspaces/${wsId}/roles`, {
+        headers: getAuthHeaders(),
+      })
+        .then((res) => res.json())
+        .then((roles) => {
+          if (Array.isArray(roles)) setWorkspaceRolesList(roles);
+        })
+        .catch(console.error);
+    }
+  };
+
+  useEffect(() => {
+    fetchMembers();
   }, []);
   
   // Modals state
@@ -175,7 +196,7 @@ export default function TeamsView() {
   const [editingMember, setEditingMember] = useState<any>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [isAddingMember, setIsAddingMember] = useState(false);
-  const [addForm, setAddForm] = useState({ name: "", role: "", department: "Engineering", status: "Active" });
+  const [addForm, setAddForm] = useState({ name: "", email: "", roleId: 0, customRoleLabel: "", department: "Engineering", status: "Active" });
   
   const [toast, setToast] = useState<{message: string, type: 'error' | 'success'} | null>(null);
   const [confirmModal, setConfirmModal] = useState<{isOpen: boolean, memberId: string | null}>({isOpen: false, memberId: null});
@@ -198,22 +219,31 @@ export default function TeamsView() {
   );
 
   const handleSaveEdit = async () => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    
+    const wsId = getActiveWorkspaceId();
     try {
-      const res = await fetch(`${API_URL}/users/${editForm.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          name: editForm.name,
-          role: editForm.role,
-          department: editForm.department,
-          status: editForm.status
-        })
-      });
+      let res;
+      if (wsId) {
+        res = await fetch(`${API_URL}/workspaces/${wsId}/members/${editForm.id}`, {
+          method: "PATCH",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ 
+            customRoleLabel: editForm.role,
+            roleId: editForm.roleId || undefined,
+            status: editForm.status
+          })
+        });
+      } else {
+        res = await fetch(`${API_URL}/users/${editForm.id}`, {
+          method: "PUT",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ 
+            name: editForm.name,
+            role: editForm.role,
+            department: editForm.department,
+            status: editForm.status
+          })
+        });
+      }
       
       if (res.ok) {
         setMembers(members.map(m => m.id === editForm.id ? { ...m, name: editForm.name, role: editForm.role, department: editForm.department, status: editForm.status } : m));
@@ -221,7 +251,7 @@ export default function TeamsView() {
         showToast("Member updated successfully!", "success");
       } else {
         const err = await res.json();
-        showToast(err.message || "Failed to update role. You may not have Admin privileges.");
+        showToast(err.message || "Failed to update member. You may not have Admin privileges.");
       }
     } catch (e) {
       console.error(e);
@@ -229,12 +259,45 @@ export default function TeamsView() {
     }
   };
 
-  const handleSaveAdd = () => {
+  const handleSaveAdd = async () => {
+    const wsId = getActiveWorkspaceId();
+    if (wsId && addForm.email) {
+      try {
+        const defaultRoleId = workspaceRolesList.find(r => r.name.toLowerCase().includes('employee'))?.id || workspaceRolesList[0]?.id || 1;
+        const res = await fetch(`${API_URL}/workspaces/${wsId}/invites`, {
+          method: "POST",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            email: addForm.email,
+            roleId: addForm.roleId || defaultRoleId,
+            customRoleLabel: addForm.customRoleLabel || addForm.role || undefined,
+          }),
+        });
+
+        if (res.ok) {
+          const inv = await res.json();
+          const inviteUrl = `${window.location.origin}/register?invite=${inv.token}`;
+          setCreatedInviteUrl(inviteUrl);
+          showToast(inv.autoAccepted ? "User added to workspace!" : "Invitation link generated!", "success");
+          fetchMembers();
+          return;
+        } else {
+          const err = await res.json();
+          showToast(err.message || "Failed to invite user");
+          return;
+        }
+      } catch (e) {
+        console.error(e);
+        showToast("Network error inviting member");
+        return;
+      }
+    }
+
     const newId = addForm.name.toLowerCase().split(' ')[0] + Math.floor(Math.random() * 1000);
     const newMember = { ...addForm, id: newId };
     setMembers([...members, newMember]);
     setIsAddingMember(false);
-    setAddForm({ name: "", role: "", department: "Engineering", status: "Active" });
+    setAddForm({ name: "", email: "", roleId: 0, customRoleLabel: "", department: "Engineering", status: "Active" });
   };
 
   const confirmRemove = (id: string) => {
@@ -246,17 +309,16 @@ export default function TeamsView() {
     const id = confirmModal.memberId;
     setConfirmModal({ isOpen: false, memberId: null });
     
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    const wsId = getActiveWorkspaceId();
     try {
-      const res = await fetch(`${API_URL}/users/${id}`, {
+      const url = wsId ? `${API_URL}/workspaces/${wsId}/members/${id}` : `${API_URL}/users/${id}`;
+      const res = await fetch(url, {
         method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+        headers: getAuthHeaders(),
       });
       
       if (res.ok) {
-        setMembers(members.filter(m => m.id !== id));
+        setMembers(members.filter(m => String(m.id) !== String(id)));
         showToast("Member removed successfully!", "success");
       } else {
         const err = await res.json();
@@ -478,60 +540,101 @@ export default function TeamsView() {
         )}
       </Modal>
 
-      {/* Add Member Modal */}
-      <Modal isOpen={isAddingMember} onClose={() => setIsAddingMember(false)} title="Add Member">
+      {/* Add / Invite Member Modal */}
+      <Modal isOpen={isAddingMember} onClose={() => { setIsAddingMember(false); setCreatedInviteUrl(null); }} title="Invite Workspace Member">
         <div className="flex flex-col space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Full Name</label>
-            <input 
-              type="text" 
-              value={addForm.name} 
-              onChange={e => setAddForm({ ...addForm, name: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Role</label>
-            <input 
-              type="text" 
-              value={addForm.role} 
-              onChange={e => setAddForm({ ...addForm, role: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Department</label>
-            <select 
-              value={addForm.department} 
-              onChange={e => setAddForm({ ...addForm, department: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white"
-            >
-              {departments.filter(d => d !== "All Company").map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Status</label>
-            <select 
-              value={addForm.status} 
-              onChange={e => setAddForm({ ...addForm, status: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white"
-            >
-              <option value="Active">Active</option>
-              <option value="Away">Away</option>
-              <option value="Offline">Offline</option>
-            </select>
-          </div>
-          
-          <div className="pt-4 flex gap-3 w-full">
-            <button onClick={() => setIsAddingMember(false)} className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm hover:bg-gray-200 transition-colors">
-              Cancel
-            </button>
-            <button onClick={handleSaveAdd} disabled={!addForm.name || !addForm.role} className="flex-1 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-              Add Member
-            </button>
-          </div>
+          {createdInviteUrl ? (
+            <div className="space-y-3">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-medium">
+                Workspace invitation generated! Share this link with your teammate to join:
+              </div>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="text" 
+                  readOnly 
+                  value={createdInviteUrl} 
+                  className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-xs bg-gray-50 text-gray-700 select-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdInviteUrl);
+                    setCopiedInvite(true);
+                    setTimeout(() => setCopiedInvite(false), 2000);
+                  }}
+                  className="p-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shrink-0"
+                  title="Copy link"
+                >
+                  {copiedInvite ? <Check size={16} /> : <Copy size={16} />}
+                </button>
+              </div>
+              <div className="pt-2 flex justify-end">
+                <button 
+                  onClick={() => { setIsAddingMember(false); setCreatedInviteUrl(null); }} 
+                  className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm hover:bg-gray-200 transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label>
+                <input 
+                  type="email" 
+                  placeholder="colleague@example.com"
+                  value={addForm.email} 
+                  onChange={e => setAddForm({ ...addForm, email: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Workspace Role</label>
+                <select 
+                  value={addForm.roleId || (workspaceRolesList[0]?.id || 0)} 
+                  onChange={e => setAddForm({ ...addForm, roleId: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white"
+                >
+                  {workspaceRolesList.length > 0 ? (
+                    workspaceRolesList.map(r => (
+                      <option key={r.id} value={r.id}>{r.name} - {r.description || ''}</option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="1">Admin</option>
+                      <option value="2">Manager</option>
+                      <option value="3">Supervisor</option>
+                      <option value="4">Normal Employee</option>
+                    </>
+                  )}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Custom Role Title (Optional)</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Senior Frontend Engineer"
+                  value={addForm.customRoleLabel} 
+                  onChange={e => setAddForm({ ...addForm, customRoleLabel: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+              
+              <div className="pt-4 flex gap-3 w-full">
+                <button onClick={() => setIsAddingMember(false)} className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm hover:bg-gray-200 transition-colors">
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveAdd} 
+                  disabled={!addForm.email} 
+                  className="flex-1 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Send Invite
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </Modal>
 

@@ -6,7 +6,7 @@ import InboxSidebar from "./inbox/InboxSidebar";
 import InboxList from "./inbox/InboxList";
 import InboxDetail from "./inbox/InboxDetail";
 import { io } from "socket.io-client";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
 
 function adaptDbNotification(dbNotif: any, index: number): InboxItem {
   // Use DB id, unread, content, date
@@ -106,14 +106,8 @@ export default function InboxView() {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-        if (!token) {
-          setErrorMsg("No token found");
-          setItems([]);
-          return;
-        }
         const res = await fetch(`${API_URL}/user-notifications`, {
-          headers: { "Authorization": `Bearer ${token}` }
+          headers: getAuthHeaders(),
         });
         if (res.ok) {
           const data = await res.json();
@@ -134,15 +128,16 @@ export default function InboxView() {
     fetchNotifications();
     
     // Setup Socket.IO for real-time notifications
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
     let userId = null;
     if (token) {
        try { userId = JSON.parse(atob(token.split('.')[1])).sub; } catch(e) {}
     }
     
+    const wsId = getActiveWorkspaceId();
     const socket = io(API_URL, {
-      auth: { token },
-      query: { userId }
+      auth: { token, workspaceId: wsId },
+      query: { userId, workspaceId: wsId }
     });
     
     socket.on("new_notification", (notification: any) => {
@@ -209,10 +204,9 @@ export default function InboxView() {
 
   const handleMarkAllRead = async () => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       await fetch(`${API_URL}/user-notifications/mark-all-read`, {
         method: "PATCH",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders(),
       });
       setItems((prev) => prev.map((item) => ({ ...item, unread: false })));
     } catch(e) {
@@ -222,17 +216,14 @@ export default function InboxView() {
 
   const handleToggleRead = async (id: string) => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const isCurrentlyUnread = items.find(i => i.id === id)?.unread;
       
       if (isCurrentlyUnread) {
         await fetch(`${API_URL}/user-notifications/${id}/read`, {
           method: "PATCH",
-          headers: { "Authorization": `Bearer ${token}` }
+          headers: getAuthHeaders(),
         });
       }
-      // Note: Backend doesn't have an unread toggle yet, only mark-as-read
-      // For now we'll just optimistically toggle it locally for UX
       setItems((prev) =>
         prev.map((item) =>
           item.id === id ? { ...item, unread: !item.unread } : item
@@ -245,10 +236,9 @@ export default function InboxView() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       await fetch(`${API_URL}/user-notifications/${id}`, {
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders(),
       });
       setItems((prev) => prev.filter((item) => item.id !== id));
       setSelectedItemId("");

@@ -36,11 +36,13 @@ async function getUser() {
   }
 }
 
-async function getDashboardData(token: string) {
+async function getDashboardData(token: string, workspaceId?: string) {
   try {
-    const res = await fetch(`${API_URL}/dashboard`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+    if (workspaceId) {
+      headers["x-workspace-id"] = workspaceId;
+    }
+    const res = await fetch(`${API_URL}/dashboard`, { headers });
     if (res.ok) {
       return await res.json();
     }
@@ -56,7 +58,8 @@ export default async function Home() {
 
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value || "";
-  const dashboardData = token ? await getDashboardData(token) : null;
+  const workspaceId = cookieStore.get("active_workspace_id")?.value;
+  const dashboardData = token ? await getDashboardData(token, workspaceId) : null;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#FAFBFC]">

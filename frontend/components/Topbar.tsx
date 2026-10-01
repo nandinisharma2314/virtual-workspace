@@ -6,7 +6,7 @@ import { Search, Plus, HelpCircle, Bell, ChevronDown, Folder, Users, FileText, C
 import Avatar from "./Avatar";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
 import { toast } from "@/lib/toast";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 
@@ -54,17 +54,14 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
 
   useEffect(() => {
     if (!currentUser) {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      if (token) {
-        fetch(`${API_URL}/auth/me?_t=${Date.now()}`, {
-          headers: { "Authorization": `Bearer ${token}` }
-        })
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-          if (data) setCurrentUser(data);
-        })
-        .catch(() => {});
-      }
+      fetch(`${API_URL}/auth/me?_t=${Date.now()}`, {
+        headers: getAuthHeaders(),
+      })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) setCurrentUser(data);
+      })
+      .catch(() => {});
     }
   }, [currentUser]);
 
@@ -88,10 +85,8 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-        if (!token) return;
         const res = await fetch(`${API_URL}/user-notifications?_t=${Date.now()}`, {
-          headers: { "Authorization": `Bearer ${token}` }
+          headers: getAuthHeaders(),
         });
         if (res.ok) {
           const data = await res.json();
@@ -108,15 +103,16 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
     const interval = setInterval(fetchNotifications, 30000);
     
     // Setup Socket.IO for real-time notifications
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
     let userId = null;
     if (token) {
        try { userId = JSON.parse(atob(token.split('.')[1])).sub; } catch(e) {}
     }
     
+    const wsId = getActiveWorkspaceId();
     const socket = io(API_URL, {
-      auth: { token },
-      query: { userId }
+      auth: { token, workspaceId: wsId },
+      query: { userId, workspaceId: wsId }
     });
     
     socket.on("new_notification", (notification) => {
@@ -132,10 +128,9 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
 
   const markAllAsRead = async () => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       await fetch(`${API_URL}/user-notifications/mark-all-read`, {
         method: "PATCH",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders(),
       });
       setNotifications(notifications.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
@@ -146,10 +141,9 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
 
   const markAsRead = async (id: number) => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       await fetch(`${API_URL}/user-notifications/${id}/read`, {
         method: "PATCH",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders(),
       });
       setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));

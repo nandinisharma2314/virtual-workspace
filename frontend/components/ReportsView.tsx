@@ -14,7 +14,7 @@ import {
   Users,
   MoreVertical
 } from "lucide-react";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
 import {
   BarChart,
   Bar,
@@ -44,11 +44,9 @@ export default function ReportsView() {
 
   useEffect(() => {
     setIsLoading(true);
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (token) {
-      fetch(`${API_URL}/reports/dashboard?range=${encodeURIComponent(dateRange)}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
+    fetch(`${API_URL}/reports/dashboard?range=${encodeURIComponent(dateRange)}`, {
+      headers: getAuthHeaders(),
+    })
       .then(res => res.json())
       .then(data => {
         if (data) {

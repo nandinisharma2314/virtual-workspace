@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { MessageSquare, Plus, Filter, LayoutGrid, List, Milestone, GanttChartSquare, X } from "lucide-react";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
 import Avatar from "./Avatar";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -49,9 +49,8 @@ export default function RoadmapBoard({
 
   const fetchTasks = async () => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const res = await fetch(`${API_URL}/tasks`, {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         const data = await res.json();
@@ -78,13 +77,9 @@ export default function RoadmapBoard({
       };
       
       try {
-        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
         await fetch(`${API_URL}/tasks/${task.id}`, {
           method: "PATCH",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ status: statusMap[targetColKey] || 'todo' })
         });
         fetchTasks();
@@ -142,22 +137,20 @@ export default function RoadmapBoard({
     
     setIsSubmitting(true);
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const statusMap: Record<string, string> = {
         todo: 'todo',
         inprogress: 'in_progress',
         done: 'completed'
       };
       
+      const wsId = getActiveWorkspaceId();
       await fetch(`${API_URL}/tasks`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           title: taskTitle,
           status: statusMap[columnKey] || 'todo',
+          workspaceId: wsId || undefined,
         })
       });
       setNewTaskTitle("");

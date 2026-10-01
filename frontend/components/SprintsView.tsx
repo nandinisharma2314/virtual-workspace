@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Filter, MoreHorizontal, MessageSquare, Play, CheckCircle2, Zap, LayoutGrid, List, AlertCircle, Clock, X } from "lucide-react";
 import Avatar from "./Avatar";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
 
 const initialSprintList: any[] = [];
 
@@ -36,84 +36,83 @@ export default function SprintsView() {
   const [teamMembers, setTeamMembers] = useState<{ id: number, name: string }[]>([]);
 
   useEffect(() => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (token) {
-      const headers = { "Authorization": `Bearer ${token}` };
-      
-      Promise.all([
-        fetch(`${API_URL}/users`, { headers }).then(r => r.json()),
-        fetch(`${API_URL}/sprints`, { headers }).then(r => r.json()),
-        fetch(`${API_URL}/tasks`, { headers }).then(r => r.json())
-      ]).then(([usersData, sprintsData, tasksData]) => {
-        setTeamMembers(usersData);
-        if (usersData.length > 0) {
-          setNewTaskForm(prev => ({ ...prev, assignee: usersData[0].name }));
-        }
+    const wsId = getActiveWorkspaceId();
+    const usersUrl = wsId ? `${API_URL}/workspaces/${wsId}/members` : `${API_URL}/users`;
+    
+    Promise.all([
+      fetch(usersUrl, { headers: getAuthHeaders() }).then(r => r.ok ? r.json() : []),
+      fetch(`${API_URL}/sprints`, { headers: getAuthHeaders() }).then(r => r.ok ? r.json() : []),
+      fetch(`${API_URL}/tasks`, { headers: getAuthHeaders() }).then(r => r.ok ? r.json() : [])
+    ]).then(([membersData, sprintsData, tasksData]) => {
+      const normalizedMembers = Array.isArray(membersData) 
+        ? membersData.map((m: any) => ({ id: m.userId || m.id, name: m.name }))
+        : [];
+      setTeamMembers(normalizedMembers);
+      if (normalizedMembers.length > 0) {
+        setNewTaskForm(prev => ({ ...prev, assignee: normalizedMembers[0].name }));
+      }
 
-        if (sprintsData && sprintsData.length > 0) {
-          const formattedSprints = sprintsData.map((s: any) => {
-            const start = s.startDate ? new Date(s.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-            const end = s.endDate ? new Date(s.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-            
-            const sprintTasks = (tasksData || []).filter((t: any) => t.sprintId === s.id);
-            const total = sprintTasks.reduce((acc: number, t: any) => acc + (t.estimatedHours || 0), 0);
-            const completed = sprintTasks.filter((t: any) => t.status === 'done').reduce((acc: number, t: any) => acc + (t.estimatedHours || 0), 0);
+      if (Array.isArray(sprintsData) && sprintsData.length > 0) {
+        const formattedSprints = sprintsData.map((s: any) => {
+          const start = s.startDate ? new Date(s.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+          const end = s.endDate ? new Date(s.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+          
+          const sprintTasks = (tasksData || []).filter((t: any) => t.sprintId === s.id);
+          const total = sprintTasks.reduce((acc: number, t: any) => acc + (t.estimatedHours || 0), 0);
+          const completed = sprintTasks.filter((t: any) => t.status === 'done').reduce((acc: number, t: any) => acc + (t.estimatedHours || 0), 0);
 
-            return {
-              id: s.id.toString(),
-              name: s.name,
-              status: s.status,
-              dates: start && end ? `${start} - ${end}` : 'Unscheduled',
-              completed,
-              total
-            };
-          });
-          setSprints(formattedSprints);
-          setActiveSprint(formattedSprints[0].id);
-        }
+          return {
+            id: s.id.toString(),
+            name: s.name,
+            status: s.status,
+            dates: start && end ? `${start} - ${end}` : 'Unscheduled',
+            completed,
+            total
+          };
+        });
+        setSprints(formattedSprints);
+        setActiveSprint(formattedSprints[0].id);
+      }
 
-        if (tasksData && tasksData.length > 0) {
-          const newTasksState: Record<string, Task[]> = { todo: [], inprogress: [], review: [], done: [] };
-          tasksData.forEach((t: any) => {
-            const taskObj: Task = {
-              id: t.id.toString(),
-              title: t.title,
-              type: t.priority || 'Task',
-              points: t.estimatedHours || 0,
-              assignee: t.assigneeName || 'unassigned'
-            };
-            const col = t.status || 'todo';
-            if (newTasksState[col]) {
-              newTasksState[col].push(taskObj);
-            }
-          });
-          setTasks(newTasksState);
-        }
-      }).catch(console.error);
-    }
+      if (Array.isArray(tasksData) && tasksData.length > 0) {
+        const newTasksState: Record<string, Task[]> = { todo: [], inprogress: [], review: [], done: [] };
+        tasksData.forEach((t: any) => {
+          const taskObj: Task = {
+            id: t.id.toString(),
+            title: t.title,
+            type: t.priority || 'Task',
+            points: t.estimatedHours || 0,
+            assignee: t.assigneeName || 'unassigned'
+          };
+          const col = t.status || 'todo';
+          if (newTasksState[col]) {
+            newTasksState[col].push(taskObj);
+          }
+        });
+        setTasks(newTasksState);
+      }
+    }).catch(console.error);
   }, []);
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskForm.title.trim()) return;
     
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     const assignee = teamMembers.find(m => m.name === newTaskForm.assignee);
     const sprintId = activeSprint && !isNaN(Number(activeSprint)) ? Number(activeSprint) : undefined;
+    const wsId = getActiveWorkspaceId();
     
     fetch(`${API_URL}/tasks`, {
       method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}` 
-      },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         title: newTaskForm.title,
         priority: newTaskForm.type,
         estimatedHours: Number(newTaskForm.points),
         assigneeId: assignee ? assignee.id : undefined,
         sprintId: sprintId,
-        status: targetColumn
+        status: targetColumn,
+        workspaceId: wsId || undefined,
       })
     })
     .then(res => res.json())
@@ -136,7 +135,6 @@ export default function SprintsView() {
   };
 
   const handleCompleteSprint = () => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     const sprintId = activeSprint && !isNaN(Number(activeSprint)) ? Number(activeSprint) : null;
     
     setSprints(prev => prev.map(s => {
@@ -148,18 +146,13 @@ export default function SprintsView() {
     if (sprintId) {
       fetch(`${API_URL}/sprints/${sprintId}`, {
         method: "PATCH",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
-        },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ status: "completed" })
       }).catch(console.error);
     }
   };
 
   const moveTask = (taskId: string, sourceCol: string, targetCol: string) => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    
     setTasks(prev => {
       const sourceTasks = [...prev[sourceCol]];
       const targetTasks = [...prev[targetCol]];
@@ -180,10 +173,7 @@ export default function SprintsView() {
     if (!taskId.startsWith('sprint') && !taskId.startsWith('t') && !isNaN(Number(taskId))) {
       fetch(`${API_URL}/tasks/${taskId}`, {
         method: "PATCH",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
-        },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ status: targetCol })
       }).catch(console.error);
     }

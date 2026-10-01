@@ -23,7 +23,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
 
 const iconMap: Record<string, React.ElementType> = {
   home: Home,
@@ -47,17 +47,14 @@ export default function Sidebar() {
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (token) {
-      fetch(`${API_URL}/auth/me`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data) setCurrentUser(data);
-      })
-      .catch(() => {});
-    }
+    fetch(`${API_URL}/auth/me`, {
+      headers: getAuthHeaders(),
+    })
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if (data) setCurrentUser(data);
+    })
+    .catch(() => {});
   }, []);
 
   const visibleSidebarPrimary = sidebarPrimary.filter(item => {

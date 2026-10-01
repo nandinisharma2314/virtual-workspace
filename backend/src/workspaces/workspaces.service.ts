@@ -676,33 +676,32 @@ export class WorkspacesService {
       status: 'active',
     });
 
-    // Link any orphaned projects/tasks/teams/channels that had workspaceId = null to this new workspace
-    try {
-      await this.dbService.db
-        .update(projects)
-        .set({ workspaceId: newWs.id })
-        .where(eq(projects.workspaceId, null as any));
-    } catch (e) {}
+    // Seed default isolated #general channel for this new workspace
+    await this.seedWorkspaceStarterData(newWs.id, userId);
+  }
 
+  async seedWorkspaceStarterData(workspaceId: number, userId: number) {
     try {
-      await this.dbService.db
-        .update(tasks)
-        .set({ workspaceId: newWs.id })
-        .where(eq(tasks.workspaceId, null as any));
-    } catch (e) {}
+      const channelId = `c-general-ws-${workspaceId}`;
+      const existing = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
+      if (existing.length === 0) {
+        await this.dbService.db.insert(channels).values({
+          id: channelId,
+          name: "general",
+          description: "Company-wide announcements and discussion",
+          creatorId: userId,
+          workspaceId: workspaceId,
+          isTemplate: false,
+        });
 
-    try {
-      await this.dbService.db
-        .update(teams)
-        .set({ workspaceId: newWs.id })
-        .where(eq(teams.workspaceId, null as any));
-    } catch (e) {}
-
-    try {
-      await this.dbService.db
-        .update(channels)
-        .set({ workspaceId: newWs.id })
-        .where(eq(channels.workspaceId, null as any));
-    } catch (e) {}
+        await this.dbService.db.insert(channelMembers).values({
+          channelId,
+          userId,
+          role: "admin",
+        });
+      }
+    } catch (e) {
+      console.error("Failed to seed workspace starter channel:", e);
+    }
   }
 }

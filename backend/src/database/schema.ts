@@ -109,6 +109,7 @@ export const sprints = pgTable('sprints', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   projectId: integer('project_id').references(() => projects.id),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
   startDate: timestamp('start_date'),
   endDate: timestamp('end_date'),
   status: varchar('status', { length: 50 }).default('planned'),
@@ -214,6 +215,7 @@ export const settings = pgTable('settings', {
 export const notifications = pgTable('notifications', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
   content: text('content').notNull(),
   type: varchar('type', { length: 100 }).default('system').notNull(),
   isRead: boolean('is_read').default(false).notNull(),

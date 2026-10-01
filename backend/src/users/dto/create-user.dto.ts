@@ -23,4 +23,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   department?: string;
+
+  @IsOptional()
+  @IsString()
+  inviteToken?: string;
 }

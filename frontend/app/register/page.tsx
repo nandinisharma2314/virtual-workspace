@@ -195,20 +195,22 @@ function RegisterContent() {
     if (Object.keys(newErrors).length === 0) {
       setIsSubmitting(true);
       try {
+        const inviteParam = searchParams.get("token") || searchParams.get("invite");
         const res = await fetch(`${API_URL}/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: fullName, email, password }),
+          body: JSON.stringify({ name: fullName, email, password, inviteToken: inviteParam || undefined }),
         });
 
         if (res.ok) {
           const data = await res.json();
           document.cookie = `token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
-          const inviteToken = searchParams.get("invite");
-          const redirectUrl = inviteToken
-            ? `/invite/${encodeURIComponent(inviteToken)}`
-            : "/";
-          window.location.href = redirectUrl;
+          localStorage.setItem("token", data.access_token);
+          if (data.activeWorkspaceId) {
+            document.cookie = `active_workspace_id=${data.activeWorkspaceId}; path=/; max-age=86400; SameSite=Lax`;
+            localStorage.setItem("active_workspace_id", String(data.activeWorkspaceId));
+          }
+          window.location.href = "/";
         } else {
           const errorData = await res.json();
           setErrors((prev) => ({

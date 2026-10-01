@@ -34,6 +34,11 @@ export default function LoginPage() {
         if (res.ok) {
           const data = await res.json();
           document.cookie = `token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+          localStorage.setItem("token", data.access_token);
+          if (data.activeWorkspaceId) {
+            document.cookie = `active_workspace_id=${data.activeWorkspaceId}; path=/; max-age=86400; SameSite=Lax`;
+            localStorage.setItem("active_workspace_id", String(data.activeWorkspaceId));
+          }
           const redirectUrl = searchParams.get("invite") ? `/chat?${searchParams.toString()}` : "/";
           window.location.href = redirectUrl;
         } else {

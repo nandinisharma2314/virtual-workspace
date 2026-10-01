@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { UsersService } from '../users/users.service.js';
+import { WorkspacesService } from '../workspaces/workspaces.service.js';
 import { LoginDto } from './dto/login-dto.js';
 import { CreateUserDto } from '../users/dto/create-user.dto.js';
 
@@ -11,14 +12,34 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly workspacesService: WorkspacesService,
   ) {}
 
   async register(createUserDto: CreateUserDto) {
     const user = await this.usersService.create(createUserDto);
+
+    let activeWorkspaceId: number | null = null;
+    if (createUserDto.inviteToken) {
+      try {
+        const acceptRes = await this.workspacesService.acceptInvite(createUserDto.inviteToken, user.id);
+        activeWorkspaceId = acceptRes.workspaceId;
+      } catch (e) {
+        console.error('Failed to auto-accept invite token on register:', e);
+      }
+    }
+
+    if (!activeWorkspaceId) {
+      const userWorkspaces = await this.workspacesService.getUserWorkspaces(user.id);
+      if (userWorkspaces.length > 0) {
+        activeWorkspaceId = userWorkspaces[0].id;
+      }
+    }
+
     const payload = { sub: user.id, email: user.email, name: user.name, role: user.role };
     return {
       user,
       access_token: await this.jwtService.signAsync(payload),
+      activeWorkspaceId,
     };
   }
 
@@ -33,6 +54,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    const userWorkspaces = await this.workspacesService.getUserWorkspaces(user.id);
+    const activeWorkspaceId = userWorkspaces.length > 0 ? userWorkspaces[0].id : null;
+
     const payload = { sub: user.id, email: user.email, name: user.name, role: user.role };
     
     // Omit password from returned user object
@@ -41,6 +65,7 @@ export class AuthService {
     return {
       user: userWithoutPassword,
       access_token: await this.jwtService.signAsync(payload),
+      activeWorkspaceId,
     };
   }
 

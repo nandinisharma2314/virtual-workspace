@@ -66,7 +66,7 @@ export default function ChatSidebar({
         }
       }
     } catch (err) {
-      console.error(err);
+      // Silently ignore network errors during polling
     }
   }, []);
 

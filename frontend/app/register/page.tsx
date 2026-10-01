@@ -3,19 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Mail, Lock, Eye, EyeOff, User, Users, CheckSquare, BarChart2, Check, Home, FileText, Folder, Calendar, Settings, UserPlus, Briefcase, ChevronDown } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User, Users, CheckSquare, BarChart2, Check, Home, FileText, Folder, Calendar, Settings, UserPlus } from "lucide-react";
 import { API_URL } from "@/lib/apis";
 
-const DEPARTMENTS = [
-  "Engineering",
-  "Design",
-  "Product",
-  "Marketing",
-  "Sales",
-  "Operations",
-  "Finance",
-  "Human Resources",
-];
 
 export default function RegisterPage() {
   const searchParams = useSearchParams();
@@ -24,7 +14,6 @@ export default function RegisterPage() {
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [department, setDepartment] = useState("Engineering");
   
   useEffect(() => {
     const emailParam = searchParams.get("email");
@@ -59,7 +48,7 @@ export default function RegisterPage() {
       fetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: fullName, email, password, department }),
+        body: JSON.stringify({ name: fullName, email, password }),
       })
         .then(async (res) => {
           if (res.ok) {
@@ -284,29 +273,6 @@ export default function RegisterPage() {
                       if (errors.email) setErrors({ ...errors, email: "" });
                     }}
                   />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-bold text-gray-900 ml-1">Department</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <Briefcase className="h-[18px] w-[18px] text-gray-400" strokeWidth={1.5} />
-                  </div>
-                  <select
-                    className="block w-full pl-10 pr-10 py-3 border border-gray-200 focus:border-[#6543FF] rounded-xl text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#6543FF] transition-all text-[13.5px] bg-white appearance-none cursor-pointer"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                  >
-                    {DEPARTMENTS.map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-400">
-                    <ChevronDown className="h-4 w-4" strokeWidth={1.5} />
-                  </div>
                 </div>
               </div>
 

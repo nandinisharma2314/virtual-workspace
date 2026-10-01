@@ -21,6 +21,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { AdminModule } from './admin/admin.module.js';
+import { WorkspacesModule } from './workspaces/workspaces.module.js';
+
 
 @Module({
   imports: [
@@ -46,7 +48,9 @@ import { AdminModule } from './admin/admin.module.js';
     NotificationsModule,
     MailModule,
     AdminModule,
+    WorkspacesModule,
   ],
+
   controllers: [AppController],
   providers: [AppService],
 })

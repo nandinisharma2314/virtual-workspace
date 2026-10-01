@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 import { API_URL } from "@/lib/apis";
 import { toast } from "@/lib/toast";
+import WorkspaceSwitcher from "./WorkspaceSwitcher";
 
 const profileMenuItems = [
   { name: "My Profile", icon: User, path: "/settings?tab=profile" },
@@ -32,7 +33,6 @@ const createMenuItems = [
   { name: "New Task", icon: CheckCircle2, path: "/boards" },
   { name: "New Project", icon: Folder, path: "/projects" },
   { name: "New Channel", icon: Hash, isChannel: true, path: "/chat?create=true" },
-  { name: "New Document", icon: FileText, path: "/documents" },
   { name: "Invite Member", icon: Users, path: "/teams" },
 ];
 
@@ -180,15 +180,7 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-4 border-b border-gray-200/80 bg-white px-5 z-20 shadow-2xs">
-      <button className="flex items-center justify-between gap-2 rounded-lg border border-gray-200/80 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 shadow-2xs transition-colors shrink-0">
-        <span className="flex items-center gap-1.5">
-          <span className="flex h-4 w-4 items-center justify-center rounded bg-gray-900 text-[9px] font-bold text-white">
-            {currentUser?.name ? currentUser.name[0].toUpperCase() : 'W'}
-          </span>
-          {currentUser?.name ? `${currentUser.name.split(' ')[0]}'s Workspace` : 'Workspace'}
-        </span>
-        <ChevronDown size={13} className="text-gray-400" />
-      </button>
+      <WorkspaceSwitcher />
 
       <div className="relative max-w-sm w-full shrink" ref={searchRef}>
         <Search

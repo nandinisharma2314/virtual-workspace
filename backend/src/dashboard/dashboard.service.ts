@@ -104,9 +104,14 @@ export class DashboardService {
       }
     });
 
-    // Calculate team workload dynamically for all users
-    const allUsers = await db.select().from(schema.users);
-    const globalTasks = await db.select().from(schema.tasks);
+    // Calculate team workload dynamically based on role
+    let allUsers = await db.select().from(schema.users);
+    let globalTasks = await db.select().from(schema.tasks);
+
+    if (user[0]?.role !== 'Admin') {
+      allUsers = allUsers.filter(u => u.id === userId);
+      globalTasks = globalTasks.filter(t => t.assigneeId === userId);
+    }
 
     const teamWorkload = allUsers.map(u => {
       const uTasks = globalTasks.filter(t => t.assigneeId === u.id);
@@ -159,7 +164,10 @@ export class DashboardService {
     }
 
     // Fetch meetings for the calendar
-    const dbMeetings = await db.select().from(schema.meetings);
+    let dbMeetings = await db.select().from(schema.meetings);
+    if (user[0]?.role !== 'Admin') {
+      dbMeetings = dbMeetings.filter(m => m.organizerId === userId);
+    }
     
     // Map meetings and tasks to calendar events
     const colors = ["bg-indigo-500", "bg-purple-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500"];
@@ -273,7 +281,10 @@ export class DashboardService {
     });
 
     // Populate recentFiles
-    const dbFiles = await db.select().from(schema.files);
+    let dbFiles = await db.select().from(schema.files);
+    if (user[0]?.role !== 'Admin') {
+      dbFiles = dbFiles.filter(f => f.uploadedById === userId);
+    }
     const recentFiles: any[] = dbFiles.slice(0, 5).map(f => {
       let icon = "doc";
       if (f.name.endsWith(".pdf")) icon = "pdf";

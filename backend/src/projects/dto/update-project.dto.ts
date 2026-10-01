@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsArray } from 'class-validator';
 
 export class UpdateProjectDto {
   @IsString()
@@ -12,6 +12,14 @@ export class UpdateProjectDto {
   @IsNumber()
   @IsOptional()
   teamId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  managerId?: number;
+
+  @IsArray()
+  @IsOptional()
+  assignedUserIds?: number[];
 
   @IsString()
   @IsOptional()

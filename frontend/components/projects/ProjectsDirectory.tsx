@@ -5,8 +5,10 @@ import { Search, Plus, Filter, LayoutGrid, List, ArrowUpDown, FolderOpen, MoreHo
 import Avatar from "@/components/Avatar";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 export default function ProjectsDirectory() {
+  const { currentWorkspace, can } = useWorkspace();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -14,25 +16,34 @@ export default function ProjectsDirectory() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newTeamId, setNewTeamId] = useState<number | "">("");
   const [creating, setCreating] = useState(false);
+  const [teams, setTeams] = useState<any[]>([]);
   const router = useRouter();
 
   const fetchProjects = async () => {
     try {
       const token = localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      const res = await fetch(`${API_URL}/projects`, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setProjects(data);
-        }
+      const headers = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "x-workspace-id": currentWorkspace?.id ? String(currentWorkspace.id) : "",
+      };
+
+      const [projRes, teamRes] = await Promise.all([
+        fetch(`${API_URL}/projects`, { headers }),
+        fetch(`${API_URL}/teams?workspaceId=${currentWorkspace?.id}`, { headers })
+      ]);
+
+      if (projRes.ok) {
+        const data = await projRes.json();
+        if (Array.isArray(data)) setProjects(data);
+      }
+      if (teamRes.ok) {
+        const teamData = await teamRes.json();
+        if (Array.isArray(teamData)) setTeams(teamData);
       }
     } catch (err) {
-      console.error("Failed to fetch projects:", err);
+      console.error("Failed to fetch projects or teams:", err);
     } finally {
       setLoading(false);
     }
@@ -40,7 +51,10 @@ export default function ProjectsDirectory() {
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+    const handleWsChanged = () => fetchProjects();
+    window.addEventListener("workspaceChanged", handleWsChanged);
+    return () => window.removeEventListener("workspaceChanged", handleWsChanged);
+  }, [currentWorkspace?.id]);
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,12 +72,15 @@ export default function ProjectsDirectory() {
         body: JSON.stringify({
           name: newName.trim(),
           description: newDescription.trim() || undefined,
+          workspaceId: currentWorkspace?.id,
+          teamId: newTeamId ? Number(newTeamId) : undefined,
         }),
       });
 
       if (res.ok) {
         setNewName("");
         setNewDescription("");
+        setNewTeamId("");
         setIsCreateModalOpen(false);
         fetchProjects();
       }
@@ -90,13 +107,15 @@ export default function ProjectsDirectory() {
               Manage your active projects, track progress, and collaborate with your team.
             </p>
           </div>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-colors"
-          >
-            <Plus size={16} strokeWidth={2.5} />
-            Create Project
-          </button>
+          {can("projects:create") && (
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-colors cursor-pointer"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              Create Project
+            </button>
+          )}
         </div>
 
         {/* Toolbar */}
@@ -146,13 +165,15 @@ export default function ProjectsDirectory() {
             <p className="text-sm text-gray-500 max-w-sm mt-1 mb-6">
               {searchQuery ? "No projects match your search query." : "Get started by creating your first workspace project to track tasks and progress."}
             </p>
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-colors"
-            >
-              <Plus size={16} strokeWidth={2.5} />
-              Create Project
-            </button>
+            {can("projects:create") && (
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-colors cursor-pointer"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+                Create Project
+              </button>
+            )}
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -312,6 +333,22 @@ export default function ProjectsDirectory() {
                   rows={3}
                   className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Assign Team (Optional)
+                </label>
+                <select
+                  value={newTeamId}
+                  onChange={(e) => setNewTeamId(e.target.value ? Number(e.target.value) : "")}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all cursor-pointer"
+                >
+                  <option value="">No Team</option>
+                  {teams.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="pt-2 flex justify-end gap-2.5">

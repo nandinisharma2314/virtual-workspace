@@ -21,12 +21,67 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+export const workspaces = pgTable('workspaces', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  slug: varchar('slug', { length: 255 }).notNull().unique(),
+  description: text('description'),
+  logo: text('logo'),
+  ownerId: integer('owner_id').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const workspaceRoles = pgTable('workspace_roles', {
+  id: serial('id').primaryKey(),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
+  name: varchar('name', { length: 100 }).notNull(),
+  description: text('description'),
+  isSystem: boolean('is_system').default(false).notNull(),
+  permissions: jsonb('permissions').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const workspaceMembers = pgTable('workspace_members', {
+  id: serial('id').primaryKey(),
+  workspaceId: integer('workspace_id').references(() => workspaces.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  roleId: integer('role_id').references(() => workspaceRoles.id),
+  customRoleLabel: varchar('custom_role_label', { length: 100 }),
+  status: varchar('status', { length: 50 }).default('active').notNull(),
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+});
+
+export const workspaceInvites = pgTable('workspace_invites', {
+  id: serial('id').primaryKey(),
+  workspaceId: integer('workspace_id').references(() => workspaces.id).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  roleId: integer('role_id').references(() => workspaceRoles.id),
+  customRoleLabel: varchar('custom_role_label', { length: 100 }),
+  invitedById: integer('invited_by_id').references(() => users.id),
+  status: varchar('status', { length: 50 }).default('pending').notNull(), // 'pending' | 'accepted' | 'revoked' | 'expired'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+});
+
 export const teams = pgTable('teams', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
+  leadId: integer('lead_id').references(() => users.id),
+  managerId: integer('manager_id').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const teamMembers = pgTable('team_members', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id').references(() => teams.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  role: varchar('role', { length: 50 }).default('member'),
+  assignedAt: timestamp('assigned_at').defaultNow().notNull(),
 });
 
 export const projects = pgTable('projects', {
@@ -34,10 +89,21 @@ export const projects = pgTable('projects', {
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   teamId: integer('team_id').references(() => teams.id),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
+  managerId: integer('manager_id').references(() => users.id),
   status: varchar('status', { length: 50 }).default('active'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+export const projectMembers = pgTable('project_members', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').references(() => projects.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  role: varchar('role', { length: 50 }).default('member'),
+  assignedAt: timestamp('assigned_at').defaultNow().notNull(),
+});
+
 
 export const sprints = pgTable('sprints', {
   id: serial('id').primaryKey(),
@@ -60,6 +126,7 @@ export const tasks = pgTable('tasks', {
   sprintId: integer('sprint_id').references(() => sprints.id),
   assigneeId: integer('assignee_id').references(() => users.id),
   channelId: varchar('channel_id', { length: 255 }).references(() => channels.id),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
   estimatedHours: real('estimated_hours'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -99,6 +166,7 @@ export const files = pgTable('files', {
   type: varchar('type', { length: 100 }),
   uploadedById: integer('uploaded_by_id').references(() => users.id),
   projectId: integer('project_id').references(() => projects.id),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -108,6 +176,7 @@ export const documents = pgTable('documents', {
   content: text('content'),
   projectId: integer('project_id').references(() => projects.id),
   authorId: integer('author_id').references(() => users.id),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -120,15 +189,16 @@ export const meetings = pgTable('meetings', {
   endTime: timestamp('end_time').notNull(),
   organizerId: integer('organizer_id').references(() => users.id),
   teamId: integer('team_id').references(() => teams.id),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
-
 
 export const reports = pgTable('reports', {
   id: serial('id').primaryKey(),
   title: varchar('title', { length: 255 }).notNull(),
   data: jsonb('data'),
   generatedById: integer('generated_by_id').references(() => users.id),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -155,6 +225,7 @@ export const channels = pgTable('channels', {
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   creatorId: integer('creator_id').references(() => users.id),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
   bgGradient: varchar('bg_gradient', { length: 255 }).default('from-indigo-600 via-indigo-700 to-purple-800'),
   isTemplate: boolean('is_template').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -169,5 +240,3 @@ export const channelMembers = pgTable('channel_members', {
   status: varchar('status', { length: 50 }).default('accepted').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
-
-

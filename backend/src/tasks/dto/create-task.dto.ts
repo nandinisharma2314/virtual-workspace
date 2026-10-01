@@ -17,6 +17,10 @@ export class CreateTaskDto {
   @IsOptional()
   priority?: string;
 
+  @IsNumber()
+  @IsOptional()
+  projectId?: number;
+
   @IsString()
   @IsOptional()
   channelId?: string;

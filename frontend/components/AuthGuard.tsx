@@ -22,7 +22,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       pathname.startsWith("/login") || 
       pathname.startsWith("/register") || 
       pathname.startsWith("/forgot-password") || 
-      pathname.startsWith("/reset-password");
+      pathname.startsWith("/reset-password") ||
+      pathname.startsWith("/invite");
+
 
     const isInvite = typeof window !== 'undefined' && (window.location.search.includes('invite=true') || window.location.search.includes('acceptChannel='));
 

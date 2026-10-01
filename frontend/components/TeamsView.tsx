@@ -141,21 +141,33 @@ export default function TeamsView() {
   }, []);
 
   useEffect(() => {
-    fetch(`${API_URL}/users`)
-      .then(res => res.json())
-      .then(data => {
-        const realMembers = data.map((u: any) => ({
-          id: u.id,
-          name: u.name,
-          role: u.role || "Member",
-          department: u.department || "Engineering",
-          status: u.status || "Active",
-          email: u.email,
-          avatar: u.avatar
-        }));
-        setMembers(realMembers);
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    fetch(`${API_URL}/users`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch users');
+        return res.json();
       })
-      .catch(console.error);
+      .then(data => {
+        if (Array.isArray(data)) {
+          const realMembers = data.map((u: any) => ({
+            id: u.id,
+            name: u.name,
+            role: u.role || "Member",
+            department: u.department || "Engineering",
+            status: u.status || "Active",
+            email: u.email,
+            avatar: u.avatar
+          }));
+          setMembers(realMembers);
+        }
+      })
+      .catch(err => {
+        console.error("Error loading users:", err);
+      });
   }, []);
   
   // Modals state

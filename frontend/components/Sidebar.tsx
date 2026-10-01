@@ -104,21 +104,20 @@ export default function Sidebar() {
               const isSprints = item.label === "Sprints";
               const isCalendar = item.label === "Calendar";
               const isMeetings = item.label === "Meetings";
-              const isDocuments = item.label === "Documents";
               const isFiles = item.label === "Files";
               const isReports = item.label === "Reports";
-              const href = isHome ? "/" : isWorkspaces ? "/workspaces" : isInbox ? "/inbox" : isChat ? "/chat" : isTeams ? "/teams" : isProjects ? "/projects" : isBoards ? "/boards" : isSprints ? "/sprints" : isCalendar ? "/calendar" : isMeetings ? "/meetings" : isDocuments ? "/documents" : isFiles ? "/files" : isReports ? "/reports" : "#";
+              const href = isHome ? "/" : isWorkspaces ? "/workspaces/settings" : isInbox ? "/inbox" : isChat ? "/chat" : isTeams ? "/teams" : isProjects ? "/projects" : isBoards ? "/boards" : isSprints ? "/sprints" : isCalendar ? "/calendar" : isMeetings ? "/meetings" : isFiles ? "/files" : isReports ? "/reports" : "#";
               
               const isActive = activeOverride
                 ? activeOverride === item.label
-                : (isHome && pathname === "/") || (isWorkspaces && pathname?.startsWith("/workspaces")) || (isInbox && pathname?.startsWith("/inbox")) || (isChat && pathname?.startsWith("/chat")) || (isTeams && pathname?.startsWith("/teams")) || (isProjects && pathname?.startsWith("/projects")) || (isBoards && pathname?.startsWith("/boards")) || (isSprints && pathname?.startsWith("/sprints")) || (isCalendar && pathname?.startsWith("/calendar")) || (isMeetings && pathname?.startsWith("/meetings")) || (isDocuments && pathname?.startsWith("/documents")) || (isFiles && pathname?.startsWith("/files")) || (isReports && pathname?.startsWith("/reports"));
+                : (isHome && pathname === "/") || (isWorkspaces && pathname?.startsWith("/workspaces")) || (isInbox && pathname?.startsWith("/inbox")) || (isChat && pathname?.startsWith("/chat")) || (isTeams && pathname?.startsWith("/teams")) || (isProjects && pathname?.startsWith("/projects")) || (isBoards && pathname?.startsWith("/boards")) || (isSprints && pathname?.startsWith("/sprints")) || (isCalendar && pathname?.startsWith("/calendar")) || (isMeetings && pathname?.startsWith("/meetings")) || (isFiles && pathname?.startsWith("/files")) || (isReports && pathname?.startsWith("/reports"));
 
               return (
                 <li key={item.label}>
                   <Link
                     href={href}
                     onClick={() => {
-                      if (isHome || isWorkspaces || isInbox || isChat || isTeams || isProjects || isBoards || isSprints || isCalendar || isMeetings || isDocuments || isFiles || isReports) {
+                      if (isHome || isWorkspaces || isInbox || isChat || isTeams || isProjects || isBoards || isSprints || isCalendar || isMeetings || isFiles || isReports) {
                         setActiveOverride(null);
                       } else {
                         setActiveOverride(item.label);

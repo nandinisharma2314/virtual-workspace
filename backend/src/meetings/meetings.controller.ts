@@ -15,8 +15,8 @@ export class MeetingsController {
   }
 
   @Get()
-  findAll() {
-    return this.meetingsService.findAll();
+  findAll(@Request() req: any) {
+    return this.meetingsService.findAll(req.user.sub);
   }
 
   @Get(':id')

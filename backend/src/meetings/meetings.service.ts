@@ -36,8 +36,15 @@ export class MeetingsService {
     return newMeeting;
   }
 
-  async findAll() {
-    return await this.dbService.db.select().from(meetings).orderBy(meetings.startTime);
+  async findAll(userId: number) {
+    const user = await this.dbService.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const isAdmin = user && user.length > 0 && user[0].role === 'Admin';
+    
+    if (isAdmin) {
+      return await this.dbService.db.select().from(meetings).orderBy(meetings.startTime);
+    } else {
+      return await this.dbService.db.select().from(meetings).where(eq(meetings.organizerId, userId)).orderBy(meetings.startTime);
+    }
   }
 
   async findOne(id: number) {

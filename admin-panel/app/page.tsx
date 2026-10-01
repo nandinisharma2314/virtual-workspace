@@ -208,7 +208,7 @@ export default function AdminDashboardPage() {
             <div className="space-y-3.5 text-xs">
               <div className="flex items-center justify-between py-2 border-b border-gray-100">
                 <span className="font-semibold text-gray-500">Backend Gateway</span>
-                <span className="font-bold text-gray-900">NestJS v10 (Port 3001)</span>
+                <span className="font-bold text-gray-900">NestJS v10 (Port 8080)</span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-gray-100">
                 <span className="font-semibold text-gray-500">Database Engine</span>

@@ -3,7 +3,7 @@ import { CreateTeamDto } from './dto/create-team.dto.js';
 import { UpdateTeamDto } from './dto/update-team.dto.js';
 import { DatabaseService } from '../database/database.service.js';
 import * as schema from '../database/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 
 @Injectable()
 export class TeamsService {
@@ -15,16 +15,30 @@ export class TeamsService {
       .values({
         name: createTeamDto.name,
         description: createTeamDto.description || null,
+        workspaceId: createTeamDto.workspaceId || null,
+        leadId: createTeamDto.leadId || null,
+        managerId: createTeamDto.managerId || null,
       })
       .returning();
     return team;
   }
 
-  async findAll() {
-    return this.dbService.db
+  async findAll(workspaceId?: number) {
+    const conditions: any[] = [];
+    if (workspaceId) {
+      conditions.push(eq(schema.teams.workspaceId, workspaceId));
+    }
+    
+    const query = this.dbService.db
       .select()
       .from(schema.teams)
       .orderBy(desc(schema.teams.createdAt));
+      
+    if (conditions.length > 0) {
+      query.where(and(...conditions));
+    }
+    
+    return query;
   }
 
   async findOne(id: number) {
@@ -39,6 +53,8 @@ export class TeamsService {
     const updateData: any = { updatedAt: new Date() };
     if (updateTeamDto.name !== undefined) updateData.name = updateTeamDto.name;
     if (updateTeamDto.description !== undefined) updateData.description = updateTeamDto.description;
+    if (updateTeamDto.leadId !== undefined) updateData.leadId = updateTeamDto.leadId;
+    if (updateTeamDto.managerId !== undefined) updateData.managerId = updateTeamDto.managerId;
 
     const [updated] = await this.dbService.db
       .update(schema.teams)

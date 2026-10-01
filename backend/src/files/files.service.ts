@@ -59,7 +59,7 @@ export class FilesService {
     });
   }
 
-  async create(createFileDto: CreateFileDto, userId: number) {
+  async create(createFileDto: CreateFileDto, userId: number, workspaceId?: number) {
     let validUserId: number | null = userId;
     
     if (userId) {
@@ -78,6 +78,7 @@ export class FilesService {
     }
 
     const fileUrl = createFileDto.url || (this.publicUrl && createFileDto.storageKey ? `${this.publicUrl}/${createFileDto.storageKey}` : '');
+    const resolvedWorkspaceId = (createFileDto as any).workspaceId || workspaceId || null;
 
     const [inserted] = await this.dbService.db.insert(schema.files).values({
       name: createFileDto.name,
@@ -87,7 +88,7 @@ export class FilesService {
       type: createFileDto.type,
       uploadedById: validUserId,
       projectId: createFileDto.projectId,
-      workspaceId: (createFileDto as any).workspaceId || workspaceId || null,
+      workspaceId: resolvedWorkspaceId,
       createdAt: new Date(),
     }).returning();
 
@@ -99,8 +100,8 @@ export class FilesService {
         
       if (user && user.role === 'Admin') {
         const notifMsg = `Admin ${user.name} uploaded a new file: "${createFileDto.name}"`;
-        if (workspaceId) {
-          await this.notificationsService.notifyWorkspaceMembers(workspaceId, notifMsg, 'File');
+        if (resolvedWorkspaceId) {
+          await this.notificationsService.notifyWorkspaceMembers(resolvedWorkspaceId, notifMsg, 'File');
         } else {
           await this.notificationsService.notifyAllExcept(validUserId, notifMsg, 'File');
         }

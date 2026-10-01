@@ -23,4 +23,8 @@ export class CreateFileDto {
   @IsOptional()
   @IsNumber()
   projectId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  workspaceId?: number;
 }

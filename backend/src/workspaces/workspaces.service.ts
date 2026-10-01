@@ -18,6 +18,7 @@ import {
   tasks,
   teams,
   channels,
+  channelMembers,
   projectMembers,
 } from '../database/schema.js';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto.js';
@@ -697,7 +698,7 @@ export class WorkspacesService {
         await this.dbService.db.insert(channelMembers).values({
           channelId,
           userId,
-          role: "admin",
+          status: "accepted",
         });
       }
     } catch (e) {

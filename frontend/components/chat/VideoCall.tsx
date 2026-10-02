@@ -5,6 +5,7 @@ import Avatar from '@/components/Avatar';
 import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-webgl';
 import * as bodyPix from '@tensorflow-models/body-pix';
+import { API_URL } from '@/lib/apis';
 
 interface VideoCallProps {
   socket: Socket | null;
@@ -16,7 +17,7 @@ interface VideoCallProps {
   channelMembers?: any[];
 }
 
-const configuration = {
+const defaultIceConfiguration: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
@@ -32,6 +33,27 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
   const [activeEffect, setActiveEffect] = useState<'none' | 'blur'>('none');
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  const rtcConfigRef = useRef<RTCConfiguration>(defaultIceConfiguration);
+
+  useEffect(() => {
+    async function loadIceServers() {
+      try {
+        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+        const res = await fetch(`${API_URL}/chat/ice-servers`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.iceServers && data.iceServers.length > 0) {
+            rtcConfigRef.current = data;
+          }
+        }
+      } catch (err) {
+        console.warn("Using fallback STUN ICE servers:", err);
+      }
+    }
+    loadIceServers();
+  }, []);
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -83,7 +105,7 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
     if (!socket || !currentUser) return null;
     if (peersRef.current.has(targetId)) return peersRef.current.get(targetId);
 
-    const pc = new RTCPeerConnection(configuration);
+    const pc = new RTCPeerConnection(rtcConfigRef.current);
     peersRef.current.set(targetId, pc);
 
     // Add local tracks

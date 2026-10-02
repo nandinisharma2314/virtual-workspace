@@ -8,6 +8,7 @@ import {
 import { eq, and, desc } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { DatabaseService } from '../database/database.service.js';
+import { MailService } from '../mail/mail.service.js';
 import {
   workspaces,
   workspaceRoles,
@@ -32,7 +33,10 @@ import {
 
 @Injectable()
 export class WorkspacesService {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(
+    private readonly dbService: DatabaseService,
+    private readonly mailService: MailService,
+  ) {}
 
   getAvailablePermissions(): PermissionDefinition[] {
     return PERMISSION_DEFINITIONS;
@@ -458,6 +462,33 @@ export class WorkspacesService {
       })
       .returning();
 
+    // Fetch inviter, workspace, and role metadata for transactional email
+    const [inviter] = await this.dbService.db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, currentUserId));
+    const inviterName = inviter?.name || 'A teammate';
+
+    const [ws] = await this.dbService.db
+      .select({ name: workspaces.name })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId));
+    const workspaceName = ws?.name || 'Workspace';
+
+    let roleName = 'Member';
+    if (dto.roleId) {
+      const [role] = await this.dbService.db
+        .select({ name: workspaceRoles.name })
+        .from(workspaceRoles)
+        .where(eq(workspaceRoles.id, dto.roleId));
+      if (role?.name) roleName = role.name;
+    }
+    if (dto.customRoleLabel) {
+      roleName = `${roleName} (${dto.customRoleLabel})`;
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
     // If the user already exists in the system, we can also auto-add them or let them accept
     if (existingUser) {
       await this.dbService.db.insert(workspaceMembers).values({
@@ -472,6 +503,21 @@ export class WorkspacesService {
         .set({ status: 'accepted' })
         .where(eq(workspaceInvites.id, invite.id));
 
+      const directLink = `${frontendUrl}/home?workspaceId=${workspaceId}`;
+
+      try {
+        await this.mailService.sendWorkspaceInvitation({
+          email: dto.email.toLowerCase(),
+          inviterName,
+          workspaceName,
+          roleName,
+          inviteLink: directLink,
+          isNewUser: false,
+        });
+      } catch (mailErr) {
+        console.error(`Failed to send workspace addition email to ${dto.email}:`, mailErr);
+      }
+
       return {
         ...invite,
         status: 'accepted',
@@ -480,9 +526,24 @@ export class WorkspacesService {
       };
     }
 
+    const inviteUrl = `${frontendUrl}/invite/${token}`;
+
+    try {
+      await this.mailService.sendWorkspaceInvitation({
+        email: dto.email.toLowerCase(),
+        inviterName,
+        workspaceName,
+        roleName,
+        inviteLink: inviteUrl,
+        isNewUser: true,
+      });
+    } catch (mailErr) {
+      console.error(`Failed to send workspace invitation email to ${dto.email}:`, mailErr);
+    }
+
     return {
       ...invite,
-      inviteUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/invite/${token}`,
+      inviteUrl,
     };
   }
 

@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { UsersService } from '../users/users.service.js';
 import { WorkspacesService } from '../workspaces/workspaces.service.js';
+import { MailService } from '../mail/mail.service.js';
 import { LoginDto } from './dto/login-dto.js';
 import { CreateUserDto } from '../users/dto/create-user.dto.js';
 
@@ -13,6 +14,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly workspacesService: WorkspacesService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(createUserDto: CreateUserDto) {
@@ -80,11 +82,14 @@ export class AuthService {
     
     await this.usersService.saveResetToken(user.id, token, expires);
 
-    const frontendUrl = process.env.FRONTEND_URL;
-    if (!frontendUrl) {
-      throw new Error('FRONTEND_URL environment variable is required');
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+
+    try {
+      await this.mailService.sendPasswordReset(email, resetLink);
+    } catch (mailErr) {
+      console.error(`Failed to dispatch password reset email to ${email}:`, mailErr);
     }
-    console.log(`[Email Notification] Sent password reset email to ${email}. Reset Link: ${frontendUrl}/reset-password?token=${token}`);
 
     return { message: 'Reset link sent' };
   }

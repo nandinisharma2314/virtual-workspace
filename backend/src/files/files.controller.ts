@@ -1,4 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query, Headers, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+  Query,
+  Headers,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { FilesService } from './files.service.js';
 import { CreateFileDto } from './dto/create-file.dto.js';
 import { UpdateFileDto } from './dto/update-file.dto.js';
@@ -8,6 +23,11 @@ import { AuthGuard } from '../auth/auth.guard.js';
 @UseGuards(AuthGuard)
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
+
+  @Get('storage-status')
+  getStorageStatus() {
+    return this.filesService.getStorageStatus();
+  }
 
   @Get('upload-url')
   getUploadUrl(
@@ -65,5 +85,21 @@ export class FilesController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.filesService.remove(+id);
+  }
+}
+
+/**
+ * Public controller for local development simulated uploads
+ * (when Cloudflare R2 / AWS S3 are not configured in dev)
+ */
+@Controller('files')
+export class FilesDevController {
+  @Put('dev-upload')
+  handleDevUpload(@Query('key') key: string) {
+    return {
+      success: true,
+      message: 'Local development file uploaded successfully',
+      key: key || 'local-dev-key',
+    };
   }
 }

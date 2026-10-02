@@ -990,4 +990,41 @@ export class ChatService {
     
     return dmUsers;
   }
+
+  /**
+   * Enterprise WebRTC ICE Server Configuration
+   * Provides configured STUN and TURN servers with fallback to public STUN.
+   */
+  getIceServers(): {
+    iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }>;
+    iceTransportPolicy: 'all' | 'relay';
+  } {
+    const stunUrls = process.env.STUN_SERVER_URL
+      ? process.env.STUN_SERVER_URL.split(',').map((s) => s.trim()).filter(Boolean)
+      : ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'];
+
+    const iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [
+      { urls: stunUrls },
+    ];
+
+    const turnUrl = process.env.TURN_SERVER_URL;
+    const turnUsername = process.env.TURN_USERNAME;
+    const turnCredential = process.env.TURN_CREDENTIAL;
+
+    if (turnUrl) {
+      const urls = turnUrl.split(',').map((s) => s.trim()).filter(Boolean);
+      const turnEntry: { urls: string | string[]; username?: string; credential?: string } = { urls };
+      if (turnUsername) turnEntry.username = turnUsername;
+      if (turnCredential) turnEntry.credential = turnCredential;
+      iceServers.push(turnEntry);
+    }
+
+    const forceRelay = process.env.WEBRTC_FORCE_RELAY === 'true';
+
+    return {
+      iceServers,
+      iceTransportPolicy: forceRelay ? 'relay' : 'all',
+    };
+  }
 }
+

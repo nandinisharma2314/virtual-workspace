@@ -5,11 +5,13 @@ import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
 import { UsersModule } from '../users/users.module.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
+import { MailModule } from '../mail/mail.module.js';
 
 @Module({
   imports: [
     UsersModule,
     WorkspacesModule,
+    MailModule,
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],

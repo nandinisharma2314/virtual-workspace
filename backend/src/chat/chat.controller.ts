@@ -7,6 +7,11 @@ import { AuthGuard } from '../auth/auth.guard.js';
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
+  @Get('ice-servers')
+  getIceServers() {
+    return this.chatService.getIceServers();
+  }
+
   @Get('messages/:channelId')
   getMessages(@Param('channelId') channelId: string, @Req() req: any) {
     const userId = req.user?.sub;

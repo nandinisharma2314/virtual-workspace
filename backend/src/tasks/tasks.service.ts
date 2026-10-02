@@ -37,7 +37,22 @@ export class TasksService {
       .from(schema.users)
       .where(eq(schema.users.id, userId));
 
-    if (user && user.role === 'Admin') {
+    // Send targeted notification to assignee if someone else was assigned
+    if (assigneeId && assigneeId !== userId) {
+      await this.notificationsService.createNotification(
+        assigneeId,
+        `${user?.name || 'Someone'} assigned you a new task: "${createTaskDto.title}"`,
+        'Task',
+      );
+    }
+
+    if (taskWorkspaceId) {
+      await this.notificationsService.notifyWorkspaceMembers(
+        taskWorkspaceId,
+        `${user?.name || 'A team member'} created a new task: "${createTaskDto.title}"`,
+        'Task',
+      );
+    } else if (user && user.role === 'Admin') {
       await this.notificationsService.notifyAllExcept(
         userId,
         `Admin ${user.name} added a new task: "${createTaskDto.title}"`,

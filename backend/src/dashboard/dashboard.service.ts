@@ -123,7 +123,7 @@ export class DashboardService {
       globalTasks = await db.select().from(schema.tasks);
     }
 
-    if (user[0]?.role !== 'Admin') {
+    if (!workspaceId && user[0]?.role !== 'Admin') {
       allUsers = allUsers.filter(u => u.id === userId);
       globalTasks = globalTasks.filter(t => t.assigneeId === userId);
     }
@@ -182,7 +182,7 @@ export class DashboardService {
     let dbMeetings = workspaceId
       ? await db.select().from(schema.meetings).where(eq(schema.meetings.workspaceId, workspaceId))
       : await db.select().from(schema.meetings);
-    if (user[0]?.role !== 'Admin') {
+    if (!workspaceId && user[0]?.role !== 'Admin') {
       dbMeetings = dbMeetings.filter(m => m.organizerId === userId);
     }
     
@@ -301,7 +301,7 @@ export class DashboardService {
     let dbFiles = workspaceId
       ? await db.select().from(schema.files).where(eq(schema.files.workspaceId, workspaceId))
       : await db.select().from(schema.files);
-    if (user[0]?.role !== 'Admin') {
+    if (!workspaceId && user[0]?.role !== 'Admin') {
       dbFiles = dbFiles.filter(f => f.uploadedById === userId);
     }
     const recentFiles: any[] = dbFiles.slice(0, 5).map(f => {
@@ -315,13 +315,6 @@ export class DashboardService {
         icon
       };
     });
-    if (recentFiles.length === 0) {
-      recentFiles.push(
-        { name: "Project Requirements.pdf", updated: "Today, 10:30 AM", icon: "pdf" },
-        { name: "Dashboard Design.fig", updated: "Yesterday", icon: "figma" },
-        { name: "Q3 Planning.docx", updated: "Aug 12", icon: "doc" }
-      );
-    }
 
     // Populate activityFeed using recentActivity data
     const activityFeed: any[] = recentActivity.slice(0, 5).map(a => {

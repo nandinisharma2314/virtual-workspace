@@ -149,13 +149,12 @@ export class FilesService {
         .from(schema.users)
         .where(eq(schema.users.id, validUserId));
 
-      if (user && user.role === 'Admin') {
+      if (resolvedWorkspaceId) {
+        const notifMsg = `${user?.name || 'A team member'} uploaded a new file: "${createFileDto.name}"`;
+        await this.notificationsService.notifyWorkspaceMembers(resolvedWorkspaceId, notifMsg, 'File');
+      } else if (user && user.role === 'Admin') {
         const notifMsg = `Admin ${user.name} uploaded a new file: "${createFileDto.name}"`;
-        if (resolvedWorkspaceId) {
-          await this.notificationsService.notifyWorkspaceMembers(resolvedWorkspaceId, notifMsg, 'File');
-        } else {
-          await this.notificationsService.notifyAllExcept(validUserId, notifMsg, 'File');
-        }
+        await this.notificationsService.notifyAllExcept(validUserId, notifMsg, 'File');
       }
     }
 

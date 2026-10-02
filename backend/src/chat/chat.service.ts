@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { JwtService } from '@nestjs/jwt';
 import { DatabaseService } from '../database/database.service.js';
 import * as schema from '../database/schema.js';
-import { messages, users, channels, channelMembers, workspaceMembers } from '../database/schema.js';
+import { messages, users, channels, channelMembers, workspaceMembers, workspaces } from '../database/schema.js';
 import { eq, desc, inArray, or, and, sql, isNull, ilike } from 'drizzle-orm';
 import * as nodemailer from 'nodemailer';
 import { NotificationsService } from '../notifications/notifications.service.js';
@@ -15,6 +15,16 @@ export class ChatService {
     private readonly jwtService: JwtService,
   ) {}
 
+  private async isUserAdminOrWsOwner(userId: number, workspaceId?: number | null): Promise<boolean> {
+    const [user] = await this.dbService.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (user && user.role === 'Admin') return true;
+    if (workspaceId) {
+      const [ws] = await this.dbService.db.select().from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1);
+      if (ws && ws.ownerId === userId) return true;
+    }
+    return false;
+  }
+
   async getMessagesByChannel(channelId: string, userId?: number) {
     // Check channel access if not c-general and not dm-
     if (channelId !== 'c-general' && !channelId.startsWith('dm-') && userId) {
@@ -24,8 +34,7 @@ export class ChatService {
         .where(eq(channels.id, channelId));
 
       if (dbChannel) {
-        const [requester] = await this.dbService.db.select().from(users).where(eq(users.id, userId));
-        const isAdmin = requester?.role === 'Admin';
+        const isAdminOrOwner = await this.isUserAdminOrWsOwner(userId, dbChannel.workspaceId);
         const isCreator = dbChannel.creatorId === userId;
         const [membership] = await this.dbService.db
           .select()
@@ -36,7 +45,7 @@ export class ChatService {
             eq(channelMembers.status, 'accepted')
           ));
 
-        if (!isAdmin && !isCreator && !membership) {
+        if (!isAdminOrOwner && !isCreator && !membership) {
           return [];
         }
       }
@@ -139,8 +148,9 @@ export class ChatService {
     const [msg] = await this.dbService.db.select().from(messages).where(eq(messages.id, messageId));
     if (!msg) throw new NotFoundException('Message not found');
 
-    const [user] = await this.dbService.db.select().from(users).where(eq(users.id, userId));
-    if (msg.senderId !== userId && user?.role !== 'Admin') {
+    const [channel] = await this.dbService.db.select().from(channels).where(eq(channels.id, msg.channelId));
+    const isAdminOrOwner = await this.isUserAdminOrWsOwner(userId, channel?.workspaceId);
+    if (msg.senderId !== userId && !isAdminOrOwner) {
       throw new ForbiddenException('You cannot delete this message');
     }
 
@@ -544,11 +554,12 @@ export class ChatService {
       throw new NotFoundException('Channel not found.');
     }
 
-    // Permission check: For channels created by a user, ONLY the creator can add/invite members
-    const isCreator = channel.creatorId ? (channel.creatorId === inviterId) : (inviter.role === 'Admin');
+    // Permission check: Channel creator or workspace owner/admin can add/invite members
+    const isAdminOrOwner = await this.isUserAdminOrWsOwner(inviterId, channel.workspaceId);
+    const isCreator = channel.creatorId ? (channel.creatorId === inviterId) : isAdminOrOwner;
 
-    if (!isCreator) {
-      throw new ForbiddenException('Only the channel creator can invite members to this channel.');
+    if (!isCreator && !isAdminOrOwner) {
+      throw new ForbiddenException('Only the channel creator or workspace owner can invite members to this channel.');
     }
 
     const cleanEmail = email.trim();
@@ -741,12 +752,12 @@ export class ChatService {
       throw new NotFoundException('Channel not found.');
     }
 
-    // Strict Personal Channel Privacy:
-    // If a channel was created by someone, ONLY the creator can remove members from it (not even an admin).
-    const isCreator = channel.creatorId ? (channel.creatorId === requesterId) : (requester.role === 'Admin');
+    // Channel creator or workspace owner/admin can remove members from it
+    const isAdminOrOwner = await this.isUserAdminOrWsOwner(requesterId, channel.workspaceId);
+    const isCreator = channel.creatorId ? (channel.creatorId === requesterId) : isAdminOrOwner;
 
-    if (!isCreator) {
-      throw new ForbiddenException('Only the channel creator has rights to remove members from this channel.');
+    if (!isCreator && !isAdminOrOwner) {
+      throw new ForbiddenException('Only the channel creator or workspace owner has rights to remove members from this channel.');
     }
 
     if (targetUserId === requesterId) {
@@ -785,9 +796,10 @@ export class ChatService {
     const [channel] = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
     if (!channel) throw new NotFoundException('Channel not found.');
 
-    const isCreator = channel.creatorId ? (channel.creatorId === requesterId) : (requester?.role === 'Admin');
-    if (!isCreator) {
-      throw new ForbiddenException('Only the channel creator can revoke invitations for this channel.');
+    const isAdminOrOwner = await this.isUserAdminOrWsOwner(requesterId, channel.workspaceId);
+    const isCreator = channel.creatorId ? (channel.creatorId === requesterId) : isAdminOrOwner;
+    if (!isCreator && !isAdminOrOwner) {
+      throw new ForbiddenException('Only the channel creator or workspace owner can revoke invitations for this channel.');
     }
 
     await this.dbService.db
@@ -806,8 +818,7 @@ export class ChatService {
 
     // Access control check for private channels
     if (dbChannel && dbChannel.id !== 'c-general' && userId) {
-      const [requester] = await this.dbService.db.select().from(users).where(eq(users.id, userId));
-      const isAdmin = requester?.role === 'Admin';
+      const isAdminOrOwner = await this.isUserAdminOrWsOwner(userId, dbChannel.workspaceId);
       const isCreator = dbChannel.creatorId === userId;
       const [membership] = await this.dbService.db
         .select()
@@ -818,7 +829,7 @@ export class ChatService {
           eq(channelMembers.status, 'accepted')
         ));
 
-      if (!isAdmin && !isCreator && !membership) {
+      if (!isAdminOrOwner && !isCreator && !membership) {
         throw new ForbiddenException('You do not have access to this channel.');
       }
     }
@@ -923,13 +934,13 @@ export class ChatService {
   }
 
   async updateChannelInfo(channelId: string, name: string, description: string, userId: number, bgGradient?: string) {
-    const [user] = await this.dbService.db.select().from(users).where(eq(users.id, userId));
     const [channel] = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
     
-    const isCreator = channel?.creatorId ? (channel.creatorId === userId) : (user?.role === 'Admin');
+    const isAdminOrOwner = await this.isUserAdminOrWsOwner(userId, channel?.workspaceId);
+    const isCreator = channel?.creatorId ? (channel.creatorId === userId) : isAdminOrOwner;
 
-    if (!isCreator && channel) {
-      throw new ForbiddenException('Only the channel creator can edit this personal channel.');
+    if (!isCreator && !isAdminOrOwner && channel) {
+      throw new ForbiddenException('Only the channel creator or workspace owner can edit this channel.');
     }
 
     const cleanName = name ? (name.startsWith('# ') ? name.slice(2) : name) : (channel?.name || 'general');

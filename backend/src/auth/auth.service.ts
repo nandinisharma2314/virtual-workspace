@@ -133,8 +133,8 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
     
-    // Security: Only Admins can change their role. Ignore the role field if they are not an Admin.
-    if (data.role && user.role !== 'Admin') {
+    // Security: Only Admins can set role to Admin. Non-admins cannot elevate themselves to 'Admin'.
+    if (data.role && user.role !== 'Admin' && data.role.toLowerCase() === 'admin') {
       delete data.role;
     }
 

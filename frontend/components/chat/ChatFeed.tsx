@@ -8,6 +8,7 @@ import Avatar from "@/components/Avatar";
 import { io, Socket } from "socket.io-client";
 import InviteModal from "./InviteModal";
 import VideoCall from "./VideoCall";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 import {
   Star,
   MoreVertical,
@@ -176,10 +177,12 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
   }, []);
 
   // Video Call states
+  const { currentWorkspace, can } = useWorkspace();
   const [isInCall, setIsInCall] = useState(false);
   const [isInitiator, setIsInitiator] = useState(false);
   const [incomingCallOffer, setIncomingCallOffer] = useState<any>(null);
-  const isAdmin = currentUser?.role === "Admin";
+  const isAdmin = currentUser?.role === "Admin" || currentWorkspace?.isOwner || can("channels:manage");
+  const canManageTasks = currentWorkspace?.isOwner || currentUser?.role === "Admin" || can("tasks:manage");
 
   // Toolbar states
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -1627,7 +1630,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                           </div>
                         </div>
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {currentUser?.role === 'Admin' && (
+                          {canManageTasks && (
                             <>
                               <button
                                 onClick={() => {

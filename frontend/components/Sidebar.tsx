@@ -24,6 +24,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { API_URL, getAuthHeaders } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 const iconMap: Record<string, React.ElementType> = {
   home: Home,
@@ -45,6 +46,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [activeOverride, setActiveOverride] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const { currentWorkspace, can } = useWorkspace();
 
   useEffect(() => {
     fetch(`${API_URL}/auth/me`, {
@@ -58,13 +60,12 @@ export default function Sidebar() {
   }, []);
 
   const visibleSidebarPrimary = sidebarPrimary.filter(item => {
-    // If we haven't loaded the user yet, or they are an Admin, show everything
-    if (!currentUser || currentUser.role === "Admin") return true;
+    // If Admin globally or Workspace Owner, show everything
+    if (!currentUser || currentUser.role === "Admin" || currentWorkspace?.isOwner) return true;
     
-    // For non-admins, restrict access to Teams, Reports, and advanced management tools
-    // We strictly keep Inbox ("email feature"), Chat, Home, Files, Calendar, etc.
-    const restrictedForNonAdmins = ["Teams", "Reports", "Boards", "Sprints"];
-    return !restrictedForNonAdmins.includes(item.label);
+    // For workspace members, check role permissions:
+    if (item.label === "Reports" && !can("reports:view")) return false;
+    return true;
   });
 
   return (
@@ -102,19 +103,20 @@ export default function Sidebar() {
               const isCalendar = item.label === "Calendar";
               const isMeetings = item.label === "Meetings";
               const isFiles = item.label === "Files";
+              const isDocuments = item.label === "Documents";
               const isReports = item.label === "Reports";
-              const href = isHome ? "/" : isWorkspaces ? "/workspaces/settings" : isInbox ? "/inbox" : isChat ? "/chat" : isTeams ? "/teams" : isProjects ? "/projects" : isBoards ? "/boards" : isSprints ? "/sprints" : isCalendar ? "/calendar" : isMeetings ? "/meetings" : isFiles ? "/files" : isReports ? "/reports" : "#";
+              const href = isHome ? "/" : isWorkspaces ? "/workspaces/settings" : isInbox ? "/inbox" : isChat ? "/chat" : isTeams ? "/teams" : isProjects ? "/projects" : isBoards ? "/boards" : isSprints ? "/sprints" : isCalendar ? "/calendar" : isMeetings ? "/meetings" : isFiles ? "/files" : isDocuments ? "/documents" : isReports ? "/reports" : "#";
               
               const isActive = activeOverride
                 ? activeOverride === item.label
-                : (isHome && pathname === "/") || (isWorkspaces && pathname?.startsWith("/workspaces")) || (isInbox && pathname?.startsWith("/inbox")) || (isChat && pathname?.startsWith("/chat")) || (isTeams && pathname?.startsWith("/teams")) || (isProjects && pathname?.startsWith("/projects")) || (isBoards && pathname?.startsWith("/boards")) || (isSprints && pathname?.startsWith("/sprints")) || (isCalendar && pathname?.startsWith("/calendar")) || (isMeetings && pathname?.startsWith("/meetings")) || (isFiles && pathname?.startsWith("/files")) || (isReports && pathname?.startsWith("/reports"));
+                : (isHome && pathname === "/") || (isWorkspaces && pathname?.startsWith("/workspaces")) || (isInbox && pathname?.startsWith("/inbox")) || (isChat && pathname?.startsWith("/chat")) || (isTeams && pathname?.startsWith("/teams")) || (isProjects && pathname?.startsWith("/projects")) || (isBoards && pathname?.startsWith("/boards")) || (isSprints && pathname?.startsWith("/sprints")) || (isCalendar && pathname?.startsWith("/calendar")) || (isMeetings && pathname?.startsWith("/meetings")) || (isFiles && pathname?.startsWith("/files")) || (isDocuments && pathname?.startsWith("/documents")) || (isReports && pathname?.startsWith("/reports"));
 
               return (
                 <li key={item.label}>
                   <Link
                     href={href}
                     onClick={() => {
-                      if (isHome || isWorkspaces || isInbox || isChat || isTeams || isProjects || isBoards || isSprints || isCalendar || isMeetings || isFiles || isReports) {
+                      if (isHome || isWorkspaces || isInbox || isChat || isTeams || isProjects || isBoards || isSprints || isCalendar || isMeetings || isFiles || isDocuments || isReports) {
                         setActiveOverride(null);
                       } else {
                         setActiveOverride(item.label);

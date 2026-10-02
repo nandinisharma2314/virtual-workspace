@@ -6,6 +6,7 @@ import { Search, Plus, Filter, MoreVertical, Mail, Phone, Calendar, User, Edit2,
 import Avatar from "@/components/Avatar";
 import { avatarColors } from "@/lib/uiConstants";
 import { API_URL, getActiveWorkspaceId, getAuthHeaders } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 const initialMembers: any[] = [];
 
@@ -30,10 +31,10 @@ function Modal({ isOpen, onClose, title, children }: { isOpen: boolean, onClose:
   );
 }
 
-function MemberCard({ member, onViewProfile, onEditMember, onRemoveMember, currentUserRole }: { member: any, onViewProfile: () => void, onEditMember: () => void, onRemoveMember: () => void, currentUserRole?: string }) {
+function MemberCard({ member, onViewProfile, onEditMember, onRemoveMember, currentUserRole, canManage }: { member: any, onViewProfile: () => void, onEditMember: () => void, onRemoveMember: () => void, currentUserRole?: string, canManage?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const isAdmin = currentUserRole?.toLowerCase() === 'admin';
+  const isAdmin = canManage ?? (currentUserRole?.toLowerCase() === 'admin');
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -108,6 +109,7 @@ function MemberCard({ member, onViewProfile, onEditMember, onRemoveMember, curre
 }
 
 export default function TeamsView() {
+  const { currentWorkspace, can } = useWorkspace();
   const [members, setMembers] = useState<any[]>([]);
   const [activeDept, setActiveDept] = useState("All Company");
   const [search, setSearch] = useState("");
@@ -115,6 +117,8 @@ export default function TeamsView() {
   const [filterStatus, setFilterStatus] = useState("All");
   const [userRole, setUserRole] = useState("Member");
   const filterRef = useRef<HTMLDivElement>(null);
+
+  const canManage = currentWorkspace?.isOwner || userRole?.toLowerCase() === 'admin' || can("teams:manage") || can("members:invite");
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -189,7 +193,10 @@ export default function TeamsView() {
 
   useEffect(() => {
     fetchMembers();
-  }, []);
+    const handleWsChanged = () => fetchMembers();
+    window.addEventListener("workspaceChanged", handleWsChanged);
+    return () => window.removeEventListener("workspaceChanged", handleWsChanged);
+  }, [currentWorkspace?.id]);
   
   // Modals state
   const [viewingMember, setViewingMember] = useState<any>(null);
@@ -410,7 +417,7 @@ export default function TeamsView() {
                 </div>
               )}
             </div>
-            {userRole?.toLowerCase() === 'admin' && (
+            {canManage && (
               <button 
                 onClick={() => setIsAddingMember(true)}
                 className="flex h-9 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-[13px] font-bold text-white transition-all hover:bg-indigo-700 shadow-sm"
@@ -430,6 +437,7 @@ export default function TeamsView() {
                 key={member.id} 
                 member={member} 
                 currentUserRole={userRole}
+                canManage={canManage}
                 onViewProfile={() => setViewingMember(member)}
                 onEditMember={() => setEditingMember(member)}
                 onRemoveMember={() => confirmRemove(member.id)}

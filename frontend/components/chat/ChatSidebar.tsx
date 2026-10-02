@@ -205,11 +205,17 @@ export default function ChatSidebar({
             <Plus size={13} strokeWidth={2.5} />
             <span>Channel</span>
           </button>
-          {currentUser?.role === 'Admin' && (
-            <button className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-50 transition-colors" title="New Message">
-              <SquarePen size={16} strokeWidth={2.2} />
-            </button>
-          )}
+          <button 
+            onClick={() => {
+              if (users.length > 0) {
+                onSelectDM(`dm-${users[0].id}`);
+              }
+            }}
+            className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-50 transition-colors" 
+            title="New Direct Message"
+          >
+            <SquarePen size={16} strokeWidth={2.2} />
+          </button>
         </div>
       </div>
 
@@ -328,11 +334,15 @@ export default function ChatSidebar({
             <span className="text-[12px] font-black uppercase tracking-wider text-gray-400">
               Direct Messages
             </span>
-            {currentUser?.role === 'Admin' && (
-              <button className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors">
-                <Plus size={15} strokeWidth={2.2} />
-              </button>
-            )}
+            <button 
+              onClick={() => {
+                if (users.length > 0) onSelectDM(`dm-${users[0].id}`);
+              }}
+              className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors"
+              title="Start Direct Message"
+            >
+              <Plus size={15} strokeWidth={2.2} />
+            </button>
           </div>
           <div className="space-y-[1px]">
             {users.map((u) => {

@@ -3,6 +3,7 @@
 import Avatar from "@/components/Avatar";
 import { API_URL } from "@/lib/apis";
 import { toast, confirmDialog } from "@/lib/toast";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 import {
   X,
   Pencil,
@@ -46,6 +47,7 @@ type Props = {
 
 export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpdate }: Props) {
   const router = useRouter();
+  const { currentWorkspace, can } = useWorkspace();
   const dynamicBackgrounds = useBoardBackgrounds();
   const [dynamicTemplates, setDynamicTemplates] = useState<any[]>(channelTemplates);
   const [info, setInfo] = useState<any>(null);
@@ -191,7 +193,9 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
   };
 
   const currentUserId = currentUser?.id || currentUser?.sub;
-  const isCreator = info?.creatorId ? (info.creatorId === currentUserId) : (currentUser?.role === 'Admin');
+  const isCreator = info?.creatorId 
+    ? (info.creatorId === currentUserId) 
+    : (currentUser?.role === 'Admin' || currentWorkspace?.isOwner || can("channels:manage"));
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);

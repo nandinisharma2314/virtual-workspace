@@ -263,19 +263,18 @@ export default function SettingsView({ user }: { user?: any }) {
                     </div>
                     <div className="space-y-1.5 sm:col-span-1">
                       <label className="text-[13px] font-bold text-gray-700">
-                        Role {user?.role !== "Admin" && <span className="text-gray-400 font-normal ml-1">(Admin only)</span>}
+                        Role / Title
                       </label>
                       <select 
                         value={role}
                         onChange={(e) => setRole(e.target.value)}
-                        disabled={user?.role !== "Admin"}
-                        className={`w-full rounded-xl border border-gray-200/80 bg-gray-50/50 px-4 py-2.5 text-[13px] font-semibold text-gray-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none ${user?.role !== 'Admin' ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        className="w-full rounded-xl border border-gray-200/80 bg-gray-50/50 px-4 py-2.5 text-[13px] font-semibold text-gray-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none cursor-pointer"
                       >
                         <option value="Member">Member</option>
                         <option value="Product Manager">Product Manager</option>
                         <option value="Engineer">Engineer</option>
                         <option value="Designer">Designer</option>
-                        <option value="Admin">Admin</option>
+                        {user?.role === "Admin" && <option value="Admin">Admin</option>}
                       </select>
                     </div>
                     <div className="space-y-1.5 sm:col-span-2">

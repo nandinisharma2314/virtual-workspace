@@ -69,6 +69,7 @@ export const sidebarPrimary: { label: string; icon: string; badge?: string }[] =
   { label: "Calendar", icon: "calendar" },
   { label: "Meetings", icon: "video" },
   { label: "Files", icon: "folder-open" },
+  { label: "Documents", icon: "file-text" },
   { label: "Reports", icon: "bar-chart" },
 ];
 

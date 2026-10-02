@@ -34,6 +34,7 @@ import { io, Socket } from "socket.io-client";
 import CreateBoardModal, { CustomBoard } from "@/components/boards/CreateBoardModal";
 import { API_URL } from "@/lib/apis";
 import { toast } from "@/lib/toast";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 interface ChannelItem {
   id: string;
@@ -167,6 +168,7 @@ interface UserProfile {
 
 export default function WorkspacesPage() {
   const router = useRouter();
+  const { currentWorkspace, can } = useWorkspace();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -482,10 +484,10 @@ export default function WorkspacesPage() {
 
                         <button
                           onClick={() => {
-                            if (currentUser?.role === "Admin") {
+                            if (currentUser?.role === "Admin" || currentWorkspace?.isOwner || can("members:invite")) {
                               setIsInviteModalOpen(true);
                             } else {
-                              toast.info("Members can view their assigned channels. Contact an Admin to invite teammates.");
+                              toast.info("Members can view their assigned channels. Contact a Workspace Admin or Manager to invite teammates.");
                             }
                           }}
                           className="w-full px-2.5 py-1.5 hover:bg-gray-50 hover:text-gray-900 rounded-lg cursor-pointer transition-colors flex items-center justify-between font-medium group"
@@ -589,7 +591,7 @@ export default function WorkspacesPage() {
                   <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
                     You are all caught up on your channel activity and due dates.
                   </p>
-                  {currentUser?.role === "Admin" && (
+                  {(currentUser?.role === "Admin" || currentWorkspace?.isOwner || can("channels:create")) && (
                     <button
                       onClick={() => setIsCreateModalOpen(true)}
                       className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer"
@@ -905,7 +907,7 @@ export default function WorkspacesPage() {
                 <span>Create new board</span>
               </button>
 
-              {currentUser?.role === "Admin" && (
+              {(currentUser?.role === "Admin" || currentWorkspace?.isOwner || can("channels:create")) && (
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
                   className="w-full p-3 bg-gray-50 hover:bg-purple-50/60 text-gray-700 hover:text-purple-700 rounded-xl border border-gray-200 hover:border-purple-200 flex items-center gap-3 text-xs font-bold transition-all shadow-2xs cursor-pointer group"

@@ -495,6 +495,38 @@ export default function WorkspaceSettingsPage() {
     }
   };
 
+  // Delete Workspace (Danger Zone)
+  const handleDeleteWorkspace = async () => {
+    if (!currentWorkspace) return;
+    const confirmName = prompt(
+      `To confirm workspace deletion, please type the workspace name "${currentWorkspace.name}":`
+    );
+    if (confirmName !== currentWorkspace.name) {
+      if (confirmName !== null) {
+        toast.error("Workspace name did not match. Deletion cancelled.");
+      }
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/workspaces/${currentWorkspace.id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        toast.success("Workspace deleted successfully");
+        localStorage.removeItem("active_workspace_id");
+        await refreshWorkspaces();
+        router.push("/workspaces");
+      } else {
+        const err = await res.json();
+        toast.error(err.message || "Failed to delete workspace");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to delete workspace");
+    }
+  };
+
   // Copy Invite link
   const handleCopyInviteLink = (token: string) => {
     const url = `${window.location.origin}/invite/${token}`;
@@ -1087,6 +1119,31 @@ export default function WorkspaceSettingsPage() {
                   </button>
                 </div>
               </form>
+
+              {currentWorkspace.isOwner && (
+                <div className="mt-8 pt-6 border-t border-rose-100">
+                  <h3 className="text-sm font-black text-rose-600 tracking-tight flex items-center gap-2">
+                    <Trash2 size={16} /> Danger Zone
+                  </h3>
+                  <p className="text-xs text-gray-500 font-medium mt-1">
+                    Permanently delete this workspace and all associated projects, tasks, sprints, channels, and team files. This action cannot be undone.
+                  </p>
+                  <div className="mt-4 flex items-center justify-between p-4 rounded-2xl bg-rose-50/60 border border-rose-200">
+                    <div>
+                      <div className="text-xs font-bold text-gray-900">Delete this workspace</div>
+                      <div className="text-[11px] text-gray-500">Once deleted, all data will be permanently wiped.</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDeleteWorkspace}
+                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Trash2 size={14} />
+                      <span>Delete Workspace</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

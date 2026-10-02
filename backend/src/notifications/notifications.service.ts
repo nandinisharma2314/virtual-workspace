@@ -98,4 +98,18 @@ export class NotificationsService {
       this.logger.error('Failed to notify users', e);
     }
   }
+
+  async remove(id: number, userId: number) {
+    try {
+      const [deleted] = await this.databaseService.db
+        .delete(notifications)
+        .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
+        .returning();
+      return { success: true, deleted };
+    } catch (e) {
+      this.logger.error(`Failed to delete notification ${id}`, e);
+      return { success: false };
+    }
+  }
 }
+

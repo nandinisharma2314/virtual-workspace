@@ -7,6 +7,7 @@ import { io, Socket } from "socket.io-client";
 import { motion, AnimatePresence } from "framer-motion";
 import VideoCall from "./chat/VideoCall";
 import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 import {
   Video,
@@ -58,6 +59,7 @@ const itemVariants: any = {
 
 export default function MeetingsView() {
   const router = useRouter();
+  const { currentWorkspace, can } = useWorkspace();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isInCall, setIsInCall] = useState(false);
   const [upcomingMeetings, setUpcomingMeetings] = useState<any[]>([]);
@@ -258,7 +260,7 @@ export default function MeetingsView() {
               className="h-10 w-72 rounded-full border border-gray-200 bg-gray-50/80 pl-10 pr-4 text-[14px] text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 shadow-sm"
             />
           </div>
-          {currentUser?.role === "Admin" && (
+          {(currentUser?.role === "Admin" || currentWorkspace?.isOwner || can("meetings:manage")) && (
             <motion.button 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -437,7 +439,7 @@ export default function MeetingsView() {
                               exit={{ opacity: 0, scale: 0.95 }}
                               className="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.1)] border border-gray-100 py-1.5 z-20"
                             >
-                              {currentUser?.role === "Admin" ? (
+                              {(currentUser?.role === "Admin" || currentWorkspace?.isOwner || meeting.organizerId === currentUser?.id || can("meetings:manage")) ? (
                                 <>
                                   <button onClick={() => openEditMeeting(meeting)} className="w-full text-left px-4 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors">
                                     Edit

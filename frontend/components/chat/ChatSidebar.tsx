@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import CreateChannelModal from "./CreateChannelModal";
 import { API_URL } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 type Props = {
   selectedChannelId: string;
@@ -21,6 +22,7 @@ export default function ChatSidebar({
   onSelectDM,
 }: Props) {
   const searchParams = useSearchParams();
+  const { currentWorkspace, can } = useWorkspace();
   const [users, setUsers] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -373,7 +375,7 @@ export default function ChatSidebar({
             <span className="text-[12px] font-black uppercase tracking-wider text-gray-400">
               Teams
             </span>
-            {currentUser?.role === 'Admin' && (
+            {(currentUser?.role === 'Admin' || currentWorkspace?.isOwner || can("teams:manage")) && (
               <button className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors">
                 <Plus size={15} strokeWidth={2.2} />
               </button>

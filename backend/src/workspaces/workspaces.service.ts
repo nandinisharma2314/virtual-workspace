@@ -21,6 +21,11 @@ import {
   channels,
   channelMembers,
   projectMembers,
+  sprints,
+  files,
+  meetings,
+  notifications,
+  messages,
 } from '../database/schema.js';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto.js';
 import { CreateRoleDto, UpdateRoleDto } from './dto/create-role.dto.js';
@@ -766,4 +771,68 @@ export class WorkspacesService {
       console.error("Failed to seed workspace starter channel:", e);
     }
   }
+
+  async deleteWorkspace(workspaceId: number, userId: number) {
+    const [ws] = await this.dbService.db
+      .select()
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId));
+
+    if (!ws) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (ws.ownerId !== userId) {
+      throw new ForbiddenException('Only the workspace owner can delete this workspace');
+    }
+
+    // 1. Delete tasks in workspace
+    await this.dbService.db.delete(tasks).where(eq(tasks.workspaceId, workspaceId));
+
+    // 2. Delete sprints in workspace
+    await this.dbService.db.delete(sprints).where(eq(sprints.workspaceId, workspaceId));
+
+    // 3. Delete files, meetings, notifications in workspace
+    await this.dbService.db.delete(files).where(eq(files.workspaceId, workspaceId));
+    await this.dbService.db.delete(meetings).where(eq(meetings.workspaceId, workspaceId));
+    await this.dbService.db.delete(notifications).where(eq(notifications.workspaceId, workspaceId));
+
+    // 4. Delete channels and channel data
+    const wsChannels = await this.dbService.db
+      .select({ id: channels.id })
+      .from(channels)
+      .where(eq(channels.workspaceId, workspaceId));
+
+    for (const ch of wsChannels) {
+      await this.dbService.db.delete(messages).where(eq(messages.channelId, ch.id));
+      await this.dbService.db.delete(channelMembers).where(eq(channelMembers.channelId, ch.id));
+    }
+    await this.dbService.db.delete(channels).where(eq(channels.workspaceId, workspaceId));
+
+    // 5. Delete projects and project members
+    const wsProjects = await this.dbService.db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.workspaceId, workspaceId));
+
+    for (const pr of wsProjects) {
+      await this.dbService.db.delete(projectMembers).where(eq(projectMembers.projectId, pr.id));
+    }
+    await this.dbService.db.delete(projects).where(eq(projects.workspaceId, workspaceId));
+
+    // 6. Delete teams
+    await this.dbService.db.delete(teams).where(eq(teams.workspaceId, workspaceId));
+
+    // 7. Delete workspace invites, members, roles, and the workspace itself
+    await this.dbService.db.delete(workspaceInvites).where(eq(workspaceInvites.workspaceId, workspaceId));
+    await this.dbService.db.delete(workspaceMembers).where(eq(workspaceMembers.workspaceId, workspaceId));
+    await this.dbService.db.delete(workspaceRoles).where(eq(workspaceRoles.workspaceId, workspaceId));
+    await this.dbService.db.delete(workspaces).where(eq(workspaces.id, workspaceId));
+
+    // Ensure the owner still has at least one default workspace
+    await this.ensureDefaultWorkspaceForUser(userId);
+
+    return { success: true, message: 'Workspace deleted successfully' };
+  }
 }
+

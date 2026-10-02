@@ -60,6 +60,15 @@ export class WorkspacesController {
     return this.workspacesService.updateWorkspace(id, userId, dto);
   }
 
+  @Delete(':id')
+  deleteWorkspace(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const userId = req.user.sub;
+    return this.workspacesService.deleteWorkspace(id, userId);
+  }
+
   // --- Roles Management ---
 
   @Get(':id/roles')

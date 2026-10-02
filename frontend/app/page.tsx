@@ -17,6 +17,7 @@ import WelcomeModalWrapper from "@/components/WelcomeModalWrapper";
 import { ChevronDown } from "lucide-react";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { API_URL } from "@/lib/apis";
 
 async function getUser() {
@@ -53,11 +54,15 @@ async function getDashboardData(token: string, workspaceId?: string) {
 }
 
 export default async function Home() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+  if (!token) {
+    redirect("/login");
+  }
+
   const user = await getUser();
   const firstName = user?.name?.split(' ')[0] || 'User';
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value || "";
   const workspaceId = cookieStore.get("active_workspace_id")?.value;
   const dashboardData = token ? await getDashboardData(token, workspaceId) : null;
 

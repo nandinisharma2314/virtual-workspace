@@ -1,19 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, BarChart2, Calendar, Download, ChevronDown } from "lucide-react";
-import { API_URL } from "@/lib/apis";
+import { Loader2, BarChart2, Calendar, Download, ChevronDown, Lock } from "lucide-react";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 export default function ProjectReports({ projectId }: { projectId?: string }) {
+  const { currentWorkspace, can } = useWorkspace();
+  const canViewReports = Boolean(currentWorkspace?.isOwner) || can("reports:view");
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!canViewReports) {
+      setLoading(false);
+      return;
+    }
     const fetchTasks = async () => {
       try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
         const res = await fetch(`${API_URL}/tasks`, {
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+          headers: getAuthHeaders(),
         });
         if (res.ok) {
           const data = await res.json();
@@ -31,7 +37,23 @@ export default function ProjectReports({ projectId }: { projectId?: string }) {
       }
     };
     fetchTasks();
-  }, [projectId]);
+  }, [projectId, canViewReports]);
+
+  if (!canViewReports) {
+    return (
+      <div className="flex-1 min-h-0 flex items-center justify-center p-8 bg-[#FAFBFC] w-full">
+        <div className="text-center max-w-sm bg-white p-8 rounded-2xl border border-gray-200/80 shadow-2xs">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 mb-3">
+            <Lock size={22} />
+          </div>
+          <h3 className="text-sm font-bold text-gray-900">Access Restricted</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            You do not have permission to view workspace or project analytics.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const total = tasks.length;
   const completed = tasks.filter(t => t.status === 'completed' || t.status === 'done').length;

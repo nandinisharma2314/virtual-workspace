@@ -3,10 +3,13 @@
 import { useState, useEffect, useRef } from "react";
 import Avatar from "@/components/Avatar";
 import { Search, Filter, Upload, Folder, FileImage, FileText, File as FileIcon, Archive, MoreHorizontal, Loader2 } from "lucide-react";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 import { toast } from "@/lib/toast";
 
 export default function ProjectFiles({ projectId }: { projectId?: number }) {
+  const { currentWorkspace, can } = useWorkspace();
+  const canManageFiles = Boolean(currentWorkspace?.isOwner) || can("files:manage");
   const [filesData, setFilesData] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -14,13 +17,11 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
 
   const fetchFiles = async () => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      if (!token) return;
       const url = projectId 
         ? `${API_URL}/files?projectId=${projectId}` 
         : `${API_URL}/files`;
       const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: getAuthHeaders()
       });
       if (res.ok) {
         const data = await res.json();
@@ -68,19 +69,17 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
+    if (!canManageFiles) {
+      toast.error("You do not have permission to upload files.");
+      return;
+    }
+
     setIsUploading(true);
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      if (!token) {
-        toast.error("Please log in to upload files.");
-        setIsUploading(false);
-        return;
-      }
-
       // 1. Get Cloudflare R2 presigned URL
       const urlRes = await fetch(
         `${API_URL}/files/upload-url?filename=${encodeURIComponent(selectedFile.name)}&contentType=${encodeURIComponent(selectedFile.type || 'application/octet-stream')}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: getAuthHeaders() }
       );
       if (!urlRes.ok) throw new Error("Failed to get R2 upload URL");
       const { uploadUrl, storageKey } = await urlRes.json();
@@ -100,8 +99,8 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
       const createRes = await fetch(`${API_URL}/files`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           name: selectedFile.name,
@@ -201,23 +200,25 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
             <Filter size={13} className="text-gray-500" strokeWidth={2.3} />
             Filter
           </button>
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-3 py-1.5 text-[11.5px] font-bold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
-          >
-            {isUploading ? (
-              <>
-                <Loader2 size={13} className="animate-spin" />
-                <span>Uploading...</span>
-              </>
-            ) : (
-              <>
-                <Upload size={14} strokeWidth={2.3} />
-                <span>Upload</span>
-              </>
-            )}
-          </button>
+          {canManageFiles && (
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-3 py-1.5 text-[11.5px] font-bold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Uploading...</span>
+                </>
+              ) : (
+                <>
+                  <Upload size={14} strokeWidth={2.3} />
+                  <span>Upload</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 

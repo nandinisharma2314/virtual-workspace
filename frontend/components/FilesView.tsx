@@ -21,6 +21,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
 import { toast, confirmDialog } from "@/lib/toast";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 // Custom Dropdown Component
 function Dropdown({
@@ -130,6 +131,9 @@ function getCategoryAndExt(name: string, mimeOrExt?: string) {
 }
 
 export default function FilesView() {
+  const { currentWorkspace, can } = useWorkspace();
+  const canManageFiles = Boolean(currentWorkspace?.isOwner) || can("files:manage");
+
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -142,8 +146,9 @@ export default function FilesView() {
 
   const fetchFiles = async () => {
     try {
-      const res = await fetch(`${API_URL}/files`, {
-        headers: getAuthHeaders(),
+      const activeWsId = currentWorkspace?.id || getActiveWorkspaceId();
+      const res = await fetch(`${API_URL}/files${activeWsId ? `?workspaceId=${activeWsId}` : ''}`, {
+        headers: getAuthHeaders(activeWsId ? { "x-workspace-id": String(activeWsId) } : {}),
       });
       if (res.ok) {
         const data = await res.json();
@@ -210,7 +215,7 @@ export default function FilesView() {
 
   useEffect(() => {
     fetchFiles();
-  }, []);
+  }, [currentWorkspace?.id]);
 
   // Upload handler for Cloudflare R2
   const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,10 +224,13 @@ export default function FilesView() {
 
     setIsUploading(true);
     try {
+      const activeWsId = currentWorkspace?.id || getActiveWorkspaceId();
+      const wsHeader = activeWsId ? { "x-workspace-id": String(activeWsId) } : {};
+
       // 1. Get presigned upload URL from backend (pointing to Cloudflare R2)
       const urlRes = await fetch(
         `${API_URL}/files/upload-url?filename=${encodeURIComponent(selectedFile.name)}&contentType=${encodeURIComponent(selectedFile.type || 'application/octet-stream')}`,
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeaders(wsHeader) }
       );
 
       if (!urlRes.ok) {
@@ -246,16 +254,18 @@ export default function FilesView() {
       }
 
       // 3. Register file metadata in backend
-      const wsId = getActiveWorkspaceId();
       const createRes = await fetch(`${API_URL}/files`, {
         method: 'POST',
-        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        headers: getAuthHeaders({
+          'Content-Type': 'application/json',
+          ...wsHeader
+        }),
         body: JSON.stringify({
           name: selectedFile.name,
           size: selectedFile.size,
           type: selectedFile.type || 'application/octet-stream',
           storageKey: storageKey,
-          workspaceId: wsId || undefined,
+          workspaceId: activeWsId ? Number(activeWsId) : undefined,
         }),
       });
 
@@ -321,9 +331,10 @@ export default function FilesView() {
       confirmText: "Delete File",
       onConfirm: async () => {
         try {
+          const activeWsId = currentWorkspace?.id || getActiveWorkspaceId();
           const res = await fetch(`${API_URL}/files/${fileId}`, {
             method: "DELETE",
-            headers: getAuthHeaders(),
+            headers: getAuthHeaders(activeWsId ? { "x-workspace-id": String(activeWsId) } : {}),
           });
           if (res.ok) {
             setFiles(prev => prev.filter(f => f.id !== fileId));
@@ -436,31 +447,33 @@ export default function FilesView() {
           </div>
 
           {/* Upload Button */}
-          <div className="flex items-center gap-3">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleUploadFile}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl text-[13px] font-bold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Uploading...</span>
-                </>
-              ) : (
-                <>
-                  <Upload size={16} strokeWidth={2.3} />
-                  <span>Upload File</span>
-                </>
-              )}
-            </button>
-          </div>
+          {canManageFiles && (
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleUploadFile}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl text-[13px] font-bold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={16} strokeWidth={2.3} />
+                    <span>Upload File</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Section Title */}
@@ -553,13 +566,15 @@ export default function FilesView() {
                       <div className="absolute top-3.5 left-3.5 text-gray-400/60 hover:text-gray-600 transition-colors cursor-pointer drop-shadow-sm">
                         <Square size={18} strokeWidth={2} />
                       </div>
-                      <button
-                        onClick={(e) => handleDeleteFile(e, file.id)}
-                        title="Delete file"
-                        className="absolute top-3.5 right-3.5 p-1.5 rounded-lg bg-white/60 hover:bg-white text-gray-400 hover:text-red-600 backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 shadow-sm"
-                      >
-                        <Trash2 size={15} strokeWidth={2} />
-                      </button>
+                      {canManageFiles && (
+                        <button
+                          onClick={(e) => handleDeleteFile(e, file.id)}
+                          title="Delete file"
+                          className="absolute top-3.5 right-3.5 p-1.5 rounded-lg bg-white/60 hover:bg-white text-gray-400 hover:text-red-600 backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 shadow-sm"
+                        >
+                          <Trash2 size={15} strokeWidth={2} />
+                        </button>
+                      )}
                     </>
                   )}
                   {file.icon}
@@ -600,13 +615,15 @@ export default function FilesView() {
                       >
                         <Download size={15} />
                       </button>
-                      <button
-                        onClick={(e) => handleDeleteFile(e, file.id)}
-                        title="Delete file"
-                        className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-md transition-colors"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      {canManageFiles && (
+                        <button
+                          onClick={(e) => handleDeleteFile(e, file.id)}
+                          title="Delete file"
+                          className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-md transition-colors"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

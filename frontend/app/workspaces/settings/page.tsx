@@ -81,7 +81,17 @@ interface WorkspaceInvite {
 
 export default function WorkspaceSettingsPage() {
   const router = useRouter();
-  const { currentWorkspace, can, refreshWorkspaces } = useWorkspace();
+  const { currentWorkspace, can, refreshWorkspaces, isLoading: wsLoading } = useWorkspace();
+
+  const isOwner = Boolean(currentWorkspace?.isOwner);
+  const canManageRoles = isOwner || can("roles:manage");
+  const canAssignRoles = isOwner || can("members:assign_role");
+  const canRemoveMembers = isOwner || can("members:remove");
+  const canInvite = isOwner || can("members:invite");
+  const canManageTeams = isOwner || can("teams:manage");
+  const canManageWorkspace = isOwner || can("workspace:manage");
+  const canViewMembers = canManageRoles || canAssignRoles || canRemoveMembers || canInvite;
+  const hasAnyAccess = canManageRoles || canViewMembers || canManageTeams || canInvite || canManageWorkspace;
 
   const [activeTab, setActiveTab] = useState<"roles" | "members" | "invites" | "teams" | "general">("roles");
   const [loading, setLoading] = useState(true);
@@ -546,6 +556,38 @@ export default function WorkspaceSettingsPage() {
     });
   }, [members, memberSearch, roleFilter]);
 
+  // Dynamic Available Tabs based on permissions
+  const availableTabs = useMemo(() => {
+    const tabs: {
+      id: "roles" | "members" | "teams" | "invites" | "general";
+      label: string;
+      icon: any;
+      count?: number;
+    }[] = [];
+    if (canManageRoles) {
+      tabs.push({ id: "roles", label: "Roles & Permissions", icon: Shield, count: roles.length });
+    }
+    if (canViewMembers) {
+      tabs.push({ id: "members", label: "Members", icon: Users, count: members.length });
+    }
+    if (canManageTeams) {
+      tabs.push({ id: "teams", label: "Teams", icon: Building });
+    }
+    if (canInvite) {
+      tabs.push({ id: "invites", label: "Invitations", icon: Mail, count: invites.length });
+    }
+    if (canManageWorkspace) {
+      tabs.push({ id: "general", label: "General", icon: SettingsIcon });
+    }
+    return tabs;
+  }, [canManageRoles, canViewMembers, canManageTeams, canInvite, canManageWorkspace, roles.length, members.length, invites.length]);
+
+  useEffect(() => {
+    if (availableTabs.length > 0 && !availableTabs.some((t) => t.id === activeTab)) {
+      setActiveTab(availableTabs[0].id);
+    }
+  }, [availableTabs, activeTab]);
+
   if (!currentWorkspace) {
     return (
       <div className="flex h-screen w-full bg-gray-50 overflow-hidden">
@@ -561,6 +603,34 @@ export default function WorkspaceSettingsPage() {
               <p className="text-sm text-gray-500 mt-2">
                 Please create or select a workspace to configure roles, permissions, and members.
               </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!wsLoading && !hasAnyAccess) {
+    return (
+      <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden">
+        <Sidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Topbar />
+          <div className="flex flex-1 items-center justify-center p-8">
+            <div className="text-center max-w-md bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 mb-4">
+                <Lock size={28} />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Access Restricted</h2>
+              <p className="text-sm text-gray-500 mt-2">
+                You do not have administrative permissions to manage roles, members, teams, or settings in this workspace.
+              </p>
+              <button
+                onClick={() => router.push("/workspaces")}
+                className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                Return to Workspaces
+              </button>
             </div>
           </div>
         </div>
@@ -600,76 +670,35 @@ export default function WorkspaceSettingsPage() {
 
               {/* Navigation Tabs */}
               <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-white/10 backdrop-blur-md p-1.5 border border-white/10 self-start md:self-auto">
-                <button
-                  onClick={() => setActiveTab("roles")}
-                  className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === "roles"
-                      ? "bg-white text-indigo-950 shadow-md"
-                      : "text-white/80 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  <Shield size={14} className={activeTab === "roles" ? "text-indigo-600" : ""} />
-                  <span>Roles & Permissions</span>
-                  <span className="ml-1 rounded-md bg-indigo-100/20 px-1.5 py-0.2 text-[10px]">
-                    {roles.length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("members")}
-                  className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === "members"
-                      ? "bg-white text-indigo-950 shadow-md"
-                      : "text-white/80 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  <Users size={14} className={activeTab === "members" ? "text-indigo-600" : ""} />
-                  <span>Members</span>
-                  <span className="ml-1 rounded-md bg-indigo-100/20 px-1.5 py-0.2 text-[10px]">
-                    {members.length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("teams")}
-                  className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === "teams"
-                      ? "bg-white text-indigo-950 shadow-md"
-                      : "text-white/80 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  <Building size={14} className={activeTab === "teams" ? "text-indigo-600" : ""} />
-                  <span>Teams</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("invites")}
-                  className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === "invites"
-                      ? "bg-white text-indigo-950 shadow-md"
-                      : "text-white/80 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  <Mail size={14} className={activeTab === "invites" ? "text-indigo-600" : ""} />
-                  <span>Invitations</span>
-                  {invites.length > 0 && (
-                    <span className="ml-1 rounded-md bg-amber-400 text-slate-900 px-1.5 py-0.2 text-[10px] font-black">
-                      {invites.length}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("general")}
-                  className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === "general"
-                      ? "bg-white text-indigo-950 shadow-md"
-                      : "text-white/80 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  <SettingsIcon size={14} className={activeTab === "general" ? "text-indigo-600" : ""} />
-                  <span>General</span>
-                </button>
+                {availableTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
+                        isActive
+                          ? "bg-white text-indigo-950 shadow-md"
+                          : "text-white/80 hover:text-white hover:bg-white/5"
+                      }`}
+                    >
+                      <Icon size={14} className={isActive ? "text-indigo-600" : ""} />
+                      <span>{tab.label}</span>
+                      {tab.count !== undefined && tab.count > 0 && (
+                        <span
+                          className={`ml-1 rounded-md px-1.5 py-0.2 text-[10px] font-black ${
+                            tab.id === "invites"
+                              ? "bg-amber-400 text-slate-900"
+                              : "bg-indigo-100/20 text-white"
+                          }`}
+                        >
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -692,13 +721,15 @@ export default function WorkspaceSettingsPage() {
                   </p>
                 </div>
 
-                <button
-                  onClick={() => handleOpenRoleModal()}
-                  className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all cursor-pointer self-start sm:self-auto group"
-                >
-                  <Plus size={15} className="group-hover:rotate-90 transition-transform" />
-                  <span>Create Custom Role</span>
-                </button>
+                {canManageRoles && (
+                  <button
+                    onClick={() => handleOpenRoleModal()}
+                    className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all cursor-pointer self-start sm:self-auto group"
+                  >
+                    <Plus size={15} className="group-hover:rotate-90 transition-transform" />
+                    <span>Create Custom Role</span>
+                  </button>
+                )}
               </div>
 
               {/* Roles Cards Grid */}
@@ -767,10 +798,10 @@ export default function WorkspaceSettingsPage() {
                           className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
                         >
                           <Edit3 size={13} />
-                          <span>{role.isSystem ? "View Matrix" : "Edit Role"}</span>
+                          <span>{canManageRoles ? (role.isSystem ? "View Matrix" : "Edit Role") : "View Matrix"}</span>
                         </button>
 
-                        {!role.isSystem && (
+                        {canManageRoles && !role.isSystem && (
                           <button
                             onClick={() => handleDeleteRole(role)}
                             className="flex items-center gap-1 text-xs font-bold text-rose-500 hover:text-rose-700 transition-colors cursor-pointer p-1 rounded-lg hover:bg-rose-50"
@@ -821,13 +852,15 @@ export default function WorkspaceSettingsPage() {
                   </select>
                 </div>
 
-                <button
-                  onClick={handleOpenInviteModal}
-                  className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all cursor-pointer self-start md:self-auto"
-                >
-                  <Mail size={15} />
-                  <span>Invite New Member</span>
-                </button>
+                {canInvite && (
+                  <button
+                    onClick={handleOpenInviteModal}
+                    className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all cursor-pointer self-start md:self-auto"
+                  >
+                    <Mail size={15} />
+                    <span>Invite New Member</span>
+                  </button>
+                )}
               </div>
 
               {/* Members Table */}
@@ -874,7 +907,7 @@ export default function WorkspaceSettingsPage() {
                             <select
                               value={m.roleId || ""}
                               onChange={(e) => handleUpdateMemberRole(m.userId, Number(e.target.value))}
-                              disabled={isSelf}
+                              disabled={isSelf || !canAssignRoles}
                               className="rounded-xl border border-gray-200 bg-white px-2.5 py-1 text-xs font-bold text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:opacity-60 transition-all cursor-pointer shadow-2xs"
                             >
                               {roles.map((r) => (
@@ -916,16 +949,18 @@ export default function WorkspaceSettingsPage() {
                                 <span className="rounded-md bg-indigo-50/70 border border-indigo-100/70 px-2 py-0.5 text-xs font-semibold text-indigo-800">
                                   {m.customRoleLabel || m.roleName || "Member"}
                                 </span>
-                                <button
-                                  onClick={() => {
-                                    setEditingMemberId(m.memberId);
-                                    setMemberCustomLabelInput(m.customRoleLabel || "");
-                                  }}
-                                  className="opacity-0 group-hover/label:opacity-100 p-1 text-gray-400 hover:text-indigo-600 transition-opacity cursor-pointer"
-                                  title="Edit custom title"
-                                >
-                                  <Edit3 size={12} />
-                                </button>
+                                {canAssignRoles && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingMemberId(m.memberId);
+                                      setMemberCustomLabelInput(m.customRoleLabel || "");
+                                    }}
+                                    className="opacity-0 group-hover/label:opacity-100 p-1 text-gray-400 hover:text-indigo-600 transition-opacity cursor-pointer"
+                                    title="Edit custom title"
+                                  >
+                                    <Edit3 size={12} />
+                                  </button>
+                                )}
                               </div>
                             )}
                           </td>
@@ -940,7 +975,7 @@ export default function WorkspaceSettingsPage() {
 
                           {/* Actions */}
                           <td className="py-3.5 px-5 text-right">
-                            {!isSelf && (
+                            {!isSelf && canRemoveMembers ? (
                               <button
                                 onClick={() => handleRemoveMember(m.userId, m.name)}
                                 className="inline-flex items-center gap-1 text-xs font-bold text-rose-500 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
@@ -949,6 +984,8 @@ export default function WorkspaceSettingsPage() {
                                 <Trash2 size={14} />
                                 <span>Remove</span>
                               </button>
+                            ) : (
+                              <span className="text-gray-300 text-xs">—</span>
                             )}
                           </td>
                         </tr>
@@ -978,13 +1015,15 @@ export default function WorkspaceSettingsPage() {
                   </p>
                 </div>
 
-                <button
-                  onClick={handleOpenInviteModal}
-                  className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all cursor-pointer self-start sm:self-auto"
-                >
-                  <Plus size={15} />
-                  <span>Send New Invitation</span>
-                </button>
+                {canInvite && (
+                  <button
+                    onClick={handleOpenInviteModal}
+                    className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all cursor-pointer self-start sm:self-auto"
+                  >
+                    <Plus size={15} />
+                    <span>Send New Invitation</span>
+                  </button>
+                )}
               </div>
 
               {invites.length === 0 ? (
@@ -996,12 +1035,14 @@ export default function WorkspaceSettingsPage() {
                   <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
                     All invited team members have joined or you have not sent any invites yet.
                   </p>
-                  <button
-                    onClick={handleOpenInviteModal}
-                    className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all cursor-pointer"
-                  >
-                    Invite Colleague
-                  </button>
+                  {canInvite && (
+                    <button
+                      onClick={handleOpenInviteModal}
+                      className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all cursor-pointer"
+                    >
+                      Invite Colleague
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xs">
@@ -1078,9 +1119,10 @@ export default function WorkspaceSettingsPage() {
                   <input
                     type="text"
                     required
+                    disabled={!canManageWorkspace}
                     value={wsName}
                     onChange={(e) => setWsName(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all font-semibold"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:opacity-60 transition-all font-semibold"
                   />
                 </div>
 
@@ -1102,22 +1144,29 @@ export default function WorkspaceSettingsPage() {
                   </label>
                   <textarea
                     rows={3}
+                    disabled={!canManageWorkspace}
                     value={wsDesc}
                     onChange={(e) => setWsDesc(e.target.value)}
                     placeholder="Briefly describe this workspace's purpose..."
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-none"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:opacity-60 transition-all resize-none"
                   />
                 </div>
 
-                <div className="pt-4 border-t border-gray-100 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={isSavingGeneral || !wsName.trim()}
-                    className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 disabled:opacity-50 transition-all cursor-pointer flex items-center gap-2"
-                  >
-                    {isSavingGeneral ? "Saving Changes..." : "Save Changes"}
-                  </button>
-                </div>
+                {canManageWorkspace ? (
+                  <div className="pt-4 border-t border-gray-100 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isSavingGeneral || !wsName.trim()}
+                      className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 disabled:opacity-50 transition-all cursor-pointer flex items-center gap-2"
+                    >
+                      {isSavingGeneral ? "Saving Changes..." : "Save Changes"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pt-4 border-t border-gray-100 text-xs text-gray-500 font-medium">
+                    Only workspace managers can edit workspace settings.
+                  </div>
+                )}
               </form>
 
               {currentWorkspace.isOwner && (
@@ -1160,10 +1209,16 @@ export default function WorkspaceSettingsPage() {
                 </span>
                 <div>
                   <h3 className="text-lg font-black text-gray-900 tracking-tight">
-                    {editingRole ? `Edit Role: ${editingRole.name}` : "Create Custom Role"}
+                    {editingRole
+                      ? canManageRoles
+                        ? `Edit Role: ${editingRole.name}`
+                        : `View Role Matrix: ${editingRole.name}`
+                      : "Create Custom Role"}
                   </h3>
                   <p className="text-xs text-gray-500 font-medium">
-                    Configure granular capabilities and assign permission checkboxes.
+                    {canManageRoles
+                      ? "Configure granular capabilities and assign permission checkboxes."
+                      : "View capabilities and permissions assigned to this role."}
                   </p>
                 </div>
               </div>
@@ -1184,7 +1239,7 @@ export default function WorkspaceSettingsPage() {
                   <input
                     type="text"
                     required
-                    disabled={editingRole?.isSystem}
+                    disabled={!canManageRoles || editingRole?.isSystem}
                     placeholder="e.g. Field Supervisor, QA Lead"
                     value={roleName}
                     onChange={(e) => setRoleName(e.target.value)}
@@ -1198,58 +1253,61 @@ export default function WorkspaceSettingsPage() {
                   </label>
                   <input
                     type="text"
+                    disabled={!canManageRoles}
                     placeholder="Brief summary of duties..."
                     value={roleDesc}
                     onChange={(e) => setRoleDesc(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:opacity-60 transition-all"
                   />
                 </div>
               </div>
 
               {/* Template Presets */}
-              <div className="rounded-2xl bg-indigo-50/50 border border-indigo-100/70 p-3.5 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-extrabold text-indigo-950 flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-indigo-600" />
-                  <span>Quick Templates:</span>
-                </span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleApplyTemplate("all")}
-                    className="rounded-lg bg-white border border-indigo-200/80 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer shadow-2xs"
-                  >
-                    Select All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyTemplate("manager")}
-                    className="rounded-lg bg-white border border-indigo-200/80 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer shadow-2xs"
-                  >
-                    Manager Template
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyTemplate("supervisor")}
-                    className="rounded-lg bg-white border border-indigo-200/80 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer shadow-2xs"
-                  >
-                    Supervisor Template
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyTemplate("employee")}
-                    className="rounded-lg bg-white border border-indigo-200/80 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer shadow-2xs"
-                  >
-                    Normal Employee Template
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyTemplate("clear")}
-                    className="rounded-lg bg-white border border-gray-200 px-2.5 py-1 text-[11px] font-bold text-gray-600 hover:bg-gray-100 transition-all cursor-pointer shadow-2xs"
-                  >
-                    Clear All
-                  </button>
+              {canManageRoles && (
+                <div className="rounded-2xl bg-indigo-50/50 border border-indigo-100/70 p-3.5 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-extrabold text-indigo-950 flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-indigo-600" />
+                    <span>Quick Templates:</span>
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleApplyTemplate("all")}
+                      className="rounded-lg bg-white border border-indigo-200/80 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer shadow-2xs"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyTemplate("manager")}
+                      className="rounded-lg bg-white border border-indigo-200/80 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer shadow-2xs"
+                    >
+                      Manager Template
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyTemplate("supervisor")}
+                      className="rounded-lg bg-white border border-indigo-200/80 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer shadow-2xs"
+                    >
+                      Supervisor Template
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyTemplate("employee")}
+                      className="rounded-lg bg-white border border-indigo-200/80 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer shadow-2xs"
+                    >
+                      Normal Employee Template
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyTemplate("clear")}
+                      className="rounded-lg bg-white border border-gray-200 px-2.5 py-1 text-[11px] font-bold text-gray-600 hover:bg-gray-100 transition-all cursor-pointer shadow-2xs"
+                    >
+                      Clear All
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Permission Category Filter Tabs */}
               <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-gray-100">
@@ -1291,7 +1349,9 @@ export default function WorkspaceSettingsPage() {
                           return (
                             <label
                               key={p.key}
-                              className={`flex items-start gap-2.5 p-2 rounded-xl border transition-all cursor-pointer select-none ${
+                              className={`flex items-start gap-2.5 p-2 rounded-xl border transition-all ${
+                                !canManageRoles ? "cursor-default opacity-80" : "cursor-pointer"
+                              } select-none ${
                                 isChecked
                                   ? "bg-indigo-50/60 border-indigo-200 text-indigo-950 font-bold"
                                   : "border-gray-100 bg-gray-50/40 text-gray-700 hover:bg-gray-50"
@@ -1300,7 +1360,9 @@ export default function WorkspaceSettingsPage() {
                               <input
                                 type="checkbox"
                                 checked={isChecked}
+                                disabled={!canManageRoles}
                                 onChange={(e) => {
+                                  if (!canManageRoles) return;
                                   if (e.target.checked) {
                                     setSelectedPermissions([...selectedPermissions, p.key]);
                                   } else {
@@ -1309,7 +1371,7 @@ export default function WorkspaceSettingsPage() {
                                     );
                                   }
                                 }}
-                                className="mt-0.5 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                className="mt-0.5 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed"
                               />
                               <div className="text-left">
                                 <div className="text-xs">{p.label}</div>
@@ -1338,15 +1400,17 @@ export default function WorkspaceSettingsPage() {
                     onClick={() => setIsRoleModalOpen(false)}
                     className="rounded-xl px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
                   >
-                    Cancel
+                    {canManageRoles ? "Cancel" : "Close"}
                   </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingRole || !roleName.trim()}
-                    className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 disabled:opacity-50 transition-all cursor-pointer"
-                  >
-                    {isSubmittingRole ? "Saving..." : "Save Role Matrix"}
-                  </button>
+                  {canManageRoles && (
+                    <button
+                      type="submit"
+                      disabled={isSubmittingRole || !roleName.trim()}
+                      className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 disabled:opacity-50 transition-all cursor-pointer"
+                    >
+                      {isSubmittingRole ? "Saving..." : "Save Role Matrix"}
+                    </button>
+                  )}
                 </div>
               </div>
             </form>

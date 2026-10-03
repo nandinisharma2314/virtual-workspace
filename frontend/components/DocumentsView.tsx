@@ -262,14 +262,16 @@ export default function DocumentsView() {
               </div>
               <h2 className="text-[14px] font-black tracking-tight text-gray-900">Documents</h2>
             </div>
-            <button
-              onClick={handleCreateDocument}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[12px] font-bold shadow-2xs transition-all cursor-pointer"
-              title="New Document"
-            >
-              <Plus size={13} strokeWidth={2.5} />
-              <span>New</span>
-            </button>
+            {canManage && (
+              <button
+                onClick={handleCreateDocument}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[12px] font-bold shadow-2xs transition-all cursor-pointer"
+                title="New Document"
+              >
+                <Plus size={13} strokeWidth={2.5} />
+                <span>New</span>
+              </button>
+            )}
           </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
@@ -346,9 +348,17 @@ export default function DocumentsView() {
                 </span>
                 <span className="text-gray-200">•</span>
                 <span className="text-xs font-semibold">
-                  {saveStatus === "saving" && <span className="text-amber-500 flex items-center gap-1">Saving...</span>}
-                  {saveStatus === "saved" && <span className="text-emerald-600 flex items-center gap-1"><Check size={12} /> Saved</span>}
-                  {saveStatus === "unsaved" && <span className="text-gray-400">Unsaved changes</span>}
+                  {canManage ? (
+                    <>
+                      {saveStatus === "saving" && <span className="text-amber-500 flex items-center gap-1">Saving...</span>}
+                      {saveStatus === "saved" && <span className="text-emerald-600 flex items-center gap-1"><Check size={12} /> Saved</span>}
+                      {saveStatus === "unsaved" && <span className="text-gray-400">Unsaved changes</span>}
+                    </>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                      Read-Only
+                    </span>
+                  )}
                 </span>
               </div>
 
@@ -376,27 +386,31 @@ export default function DocumentsView() {
                   <span>{copied ? "Copied" : "Copy"}</span>
                 </button>
 
-                <button
-                  onClick={() => handleSave()}
-                  disabled={isSaving}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
-                >
-                  <Save size={13} />
-                  <span>{isSaving ? "Saving..." : "Save"}</span>
-                </button>
+                {canManage && (
+                  <>
+                    <button
+                      onClick={() => handleSave()}
+                      disabled={isSaving}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                    >
+                      <Save size={13} />
+                      <span>{isSaving ? "Saving..." : "Save"}</span>
+                    </button>
 
-                <button
-                  onClick={handleDeleteDocument}
-                  className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                  title="Delete Document"
-                >
-                  <Trash2 size={16} />
-                </button>
+                    <button
+                      onClick={handleDeleteDocument}
+                      className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      title="Delete Document"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Markdown Formatting Bar (when not previewing) */}
-            {!isPreview && (
+            {canManage && !isPreview && (
               <div className="px-6 py-2 border-b border-gray-100 flex items-center gap-1 bg-gray-50/50 shrink-0">
                 <button
                   onClick={() => handleInsertFormatting("**", "**")}
@@ -466,8 +480,9 @@ export default function DocumentsView() {
                 type="text"
                 value={title}
                 onChange={handleTitleChange}
+                readOnly={!canManage}
                 placeholder="Untitled Document"
-                className="w-full text-3xl font-black text-gray-900 border-none outline-none tracking-tight mb-6 bg-transparent placeholder-gray-300"
+                className={`w-full text-3xl font-black text-gray-900 border-none outline-none tracking-tight mb-6 bg-transparent placeholder-gray-300 ${!canManage ? 'cursor-default' : ''}`}
               />
 
               {/* Editor or Preview */}
@@ -508,9 +523,10 @@ export default function DocumentsView() {
                   ref={editorRef}
                   value={content}
                   onChange={handleContentChange}
+                  readOnly={!canManage}
                   placeholder="Write your document content here in Markdown format..."
                   rows={25}
-                  className="w-full font-mono text-[14px] leading-relaxed text-gray-800 border-none outline-none resize-none bg-transparent placeholder-gray-300"
+                  className={`w-full font-mono text-[14px] leading-relaxed text-gray-800 border-none outline-none resize-none bg-transparent placeholder-gray-300 ${!canManage ? 'cursor-default' : ''}`}
                 />
               )}
             </div>
@@ -524,13 +540,15 @@ export default function DocumentsView() {
             <p className="text-sm text-gray-500 max-w-sm mb-6">
               Create product specs, RFCs, architectural decisions, and notes for your workspace team.
             </p>
-            <button
-              onClick={handleCreateDocument}
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-all cursor-pointer"
-            >
-              <Plus size={16} strokeWidth={2.5} />
-              Create Document
-            </button>
+            {canManage && (
+              <button
+                onClick={handleCreateDocument}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-all cursor-pointer"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+                Create Document
+              </button>
+            )}
           </div>
         )}
       </div>

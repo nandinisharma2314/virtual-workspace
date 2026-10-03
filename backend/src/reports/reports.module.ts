@@ -3,9 +3,10 @@ import { ReportsService } from './reports.service';
 import { ReportsController } from './reports.controller';
 
 import { DatabaseModule } from '../database/database.module.js';
+import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, WorkspacesModule],
   controllers: [ReportsController],
   providers: [ReportsService],
 })

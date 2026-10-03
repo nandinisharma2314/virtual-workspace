@@ -184,14 +184,16 @@ export default function ChatSidebar({
           Chat
         </h2>
         <div className="flex items-center gap-1.5">
-          <button 
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-1 text-[11.5px] font-bold text-blue-600 bg-blue-50/80 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors border border-blue-200/60 shadow-2xs"
-            title="Create New Channel"
-          >
-            <Plus size={13} strokeWidth={2.5} />
-            <span>Channel</span>
-          </button>
+          {(!currentWorkspace || Boolean(currentWorkspace.isOwner) || can("channels:create")) && (
+            <button 
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-1 text-[11.5px] font-bold text-blue-600 bg-blue-50/80 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors border border-blue-200/60 shadow-2xs"
+              title="Create New Channel"
+            >
+              <Plus size={13} strokeWidth={2.5} />
+              <span>Channel</span>
+            </button>
+          )}
           <button 
             onClick={() => {
               if (users.length > 0) {

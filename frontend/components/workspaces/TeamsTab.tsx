@@ -23,8 +23,9 @@ interface WorkspaceMember {
 }
 
 export default function TeamsTab({ members }: { members: WorkspaceMember[] }) {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, can } = useWorkspace();
   const workspaceId = currentWorkspace?.id;
+  const canManageTeams = Boolean(currentWorkspace?.isOwner) || can("teams:manage");
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -61,6 +62,7 @@ export default function TeamsTab({ members }: { members: WorkspaceMember[] }) {
   }, [workspaceId]);
 
   const handleOpenModal = (team?: Team) => {
+    if (!canManageTeams) return;
     if (team) {
       setEditingTeam(team);
       setName(team.name);
@@ -79,7 +81,7 @@ export default function TeamsTab({ members }: { members: WorkspaceMember[] }) {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!workspaceId || !name.trim()) return;
+    if (!workspaceId || !name.trim() || !canManageTeams) return;
 
     setIsSubmitting(true);
     try {
@@ -119,6 +121,7 @@ export default function TeamsTab({ members }: { members: WorkspaceMember[] }) {
   };
 
   const handleDelete = async (teamId: number) => {
+    if (!canManageTeams) return;
     if (!confirm("Are you sure you want to delete this team?")) return;
     try {
       const res = await fetch(`${API_URL}/teams/${teamId}`, {
@@ -149,13 +152,15 @@ export default function TeamsTab({ members }: { members: WorkspaceMember[] }) {
             Create teams, assign leads and managers.
           </p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all cursor-pointer"
-        >
-          <Plus size={15} />
-          <span>Create Team</span>
-        </button>
+        {canManageTeams && (
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition-all cursor-pointer"
+          >
+            <Plus size={15} />
+            <span>Create Team</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -186,22 +191,24 @@ export default function TeamsTab({ members }: { members: WorkspaceMember[] }) {
                 </div>
               </div>
 
-              <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
-                <button
-                  onClick={() => handleOpenModal(team)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
-                >
-                  <Edit3 size={13} />
-                  <span>Edit Team</span>
-                </button>
-                <button
-                  onClick={() => handleDelete(team.id)}
-                  className="flex items-center gap-1 text-xs font-bold text-rose-500 hover:text-rose-700 transition-colors cursor-pointer p-1 rounded-lg hover:bg-rose-50"
-                  title="Delete team"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
+              {canManageTeams && (
+                <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <button
+                    onClick={() => handleOpenModal(team)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+                  >
+                    <Edit3 size={13} />
+                    <span>Edit Team</span>
+                  </button>
+                  <button
+                    onClick={() => handleDelete(team.id)}
+                    className="flex items-center gap-1 text-xs font-bold text-rose-500 hover:text-rose-700 transition-colors cursor-pointer p-1 rounded-lg hover:bg-rose-50"
+                    title="Delete team"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}

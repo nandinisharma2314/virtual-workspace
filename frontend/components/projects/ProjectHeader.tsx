@@ -148,6 +148,7 @@ export default function ProjectHeader({
     }
   };
 
+  const canViewReports = Boolean(currentWorkspace?.isOwner) || can("reports:view");
   const tabs = [
     "Overview",
     "Board",
@@ -155,7 +156,7 @@ export default function ProjectHeader({
     "Timeline",
     "Calendar",
     "Files",
-    "Reports",
+    ...(canViewReports ? ["Reports"] : []),
   ];
 
   return (

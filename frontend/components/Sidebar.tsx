@@ -108,7 +108,8 @@ export default function Sidebar() {
                 const isFiles = item.label === "Files";
                 const isDocuments = item.label === "Documents";
                 const isReports = item.label === "Reports";
-                const href = isHome ? "/" : isWorkspaces ? "/workspaces/settings" : isInbox ? "/inbox" : isChat ? "/chat" : isTeams ? "/teams" : isProjects ? "/projects" : isBoards ? "/boards" : isSprints ? "/sprints" : isCalendar ? "/calendar" : isMeetings ? "/meetings" : isFiles ? "/files" : isDocuments ? "/documents" : isReports ? "/reports" : "#";
+                const hasWorkspaceAdmin = Boolean(currentWorkspace?.isOwner) || can("roles:manage") || can("members:assign_role") || can("members:remove") || can("members:invite") || can("teams:manage") || can("workspace:manage");
+                const href = isHome ? "/" : isWorkspaces ? (hasWorkspaceAdmin ? "/workspaces/settings" : "/workspaces") : isInbox ? "/inbox" : isChat ? "/chat" : isTeams ? "/teams" : isProjects ? "/projects" : isBoards ? "/boards" : isSprints ? "/sprints" : isCalendar ? "/calendar" : isMeetings ? "/meetings" : isFiles ? "/files" : isDocuments ? "/documents" : isReports ? "/reports" : "#";
                 
                 const isActive = activeOverride
                   ? activeOverride === item.label

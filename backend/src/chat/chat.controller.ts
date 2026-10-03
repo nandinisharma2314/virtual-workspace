@@ -1,11 +1,15 @@
-import { Controller, Get, Patch, Post, Delete, Body, Param, UseGuards, Req, Headers, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Delete, Body, Param, UseGuards, Req, Headers, Query, ForbiddenException } from '@nestjs/common';
 import { ChatService } from './chat.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
+import { WorkspacesService } from '../workspaces/workspaces.service.js';
 
 @UseGuards(AuthGuard)
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(
+    private readonly chatService: ChatService,
+    private readonly workspacesService: WorkspacesService,
+  ) {}
 
   @Get('ice-servers')
   getIceServers() {
@@ -68,7 +72,7 @@ export class ChatController {
   }
 
   @Post('channels')
-  createChannel(
+  async createChannel(
     @Body() body: { name: string; description: string; bgGradient?: string; memberEmails?: string[]; workspaceId?: number }, 
     @Req() req: any,
     @Headers('x-workspace-id') wsIdHeader?: string,
@@ -76,6 +80,12 @@ export class ChatController {
     const userId = req.user?.sub;
     const rawWsId = body.workspaceId || wsIdHeader;
     const workspaceId = rawWsId && !isNaN(Number(rawWsId)) ? Number(rawWsId) : undefined;
+    if (workspaceId && userId) {
+      const auth = await this.workspacesService.getUserPermissionsInWorkspace(userId, workspaceId);
+      if (!auth.isOwner && !auth.permissions.includes('channels:create')) {
+        throw new ForbiddenException('You do not have permission to create channels in this workspace');
+      }
+    }
     return this.chatService.createChannel(body.name, body.description, userId, body.bgGradient, body.memberEmails, workspaceId);
   }
 

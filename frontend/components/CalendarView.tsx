@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Plus, Search, Filter, Calendar as CalendarIcon, Settings, MoreHorizontal } from "lucide-react";
 import { calendarWeekdays } from "@/lib/uiConstants";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 import { toast } from "@/lib/toast";
 
 const eventTypes = [
@@ -15,35 +16,38 @@ const eventTypes = [
 ];
 
 export default function CalendarView({ calendarData = [] }: { calendarData?: any[] }) {
+  const { currentWorkspace, can } = useWorkspace();
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(eventTypes.map(e => e.id)));
   const [userRole, setUserRole] = useState("Member");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: "", description: "", startTime: "", endTime: "", attendees: "" });
 
+  const canManageMeetings = currentWorkspace ? (Boolean(currentWorkspace.isOwner) || can("meetings:manage")) : userRole === 'Admin';
+
   useEffect(() => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (token) {
-      fetch(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.role) setUserRole(data.role);
-      })
-      .catch(console.error);
-    }
+    fetch(`${API_URL}/auth/me`, {
+      headers: getAuthHeaders(),
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.role) setUserRole(data.role);
+    })
+    .catch(console.error);
   }, []);
 
   const handleCreateEvent = async () => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    if (!canManageMeetings) return;
     try {
       const res = await fetch(`${API_URL}/meetings`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
+          ...getAuthHeaders(),
         },
-        body: JSON.stringify(newEvent)
+        body: JSON.stringify({
+          ...newEvent,
+          workspaceId: currentWorkspace?.id,
+        })
       });
       if (res.ok) {
         setIsModalOpen(false);
@@ -198,11 +202,11 @@ export default function CalendarView({ calendarData = [] }: { calendarData?: any
       
       {/* Sidebar for Calendars */}
       <div className="w-[220px] shrink-0 border-r border-gray-200/80 bg-[#FAFBFC] flex flex-col">
-        {userRole === 'Admin' && (
+        {canManageMeetings && (
           <div className="p-4 border-b border-gray-200/80">
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="w-full flex justify-center items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2 px-3 text-[13px] font-black shadow-md shadow-indigo-500/20 transition-all"
+              className="w-full flex justify-center items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2 px-3 text-[13px] font-black shadow-md shadow-indigo-500/20 transition-all cursor-pointer"
             >
               <Plus size={16} strokeWidth={2.5} />
               <span>Create Event</span>

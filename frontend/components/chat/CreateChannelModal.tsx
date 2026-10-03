@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { motion, AnimatePresence } from "framer-motion";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 import { useChannelThemes, DEFAULT_CHANNEL_THEMES } from "@/lib/useAdminData";
 
 export const channelThemes = [
@@ -70,6 +71,8 @@ export default function CreateChannelModal({
   onClose,
   onChannelCreated,
 }: CreateChannelModalProps) {
+  const { currentWorkspace, can } = useWorkspace();
+  const canCreateChannel = currentWorkspace ? (Boolean(currentWorkspace.isOwner) || can("channels:create")) : true;
   const dynamicThemes = useChannelThemes();
   const [channelName, setChannelName] = useState("");
   const [description, setDescription] = useState("");
@@ -200,32 +203,27 @@ export default function CreateChannelModal({
       return;
     }
 
+    if (!canCreateChannel) {
+      setErrorMessage("You do not have permission to create channels in this workspace.");
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage("");
 
     try {
-      const token = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("token="))
-        ?.split("=")[1];
-
-      if (!token) {
-        setErrorMessage("You must be logged in to create a channel.");
-        setIsSubmitting(false);
-        return;
-      }
-
       const res = await fetch(`${API_URL}/chat/channels`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           name: channelName.trim(),
           description: description.trim(),
           bgGradient: selectedTheme.gradient,
           memberEmails: selectedUserEmails,
+          workspaceId: currentWorkspace?.id,
         }),
       });
 

@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Avatar from "@/components/Avatar";
 import { CheckCircle2, Circle, Filter, ArrowUpDown, Layers, Loader2 } from "lucide-react";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 interface Task {
   id: number;
@@ -18,14 +19,17 @@ interface Task {
 }
 
 export default function ProjectList({ projectId }: { projectId?: string }) {
+  const { currentWorkspace, can } = useWorkspace();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const canEditAllTasks = Boolean(currentWorkspace?.isOwner) || can("tasks:edit_all");
+  const canEditAssignedTasks = canEditAllTasks || can("tasks:edit_assigned");
+
   const fetchTasks = async () => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
       const res = await fetch(`${API_URL}/tasks`, {
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         const data = await res.json();
@@ -48,15 +52,15 @@ export default function ProjectList({ projectId }: { projectId?: string }) {
   }, [projectId]);
 
   const toggleTaskStatus = async (task: Task) => {
+    if (!canEditAssignedTasks) return;
     const isCompleted = task.status === "completed" || task.status === "done";
     const nextStatus = isCompleted ? "todo" : "completed";
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
       const res = await fetch(`${API_URL}/tasks/${task.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({ status: nextStatus })
       });

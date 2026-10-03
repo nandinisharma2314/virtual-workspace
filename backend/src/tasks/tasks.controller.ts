@@ -30,7 +30,8 @@ export class TasksController {
   async create(@Body() createTaskDto: CreateTaskDto, @Req() req: any) {
     const userId = req.user.sub;
     const wsHeader = req.headers['x-workspace-id'];
-    const workspaceId = wsHeader && !isNaN(Number(wsHeader)) ? Number(wsHeader) : undefined;
+    const rawWs = wsHeader || (createTaskDto as any).workspaceId;
+    const workspaceId = rawWs && !isNaN(Number(rawWs)) ? Number(rawWs) : undefined;
 
     if (workspaceId) {
       const auth = await this.workspacesService.getUserPermissionsInWorkspace(userId, workspaceId);

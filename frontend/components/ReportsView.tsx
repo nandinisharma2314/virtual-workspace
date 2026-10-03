@@ -12,9 +12,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Users,
-  MoreVertical
+  MoreVertical,
+  Lock,
 } from "lucide-react";
 import { API_URL, getAuthHeaders } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 import {
   BarChart,
   Bar,
@@ -29,6 +31,9 @@ import {
 } from "recharts";
 
 export default function ReportsView() {
+  const { currentWorkspace, can, isLoading: wsLoading } = useWorkspace();
+  const canViewReports = Boolean(currentWorkspace?.isOwner) || can("reports:view");
+
   const [dateRange, setDateRange] = useState("Last 30 Days");
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -43,6 +48,10 @@ export default function ReportsView() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!canViewReports) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     fetch(`${API_URL}/reports/dashboard?range=${encodeURIComponent(dateRange)}`, {
       headers: getAuthHeaders(),
@@ -60,7 +69,23 @@ export default function ReportsView() {
       })
       .catch(console.error)
       .finally(() => setIsLoading(false));
-  }, [dateRange]);
+  }, [dateRange, canViewReports]);
+
+  if (!wsLoading && !canViewReports) {
+    return (
+      <div className="flex w-full h-full min-h-0 flex-col items-center justify-center p-8 bg-[#FAFBFC]">
+        <div className="text-center max-w-sm bg-white p-8 rounded-2xl border border-gray-200/80 shadow-sm">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 mb-4">
+            <Lock size={26} />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900">Access Restricted</h2>
+          <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+            You do not have permission to view workspace analytics and reports. Contact your workspace administrator for access.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full h-full min-h-0 flex-col bg-transparent overflow-hidden">

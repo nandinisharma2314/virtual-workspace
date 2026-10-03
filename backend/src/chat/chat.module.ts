@@ -5,9 +5,10 @@ import { ChatGateway } from './chat.gateway.js';
 import { DatabaseModule } from '../database/database.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, NotificationsModule],
+  imports: [DatabaseModule, AuthModule, NotificationsModule, WorkspacesModule],
   controllers: [ChatController],
   providers: [ChatService, ChatGateway],
 })

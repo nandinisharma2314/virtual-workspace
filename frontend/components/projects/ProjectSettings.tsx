@@ -1,13 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { API_URL } from "@/lib/apis";
+import { useRouter } from "next/navigation";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 import { toast } from "@/lib/toast";
-import { Loader2, AlertTriangle, Save } from "lucide-react";
+import { Loader2, AlertTriangle, Save, Lock } from "lucide-react";
 
 export default function ProjectSettings({ projectId }: { projectId?: string }) {
+  const router = useRouter();
+  const { currentWorkspace, can } = useWorkspace();
+  const canEditProject = Boolean(currentWorkspace?.isOwner) || can("projects:edit");
+  const canDeleteProject = Boolean(currentWorkspace?.isOwner) || can("projects:delete");
+
   const [activeTab, setActiveTab] = useState("General");
-  const settingsTabs = ["General", "Status & Access", "Danger Zone"];
+  const settingsTabs = [
+    "General",
+    "Status & Access",
+    ...(canDeleteProject ? ["Danger Zone"] : []),
+  ];
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -20,9 +31,8 @@ export default function ProjectSettings({ projectId }: { projectId?: string }) {
       setLoading(false);
       return;
     }
-    const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
     fetch(`${API_URL}/projects/${projectId}`, {
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      headers: getAuthHeaders(),
     })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
@@ -46,6 +56,10 @@ export default function ProjectSettings({ projectId }: { projectId?: string }) {
       toast.info("Select a specific project to modify settings.");
       return;
     }
+    if (!canEditProject) {
+      toast.error("You do not have permission to edit project settings.");
+      return;
+    }
     if (!name.trim()) {
       toast.warning("Project name cannot be empty.");
       return;
@@ -53,12 +67,11 @@ export default function ProjectSettings({ projectId }: { projectId?: string }) {
 
     setSaving(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
       const res = await fetch(`${API_URL}/projects/${projectId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           name: name.trim(),
@@ -77,6 +90,26 @@ export default function ProjectSettings({ projectId }: { projectId?: string }) {
       toast.error("Network error while updating project settings.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!projectId || !canDeleteProject) return;
+    if (!confirm("Are you sure you want to permanently delete this project?")) return;
+    try {
+      const res = await fetch(`${API_URL}/projects/${projectId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        toast.success("Project deleted successfully");
+        router.push("/projects");
+      } else {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.message || "Failed to delete project");
+      }
+    } catch (e) {
+      toast.error("Error deleting project");
     }
   };
 
@@ -120,9 +153,10 @@ export default function ProjectSettings({ projectId }: { projectId?: string }) {
                   <input
                     type="text"
                     value={name}
+                    disabled={!canEditProject || saving}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Enter project name"
-                    className="w-full h-10 rounded-xl border border-gray-200/80 bg-white px-3 text-[13px] text-gray-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs transition-all font-medium"
+                    className="w-full h-10 rounded-xl border border-gray-200/80 bg-white px-3 text-[13px] text-gray-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs transition-all font-medium disabled:opacity-60"
                   />
                 </div>
 
@@ -131,9 +165,10 @@ export default function ProjectSettings({ projectId }: { projectId?: string }) {
                   <textarea
                     rows={3}
                     value={description}
+                    disabled={!canEditProject || saving}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Describe this project's purpose and scope..."
-                    className="w-full rounded-xl border border-gray-200/80 bg-white p-3 text-[13px] text-gray-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs transition-all font-medium resize-none"
+                    className="w-full rounded-xl border border-gray-200/80 bg-white p-3 text-[13px] text-gray-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs transition-all font-medium resize-none disabled:opacity-60"
                   />
                 </div>
 
@@ -141,8 +176,9 @@ export default function ProjectSettings({ projectId }: { projectId?: string }) {
                   <label className="block text-[12px] font-bold text-gray-700 mb-1.5">Project Status</label>
                   <select
                     value={status}
+                    disabled={!canEditProject || saving}
                     onChange={(e) => setStatus(e.target.value)}
-                    className="w-full h-10 rounded-xl border border-gray-200/80 bg-white px-3 text-[13px] text-gray-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs transition-all font-medium"
+                    className="w-full h-10 rounded-xl border border-gray-200/80 bg-white px-3 text-[13px] text-gray-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs transition-all font-medium disabled:opacity-60"
                   >
                     <option value="active">Active (On Track)</option>
                     <option value="in_progress">In Progress</option>
@@ -151,16 +187,18 @@ export default function ProjectSettings({ projectId }: { projectId?: string }) {
                   </select>
                 </div>
 
-                <div className="pt-4">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 text-[12.5px] font-extrabold shadow-2xs shadow-indigo-500/20 transition-all flex items-center gap-2"
-                  >
-                    {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
-                    <span>{saving ? "Saving..." : "Save Changes"}</span>
-                  </button>
-                </div>
+                {canEditProject && (
+                  <div className="pt-4">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 text-[12.5px] font-extrabold shadow-2xs shadow-indigo-500/20 transition-all flex items-center gap-2 cursor-pointer"
+                    >
+                      {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                      <span>{saving ? "Saving..." : "Save Changes"}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -174,16 +212,18 @@ export default function ProjectSettings({ projectId }: { projectId?: string }) {
                   </div>
                 </div>
 
-                <div className="pt-4">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 text-[12.5px] font-extrabold shadow-2xs shadow-indigo-500/20 transition-all flex items-center gap-2"
-                  >
-                    {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
-                    <span>{saving ? "Saving..." : "Save Changes"}</span>
-                  </button>
-                </div>
+                {canEditProject && (
+                  <div className="pt-4">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 text-[12.5px] font-extrabold shadow-2xs shadow-indigo-500/20 transition-all flex items-center gap-2 cursor-pointer"
+                    >
+                      {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                      <span>{saving ? "Saving..." : "Save Changes"}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -199,11 +239,8 @@ export default function ProjectSettings({ projectId }: { projectId?: string }) {
                       </p>
                       <button
                         type="button"
-                        onClick={async () => {
-                          if (!projectId) return;
-                          toast.error("Contact workspace admin to archive or delete this project.");
-                        }}
-                        className="mt-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-1.5 text-[12px] font-bold transition-all"
+                        onClick={handleDeleteProject}
+                        className="mt-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-1.5 text-[12px] font-bold transition-all cursor-pointer"
                       >
                         Delete this project
                       </button>

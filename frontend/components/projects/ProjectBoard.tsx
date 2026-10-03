@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Avatar from "@/components/Avatar";
 import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 import {
   Plus,
   MoreVertical,
@@ -31,6 +32,8 @@ const COLUMN_DEFS = [
 ];
 
 export default function ProjectBoard({ projectId }: { projectId?: string }) {
+  const { currentWorkspace, can } = useWorkspace();
+  const canCreateTask = Boolean(currentWorkspace?.isOwner) || can("tasks:create");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -99,6 +102,7 @@ export default function ProjectBoard({ projectId }: { projectId?: string }) {
   };
 
   const openAddTask = (status: string) => {
+    if (!canCreateTask) return;
     setTargetStatus(status);
     setIsAddModalOpen(true);
   };
@@ -107,13 +111,15 @@ export default function ProjectBoard({ projectId }: { projectId?: string }) {
     <div className="flex-1 min-h-0 flex flex-col bg-[#FAFBFC] overflow-hidden select-none w-full">
       {/* Board Toolbar */}
       <div className="h-12 border-b border-gray-100 px-5 bg-white flex items-center justify-between shrink-0">
-        <button
-          onClick={() => openAddTask("todo")}
-          className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-[11.5px] font-bold text-indigo-600 shadow-sm hover:bg-indigo-50 transition-colors"
-        >
-          <Plus size={14} strokeWidth={2.5} />
-          Add Task
-        </button>
+        {canCreateTask && (
+          <button
+            onClick={() => openAddTask("todo")}
+            className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-[11.5px] font-bold text-indigo-600 shadow-sm hover:bg-indigo-50 transition-colors"
+          >
+            <Plus size={14} strokeWidth={2.5} />
+            Add Task
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -140,15 +146,17 @@ export default function ProjectBoard({ projectId }: { projectId?: string }) {
                       {colTasks.length}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1 text-gray-400">
-                    <button
-                      onClick={() => openAddTask(col.id)}
-                      className="p-1 hover:text-gray-700 rounded-lg hover:bg-gray-200/50 transition-colors"
-                      title="Add task to column"
-                    >
-                      <Plus size={15} strokeWidth={2.4} />
-                    </button>
-                  </div>
+                  {canCreateTask && (
+                    <div className="flex items-center gap-1 text-gray-400">
+                      <button
+                        onClick={() => openAddTask(col.id)}
+                        className="p-1 hover:text-gray-700 rounded-lg hover:bg-gray-200/50 transition-colors"
+                        title="Add task to column"
+                      >
+                        <Plus size={15} strokeWidth={2.4} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Column Tasks Container */}
@@ -216,15 +224,17 @@ export default function ProjectBoard({ projectId }: { projectId?: string }) {
                 </div>
 
                 {/* Add Task Button at Bottom */}
-                <div className="shrink-0 pt-1">
-                  <button
-                    onClick={() => openAddTask(col.id)}
-                    className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[12px] font-bold text-gray-500 hover:text-gray-900 hover:bg-white/80 transition-all text-left"
-                  >
-                    <Plus size={15} strokeWidth={2.4} className="text-gray-400" />
-                    <span>Add task</span>
-                  </button>
-                </div>
+                {canCreateTask && (
+                  <div className="shrink-0 pt-1">
+                    <button
+                      onClick={() => openAddTask(col.id)}
+                      className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[12px] font-bold text-gray-500 hover:text-gray-900 hover:bg-white/80 transition-all text-left cursor-pointer"
+                    >
+                      <Plus size={15} strokeWidth={2.4} className="text-gray-400" />
+                      <span>Add task</span>
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

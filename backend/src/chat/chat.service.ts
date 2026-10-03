@@ -14,6 +14,19 @@ export class ChatService {
     private readonly notificationsService: NotificationsService,
     private readonly jwtService: JwtService,
   ) {}
+  private async getOrEnsureChannel(channelId: string) {
+    let [channel] = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
+    if (!channel && channelId === 'c-general') {
+      await this.dbService.db.insert(channels).values({
+        id: 'c-general',
+        name: 'general',
+        description: 'General discussion channel',
+      }).onConflictDoNothing();
+      const res = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
+      channel = res[0];
+    }
+    return channel;
+  }
 
   private async isUserAdminOrWsOwner(userId: number, workspaceId?: number | null): Promise<boolean> {
     const [user] = await this.dbService.db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -230,11 +243,17 @@ export class ChatService {
     // Enhance each channel with member count and latest message
     const enhanced = await Promise.all(
       userChannels.map(async (c) => {
-        const memberRows = await this.dbService.db
-          .select({ count: sql`count(*)` })
-          .from(channelMembers)
-          .where(and(eq(channelMembers.channelId, c.id), eq(channelMembers.status, 'accepted')));
-        const membersCount = Number(memberRows[0]?.count || 1);
+        let membersCount = 1;
+        if (c.id === 'c-general') {
+          const userRows = await this.dbService.db.select({ count: sql`count(*)` }).from(users);
+          membersCount = Number(userRows[0]?.count || 1);
+        } else {
+          const memberRows = await this.dbService.db
+            .select({ count: sql`count(*)` })
+            .from(channelMembers)
+            .where(and(eq(channelMembers.channelId, c.id), eq(channelMembers.status, 'accepted')));
+          membersCount = Number(memberRows[0]?.count || 1);
+        }
 
         const latestMsg = await this.dbService.db
           .select({
@@ -549,7 +568,7 @@ export class ChatService {
       throw new ForbiddenException('User not found.');
     }
 
-    const [channel] = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
+    const channel = await this.getOrEnsureChannel(channelId);
     if (!channel) {
       throw new NotFoundException('Channel not found.');
     }
@@ -747,7 +766,7 @@ export class ChatService {
       throw new ForbiddenException('User not found.');
     }
 
-    const [channel] = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
+    const channel = await this.getOrEnsureChannel(channelId);
     if (!channel) {
       throw new NotFoundException('Channel not found.');
     }
@@ -793,7 +812,7 @@ export class ChatService {
 
   async revokeInvitation(channelId: string, targetUserId: number, requesterId: number) {
     const [requester] = await this.dbService.db.select().from(users).where(eq(users.id, requesterId));
-    const [channel] = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
+    const channel = await this.getOrEnsureChannel(channelId);
     if (!channel) throw new NotFoundException('Channel not found.');
 
     const isAdminOrOwner = await this.isUserAdminOrWsOwner(requesterId, channel.workspaceId);
@@ -838,17 +857,30 @@ export class ChatService {
     let description = dbChannel?.description || "Discussion channel";
 
     // Fetch accepted members from database for this specific channel
-    const memberUsers = await this.dbService.db
-      .select({
-        id: users.id,
-        name: users.name,
-        role: users.role,
-        avatar: users.avatar,
-        email: users.email,
-      })
-      .from(channelMembers)
-      .innerJoin(users, eq(channelMembers.userId, users.id))
-      .where(and(eq(channelMembers.channelId, channelId), eq(channelMembers.status, 'accepted')));
+    let memberUsers;
+    if (channelId === 'c-general') {
+      memberUsers = await this.dbService.db
+        .select({
+          id: users.id,
+          name: users.name,
+          role: users.role,
+          avatar: users.avatar,
+          email: users.email,
+        })
+        .from(users);
+    } else {
+      memberUsers = await this.dbService.db
+        .select({
+          id: users.id,
+          name: users.name,
+          role: users.role,
+          avatar: users.avatar,
+          email: users.email,
+        })
+        .from(channelMembers)
+        .innerJoin(users, eq(channelMembers.userId, users.id))
+        .where(and(eq(channelMembers.channelId, channelId), eq(channelMembers.status, 'accepted')));
+    }
 
     // Fetch pending invitees
     const pendingUsers = await this.dbService.db

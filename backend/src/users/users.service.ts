@@ -26,7 +26,7 @@ export class UsersService {
     }
 
     async create(createUserDto: CreateUserDto) {
-        const { name, email, password, department } = createUserDto;
+        const { name, email, password, department, role, status } = createUserDto;
 
         // Check if email already exists
         const existingUser = await this.database.db
@@ -51,6 +51,8 @@ export class UsersService {
                 email,
                 password: hashedPassword,
                 ...(department ? { department } : {}),
+                ...(role ? { role } : {}),
+                ...(status ? { status } : {}),
             })
             .returning({
                 id: users.id,

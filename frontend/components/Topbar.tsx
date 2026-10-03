@@ -287,18 +287,24 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
             className={`relative rounded-lg p-1.5 transition-colors ${isNotificationsOpen ? "bg-indigo-50 text-indigo-600" : "text-gray-400 hover:bg-gray-50 hover:text-gray-600"}`}
           >
             <Bell size={16} />
-            <span className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white ring-2 ring-white">
-              {unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount) : '1'}
-            </span>
+            {unreadCount > 0 && (
+              <span className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white ring-2 ring-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
           
           {isNotificationsOpen && (
             <div className="absolute right-0 top-[calc(100%+8px)] w-80 rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden z-50 flex flex-col">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                <h3 className="text-[13px] font-extrabold text-gray-900">Notifications</h3>
-                <button onClick={markAllAsRead} className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors">
-                  Mark all as read
-                </button>
+                <h3 className="text-[13px] font-extrabold text-gray-900">
+                  Notifications {unreadCount > 0 && <span className="ml-1 text-gray-400 font-medium">({unreadCount})</span>}
+                </h3>
+                {notifications.length > 0 && (
+                  <button onClick={markAllAsRead} className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors">
+                    Mark all as read
+                  </button>
+                )}
               </div>
               <div className="max-h-[360px] overflow-y-auto">
                 {notifications.length === 0 ? (

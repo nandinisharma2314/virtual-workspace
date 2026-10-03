@@ -60,6 +60,14 @@ export default function ChatView() {
     }
   }, [acceptChannelParam, declineChannelParam, channelParam]);
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    const handleToggle = () => setIsSidebarOpen(prev => !prev);
+    window.addEventListener('toggle-chat-sidebar', handleToggle);
+    return () => window.removeEventListener('toggle-chat-sidebar', handleToggle);
+  }, []);
+
   return (
     <div className="flex w-full h-full min-h-0 overflow-hidden bg-white relative">
       {inviteFeedback && (
@@ -69,18 +77,20 @@ export default function ChatView() {
         </div>
       )}
 
-      <ChatSidebar
-        selectedChannelId={selectedChannelId}
-        onSelectChannel={(id) => {
-          setSelectedChannelId(id);
-          setSelectedDMId(null);
-        }}
-        selectedDMId={selectedDMId}
-        onSelectDM={(id) => {
-          setSelectedDMId(id);
-          if (id) setSelectedChannelId("");
-        }}
-      />
+      {isSidebarOpen && (
+        <ChatSidebar
+          selectedChannelId={selectedChannelId}
+          onSelectChannel={(id) => {
+            setSelectedChannelId(id);
+            setSelectedDMId(null);
+          }}
+          selectedDMId={selectedDMId}
+          onSelectDM={(id) => {
+            setSelectedDMId(id);
+            if (id) setSelectedChannelId("");
+          }}
+        />
+      )}
 
       <ChatFeed 
         key={`chat-feed-${selectedChannelId || selectedDMId || "c-general"}-${refreshTrigger}`}

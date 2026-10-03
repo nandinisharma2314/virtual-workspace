@@ -33,12 +33,9 @@ export default function ChatSidebar({
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchChannels = useCallback(async () => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) return;
-
     try {
       const res = await fetch(`${API_URL}/chat/channels`, {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders()
       });
       if (res.ok) {
         const data = await res.json();
@@ -54,12 +51,9 @@ export default function ChatSidebar({
   }, []);
 
   const fetchInvitations = useCallback(async () => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) return;
-
     try {
       const res = await fetch(`${API_URL}/chat/invitations`, {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders()
       });
       if (res.ok) {
         const data = await res.json();
@@ -96,14 +90,11 @@ export default function ChatSidebar({
   }, [searchParams]);
 
   useEffect(() => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) return;
-
     fetchChannels();
     fetchInvitations();
 
     fetch(`${API_URL}/chat/direct-message-users`, {
-      headers: { "Authorization": `Bearer ${token}` }
+      headers: getAuthHeaders()
     })
       .then(res => res.json())
       .then(data => {
@@ -114,7 +105,7 @@ export default function ChatSidebar({
       .catch(console.error);
 
     fetch(`${API_URL}/teams`, {
-      headers: { "Authorization": `Bearer ${token}` }
+      headers: getAuthHeaders()
     })
       .then(res => res.ok ? res.json() : [])
       .then(data => {
@@ -125,7 +116,7 @@ export default function ChatSidebar({
       .catch(console.error);
 
     fetch(`${API_URL}/auth/me`, {
-      headers: { "Authorization": `Bearer ${token}` }
+      headers: getAuthHeaders()
     })
       .then(res => res.json())
       .then(data => setCurrentUser(data))
@@ -146,13 +137,11 @@ export default function ChatSidebar({
   };
 
   const handleAcceptInvite = async (channelId: string) => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) return;
     setActionLoading(channelId);
     try {
       const res = await fetch(`${API_URL}/chat/invitations/${channelId}/accept`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders()
       });
       if (res.ok) {
         setPendingInvitations(prev => prev.filter(inv => inv.channelId !== channelId));
@@ -169,13 +158,11 @@ export default function ChatSidebar({
   };
 
   const handleDeclineInvite = async (channelId: string) => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) return;
     setActionLoading(channelId);
     try {
       const res = await fetch(`${API_URL}/chat/invitations/${channelId}/decline`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders()
       });
       if (res.ok) {
         setPendingInvitations(prev => prev.filter(inv => inv.channelId !== channelId));

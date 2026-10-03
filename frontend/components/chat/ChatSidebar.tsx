@@ -5,7 +5,7 @@ import { Plus, SquarePen, Hash, Lock, Check, X, Mail } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import CreateChannelModal from "./CreateChannelModal";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
 import { useWorkspace } from "@/lib/WorkspaceContext";
 
 type Props = {

@@ -225,7 +225,7 @@ export default function FilesView() {
     setIsUploading(true);
     try {
       const activeWsId = currentWorkspace?.id || getActiveWorkspaceId();
-      const wsHeader = activeWsId ? { "x-workspace-id": String(activeWsId) } : {};
+      const wsHeader: Record<string, string> = activeWsId ? { "x-workspace-id": String(activeWsId) } : {};
 
       // 1. Get presigned upload URL from backend (pointing to Cloudflare R2)
       const urlRes = await fetch(

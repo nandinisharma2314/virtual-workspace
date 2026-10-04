@@ -40,7 +40,8 @@ interface DocumentItem {
 }
 
 export default function DocumentsView() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, can } = useWorkspace();
+  const canManage = Boolean(currentWorkspace?.isOwner) || can("documents:manage");
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");

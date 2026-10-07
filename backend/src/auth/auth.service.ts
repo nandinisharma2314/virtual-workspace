@@ -133,10 +133,8 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
     
-    // Security: Only Admins can set role to Admin. Non-admins cannot elevate themselves to 'Admin'.
-    if (data.role && user.role !== 'Admin' && data.role.toLowerCase() === 'admin') {
-      delete data.role;
-    }
+    // Security: Global system roles cannot be modified via self-profile update.
+    delete data.role;
 
     await this.usersService.updateProfile(user.id, data);
     return { message: 'Profile updated successfully' };

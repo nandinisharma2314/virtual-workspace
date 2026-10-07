@@ -27,12 +27,4 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   inviteToken?: string;
-
-  @IsOptional()
-  @IsString()
-  role?: string;
-
-  @IsOptional()
-  @IsString()
-  status?: string;
 }

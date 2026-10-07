@@ -62,6 +62,7 @@ export default function MeetingsView() {
   const { currentWorkspace, can } = useWorkspace();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isInCall, setIsInCall] = useState(false);
+  const [callingMeeting, setCallingMeeting] = useState<any | null>(null);
   const [upcomingMeetings, setUpcomingMeetings] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewMeetingModal, setShowNewMeetingModal] = useState(false);
@@ -103,6 +104,7 @@ export default function MeetingsView() {
             id: m.id,
             title: m.title,
             description: m.description,
+            organizerId: m.organizerId || m.creatorId || m.userId,
             rawStartTime: m.startTime,
             rawEndTime: m.endTime,
             time: `${formatTime(start)} - ${formatTime(end)}`,
@@ -112,6 +114,13 @@ export default function MeetingsView() {
           };
         });
         setUpcomingMeetings(parsed);
+
+        const joinId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get("join") : null;
+        if (joinId) {
+          const target = parsed.find((item: any) => String(item.id) === String(joinId)) || { id: Number(joinId), organizerId: null };
+          setCallingMeeting(target);
+          setIsInCall(true);
+        }
       } else {
         setUpcomingMeetings([]);
       }
@@ -341,7 +350,7 @@ export default function MeetingsView() {
                     <motion.button 
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
-                      onClick={() => setIsInCall(true)}
+                      onClick={() => { setCallingMeeting(activeMeeting); setIsInCall(true); }}
                       className={`group flex h-14 w-full items-center justify-center gap-3 rounded-2xl px-10 text-[15px] font-bold text-white transition-all overflow-hidden relative ${activeMeeting.isNow ? "bg-[#4F46E5] shadow-[0_8px_20px_rgba(79,70,229,0.25)] hover:bg-indigo-700" : "bg-gray-800 hover:bg-gray-900 shadow-md"}`}
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:animate-[shimmer_1.5s_infinite]"></div>
@@ -482,7 +491,7 @@ export default function MeetingsView() {
                       <motion.button 
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => setIsInCall(true)}
+                        onClick={() => { setCallingMeeting(meeting); setIsInCall(true); }}
                         className="rounded-xl bg-indigo-600 px-4 py-2 text-[13px] font-bold text-white shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2 hover:bg-indigo-700"
                       >
                         <Video size={14} />
@@ -772,10 +781,10 @@ export default function MeetingsView() {
       {isInCall && socketRef.current && currentUser && (
         <VideoCall 
           socket={socketRef.current}
-          channelId="global-meetings-room"
+          channelId={`meeting_${callingMeeting?.id || activeMeeting?.id || 'room'}`}
           currentUser={currentUser}
-          onClose={() => setIsInCall(false)}
-          isInitiator={true}
+          onClose={() => { setIsInCall(false); setCallingMeeting(null); }}
+          isInitiator={Boolean(callingMeeting ? callingMeeting.organizerId === currentUser.id : activeMeeting?.organizerId === currentUser.id)}
         />
       )}
     </div>

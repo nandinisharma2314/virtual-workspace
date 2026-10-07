@@ -39,6 +39,14 @@ export class ChatService {
   }
 
   async getMessagesByChannel(channelId: string, userId?: number) {
+    // For direct messages, verify the requesting user is a participant
+    if (channelId.startsWith('dm-') && userId) {
+      const parts = channelId.replace('dm-', '').split('_').map(Number).filter(n => !isNaN(n));
+      if (parts.length > 0 && !parts.includes(userId)) {
+        return [];
+      }
+    }
+
     // Check channel access if not c-general and not dm-
     if (channelId !== 'c-general' && !channelId.startsWith('dm-') && userId) {
       const [dbChannel] = await this.dbService.db
@@ -116,7 +124,7 @@ export class ChatService {
       .from(users)
       .where(eq(users.id, userId));
       
-    if (user && user.role === 'Admin') {
+    if (user && user.role === 'Admin' && !channelId.startsWith('dm-')) {
       await this.notificationsService.notifyAllExcept(userId, `Admin ${user.name} sent a message in ${channelId}: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
     }
 

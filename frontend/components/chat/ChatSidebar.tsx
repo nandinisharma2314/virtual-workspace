@@ -176,6 +176,19 @@ export default function ChatSidebar({
 
   const displayedChannels = channelsList;
 
+  const getCanonicalDMId = (targetUserId: number) => {
+    if (!currentUser?.id) return `dm-${targetUserId}`;
+    const minId = Math.min(currentUser.id, targetUserId);
+    const maxId = Math.max(currentUser.id, targetUserId);
+    return `dm-${minId}_${maxId}`;
+  };
+
+  const isDMActive = (targetUserId: number) => {
+    if (!selectedDMId) return false;
+    const canonical = getCanonicalDMId(targetUserId);
+    return selectedDMId === canonical || selectedDMId === `dm-${targetUserId}`;
+  };
+
   return (
     <div className="w-[215px] sm:w-[230px] lg:w-[240px] shrink-0 border-r border-gray-200/80 bg-white flex flex-col h-full overflow-hidden select-none">
       {/* Header */}
@@ -196,8 +209,9 @@ export default function ChatSidebar({
           )}
           <button 
             onClick={() => {
-              if (users.length > 0) {
-                onSelectDM(`dm-${users[0].id}`);
+              const otherUsers = users.filter(u => !currentUser?.id || u.id !== currentUser.id);
+              if (otherUsers.length > 0) {
+                onSelectDM(getCanonicalDMId(otherUsers[0].id));
               }
             }}
             className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-50 transition-colors" 
@@ -325,7 +339,8 @@ export default function ChatSidebar({
             </span>
             <button 
               onClick={() => {
-                if (users.length > 0) onSelectDM(`dm-${users[0].id}`);
+                const otherUsers = users.filter(u => !currentUser?.id || u.id !== currentUser.id);
+                if (otherUsers.length > 0) onSelectDM(getCanonicalDMId(otherUsers[0].id));
               }}
               className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors"
               title="Start Direct Message"
@@ -334,9 +349,9 @@ export default function ChatSidebar({
             </button>
           </div>
           <div className="space-y-[1px]">
-            {users.map((u) => {
-              const dmId = `dm-${u.id}`;
-              const isActive = selectedDMId === dmId;
+            {users.filter(u => !currentUser?.id || u.id !== currentUser.id).map((u) => {
+              const dmId = getCanonicalDMId(u.id);
+              const isActive = isDMActive(u.id);
               const person = u.name.split(' ')[0].toLowerCase();
               return (
                 <button

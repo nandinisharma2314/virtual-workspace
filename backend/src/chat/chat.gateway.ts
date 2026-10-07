@@ -93,17 +93,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('send_message')
   async handleMessage(
-    @MessageBody() payload: { text: string; userId: number; channelId?: string; parentId?: number; attachment?: any },
+    @MessageBody() payload: { text: string; userId?: number; channelId?: string; parentId?: number; attachment?: any },
     @ConnectedSocket() client: Socket,
   ) {
-    this.logger.log(`Message received: ${payload.text}`);
+    const authUserId = (client as any).user?.sub || payload.userId;
+    this.logger.log(`Message received from user ${authUserId}: ${payload.text}`);
     
     const channelId = payload.channelId || 'c-general';
     const room = this.getScopedRoom(channelId, client);
     
     // Save to database via ChatService
     const message = await this.chatService.saveMessage(
-      payload.userId,
+      authUserId,
       payload.text,
       channelId,
       payload.parentId,
@@ -118,33 +119,36 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('edit_message')
   async handleEditMessage(
-    @MessageBody() payload: { messageId: number; text: string; userId: number; channelId: string },
+    @MessageBody() payload: { messageId: number; text: string; userId?: number; channelId: string },
     @ConnectedSocket() client: Socket,
   ) {
+    const authUserId = (client as any).user?.sub || payload.userId;
     const room = this.getScopedRoom(payload.channelId, client);
-    const message = await this.chatService.editMessage(payload.messageId, payload.userId, payload.text);
+    const message = await this.chatService.editMessage(payload.messageId, authUserId, payload.text);
     this.server.to(room).emit('message_edited', { messageId: payload.messageId, text: payload.text, isEdited: true });
     return message;
   }
 
   @SubscribeMessage('delete_message')
   async handleDeleteMessage(
-    @MessageBody() payload: { messageId: number; userId: number; channelId: string },
+    @MessageBody() payload: { messageId: number; userId?: number; channelId: string },
     @ConnectedSocket() client: Socket,
   ) {
+    const authUserId = (client as any).user?.sub || payload.userId;
     const room = this.getScopedRoom(payload.channelId, client);
-    await this.chatService.deleteMessage(payload.messageId, payload.userId);
+    await this.chatService.deleteMessage(payload.messageId, authUserId);
     this.server.to(room).emit('message_deleted', { messageId: payload.messageId });
     return { success: true };
   }
 
   @SubscribeMessage('add_reaction')
   async handleAddReaction(
-    @MessageBody() payload: { messageId: number; emoji: string; userId: number; channelId: string },
+    @MessageBody() payload: { messageId: number; emoji: string; userId?: number; channelId: string },
     @ConnectedSocket() client: Socket,
   ) {
+    const authUserId = (client as any).user?.sub || payload.userId;
     const room = this.getScopedRoom(payload.channelId, client);
-    const reactions = await this.chatService.addReaction(payload.messageId, payload.userId, payload.emoji);
+    const reactions = await this.chatService.addReaction(payload.messageId, authUserId, payload.emoji);
     this.server.to(room).emit('reaction_updated', { messageId: payload.messageId, reactions });
     return reactions;
   }

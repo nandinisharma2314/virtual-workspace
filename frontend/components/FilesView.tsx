@@ -239,18 +239,14 @@ export default function FilesView() {
 
       const { uploadUrl, storageKey } = await urlRes.json();
 
-      // 2. Upload file directly to Cloudflare R2
-      try {
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          body: selectedFile,
-          headers: { 'Content-Type': selectedFile.type || 'application/octet-stream' }
-        });
-        if (!uploadRes.ok) {
-          console.warn("Direct upload to Cloudflare R2 received non-200 response:", uploadRes.status);
-        }
-      } catch (uploadErr) {
-        console.warn("Cloudflare R2 direct PUT upload encountered network issue or CORS fallback:", uploadErr);
+      // 2. Upload file directly to Cloudflare R2 / S3 storage
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: selectedFile,
+        headers: { 'Content-Type': selectedFile.type || 'application/octet-stream' }
+      });
+      if (!uploadRes.ok) {
+        throw new Error(`Direct storage upload failed with status ${uploadRes.status}: ${uploadRes.statusText}`);
       }
 
       // 3. Register file metadata in backend

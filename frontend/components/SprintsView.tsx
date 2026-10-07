@@ -10,18 +10,27 @@ const initialSprintList: any[] = [];
 
 type Task = { id: string; title: string; type: string; points: number; assignee: string };
 
+function normalizeStatus(status?: string): string {
+  if (!status) return "todo";
+  const s = status.toLowerCase().trim();
+  if (s === "inprogress" || s === "in_progress" || s === "in-progress") return "in_progress";
+  if (s === "done" || s === "completed") return "completed";
+  if (s === "review" || s === "in_review") return "review";
+  return "todo";
+}
+
 const initialTasks: Record<string, Task[]> = {
   "todo": [],
-  "inprogress": [],
+  "in_progress": [],
   "review": [],
-  "done": []
+  "completed": []
 };
 
 const columns = [
   { key: "todo", title: "To Do", bg: "bg-gray-50", accent: "bg-gray-400" },
-  { key: "inprogress", title: "In Progress", bg: "bg-blue-50", accent: "bg-blue-500" },
+  { key: "in_progress", title: "In Progress", bg: "bg-blue-50", accent: "bg-blue-500" },
   { key: "review", title: "In Review", bg: "bg-amber-50", accent: "bg-amber-500" },
-  { key: "done", title: "Done", bg: "bg-emerald-50", accent: "bg-emerald-500" }
+  { key: "completed", title: "Done", bg: "bg-emerald-50", accent: "bg-emerald-500" }
 ];
 
 export default function SprintsView() {
@@ -67,7 +76,9 @@ export default function SprintsView() {
           
           const sprintTasks = (tasksData || []).filter((t: any) => t.sprintId === s.id);
           const total = sprintTasks.reduce((acc: number, t: any) => acc + (t.estimatedHours || 0), 0);
-          const completed = sprintTasks.filter((t: any) => t.status === 'done').reduce((acc: number, t: any) => acc + (t.estimatedHours || 0), 0);
+          const completed = sprintTasks
+            .filter((t: any) => normalizeStatus(t.status) === 'completed')
+            .reduce((acc: number, t: any) => acc + (t.estimatedHours || 0), 0);
 
           return {
             id: s.id.toString(),
@@ -87,7 +98,7 @@ export default function SprintsView() {
       }
 
       if (Array.isArray(tasksData) && tasksData.length > 0) {
-        const newTasksState: Record<string, Task[]> = { todo: [], inprogress: [], review: [], done: [] };
+        const newTasksState: Record<string, Task[]> = { todo: [], in_progress: [], review: [], completed: [] };
         tasksData.forEach((t: any) => {
           const taskObj: Task = {
             id: t.id.toString(),
@@ -96,14 +107,16 @@ export default function SprintsView() {
             points: t.estimatedHours || 0,
             assignee: t.assigneeName || 'unassigned'
           };
-          const col = t.status || 'todo';
+          const col = normalizeStatus(t.status);
           if (newTasksState[col]) {
             newTasksState[col].push(taskObj);
+          } else {
+            newTasksState.todo.push(taskObj);
           }
         });
         setTasks(newTasksState);
       } else {
-        setTasks({ todo: [], inprogress: [], review: [], done: [] });
+        setTasks({ todo: [], in_progress: [], review: [], completed: [] });
       }
     }).catch(console.error);
   }, [currentWorkspace?.id]);

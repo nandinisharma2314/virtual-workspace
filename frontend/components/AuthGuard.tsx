@@ -9,28 +9,32 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
+    const isResetPassword = pathname.startsWith("/reset-password");
+    const isInvitePage = pathname.startsWith("/invite");
+    const isAuthPage = 
+      pathname.startsWith("/login") || 
+      pathname.startsWith("/register") || 
+      pathname.startsWith("/forgot-password") || 
+      isResetPassword ||
+      isInvitePage;
+
     const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const urlToken = urlParams ? urlParams.get("token") : null;
-    if (urlToken) {
+    
+    // Only store token from URL if NOT on reset-password or invite page (which use query tokens for password reset / invitations, not session auth)
+    if (urlToken && !isResetPassword && !isInvitePage) {
       document.cookie = `token=${urlToken}; path=/; max-age=86400; SameSite=Lax`;
       setIsAuthenticated(true);
       return;
     }
 
     const hasToken = document.cookie.includes("token=");
-    const isAuthPage = 
-      pathname.startsWith("/login") || 
-      pathname.startsWith("/register") || 
-      pathname.startsWith("/forgot-password") || 
-      pathname.startsWith("/reset-password") ||
-      pathname.startsWith("/invite");
 
-
-    const isInvite = typeof window !== 'undefined' && (window.location.search.includes('invite=true') || window.location.search.includes('acceptChannel='));
+    const isInviteQuery = typeof window !== 'undefined' && (window.location.search.includes('invite=') || window.location.search.includes('acceptChannel='));
 
     // If a user opens an invitation link to register or sign in, clear any existing session
-    // from another user (e.g. Admin testing locally) so they can create/access their own account
-    if (isInvite && (pathname.startsWith("/register") || pathname.startsWith("/login"))) {
+    // from another user so they can create/access their own account
+    if (isInviteQuery && (pathname.startsWith("/register") || pathname.startsWith("/login"))) {
       if (hasToken) {
         document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       }
@@ -38,8 +42,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Allow user to view reset-password and invite pages without redirecting them to "/" or "/login"
+    if (isResetPassword || isInvitePage) {
+      setIsAuthenticated(true);
+      return;
+    }
+
     if (!hasToken && !isAuthPage) {
-      if (isInvite) {
+      if (isInviteQuery) {
         router.replace(`/register${window.location.search}`);
       } else {
         router.replace("/login");

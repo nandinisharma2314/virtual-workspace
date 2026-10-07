@@ -140,6 +140,7 @@ export default function RoadmapBoard({
       const statusMap: Record<string, string> = {
         todo: 'todo',
         inprogress: 'in_progress',
+        review: 'review',
         done: 'completed'
       };
       

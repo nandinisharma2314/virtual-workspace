@@ -39,7 +39,7 @@ export class NotificationsService {
     return await this.databaseService.db
       .update(notifications)
       .set({ isRead: true })
-      .where(eq(notifications.id, id))
+      .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
       .returning();
   }
 

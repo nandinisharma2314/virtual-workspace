@@ -39,8 +39,31 @@ export default function LoginPage() {
             document.cookie = `active_workspace_id=${data.activeWorkspaceId}; path=/; max-age=86400; SameSite=Lax`;
             localStorage.setItem("active_workspace_id", String(data.activeWorkspaceId));
           }
-          const redirectUrl = searchParams.get("invite") ? `/chat?${searchParams.toString()}` : "/";
-          window.location.href = redirectUrl;
+
+          const inviteToken = searchParams.get("invite");
+          if (inviteToken) {
+            try {
+              const inviteRes = await fetch(`${API_URL}/workspaces/invites/accept`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${data.access_token}`,
+                },
+                body: JSON.stringify({ token: inviteToken }),
+              });
+              if (inviteRes.ok) {
+                const inviteData = await inviteRes.json();
+                if (inviteData.workspaceId) {
+                  document.cookie = `active_workspace_id=${inviteData.workspaceId}; path=/; max-age=86400; SameSite=Lax`;
+                  localStorage.setItem("active_workspace_id", String(inviteData.workspaceId));
+                }
+              }
+            } catch (err) {
+              console.error("Auto accept invite failed", err);
+            }
+          }
+
+          window.location.href = "/";
         } else {
           const errorData = await res.json();
           setErrors({ api: errorData.message || "Login failed" });

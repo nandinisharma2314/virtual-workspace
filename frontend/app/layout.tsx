@@ -5,8 +5,11 @@ import { WorkspaceProvider } from "@/lib/WorkspaceContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "WorkFlow — Dashboard",
-  description: "Project management dashboard",
+  title: "nannex — Chat / Meet / Connect",
+  description: "nannex — The unified collaboration platform to chat, meet, and connect.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

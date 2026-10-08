@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, FormEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Lock, Eye, EyeOff, ArrowLeft, Shield } from "lucide-react";
+import { Lock, Eye, EyeOff, Shield, CheckCircle2, AlertCircle } from "lucide-react";
 import { API_URL } from "@/lib/apis";
 
 function ResetPasswordForm() {
@@ -17,46 +17,38 @@ function ResetPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  // Strength score based on requirements
   const reqs = [
     password.length >= 8,
     /[A-Z]/.test(password),
     /[0-9]/.test(password),
     /[^A-Za-z0-9]/.test(password),
   ];
-  
   const score = reqs.filter(Boolean).length;
-  
-  let strengthText = "Weak";
-  let textColor = "text-red-500";
-  if (score === 0) {
-    strengthText = "None";
-    textColor = "text-gray-400";
-  } else if (score === 1 || score === 2) {
-    strengthText = "Weak";
-    textColor = "text-red-500";
-  } else if (score === 3) {
-    strengthText = "Good";
-    textColor = "text-amber-500";
-  } else if (score === 4) {
-    strengthText = "Strong";
-    textColor = "text-[#22C55E]";
-  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
+    if (!token) {
+      setError("No reset token found in URL. Please request a new link.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
-    if (!token) {
-      setError("No reset token found in URL.");
-      return;
-    }
+    setIsLoading(true);
 
     try {
       const res = await fetch(`${API_URL}/auth/reset-password`, {
@@ -64,178 +56,251 @@ function ResetPasswordForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
-      
+
       if (res.ok) {
         setIsSuccess(true);
         setTimeout(() => router.push("/login"), 3000);
       } else {
         const data = await res.json();
-        setError(data.message || "Failed to reset password.");
+        setError(data.message || "Failed to reset password. The link may have expired.");
       }
-    } catch (err) {
-      setError("Network error occurred.");
+    } catch {
+      setError("Network error occurred. Please check your connection.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-white font-sans">
-      {/* Left Panel */}
-      <div className="hidden lg:flex lg:w-[45%] flex-col justify-between bg-[#F8F9FB] px-16 py-12 relative overflow-hidden">
-        <div>
-          <div className="flex items-center gap-2 mb-12">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7 10L11 22L15.5 10H19.5L24 22L28 10H24L21.5 17L17.5 7H13.5L9.5 17L7 10Z" fill="#5D5FEF"/>
-            </svg>
-            <span className="text-[22px] font-bold text-gray-900 tracking-tight">WorkFlow</span>
-          </div>
+    <div className="min-h-screen w-full font-sans bg-[#F4F6FB] text-slate-900 flex items-center justify-center p-4 sm:p-6 md:p-10 relative selection:bg-purple-600 selection:text-white">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        
+        .font-sans {
+          font-family: 'Plus Jakarta Sans', sans-serif;
+        }
 
-          <h1 className="text-[44px] font-bold text-gray-900 tracking-tight leading-tight mb-4">
-            Create new<br/>password
-          </h1>
-          <p className="text-gray-500 text-[16px] max-w-[280px] leading-relaxed mb-12">
-            Choose a strong password to secure your account.
-          </p>
+        @keyframes float-hero {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-7px) rotate(0.3deg); }
+        }
+        .animate-float-hero {
+          animation: float-hero 6s ease-in-out infinite;
+        }
 
-          <div className="w-full max-w-[400px] mx-auto my-8 relative flex justify-center">
-             <Image 
-               src="/shield-illustration.png" 
-               alt="Shield Illustration" 
-               width={500} 
-               height={500} 
-               className="w-full h-auto object-contain mix-blend-darken scale-110"
-               priority
-             />
-          </div>
-        </div>
+        .card-elevation-shadow {
+          box-shadow: 0 25px 70px -15px rgba(0, 0, 0, 0.06), 0 10px 30px -10px rgba(0, 0, 0, 0.03);
+        }
+      `}</style>
 
-        <div>
-          <Link href="/login" className="inline-flex items-center text-[14px] font-semibold text-[#5D5FEF] hover:text-[#4a4cc7] transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-2" strokeWidth={2.5} />
-            Back to sign in
-          </Link>
-        </div>
-      </div>
-
-      {/* Right Panel */}
-      <div className="flex-1 flex flex-col justify-center px-8 sm:px-16 lg:px-24 xl:px-32 py-12 relative overflow-y-auto bg-white">
-        <div className="w-full max-w-[420px] mx-auto">
-          {/* Mobile Logo */}
-          <div className="flex lg:hidden items-center gap-2 mb-10">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7 10L11 22L15.5 10H19.5L24 22L28 10H24L21.5 17L17.5 7H13.5L9.5 17L7 10Z" fill="#5D5FEF"/>
-            </svg>
-            <span className="text-[22px] font-bold text-gray-900 tracking-tight">WorkFlow</span>
-          </div>
-
-          {isSuccess ? (
-            <div className="text-center py-10">
-               <h2 className="text-[28px] font-bold text-gray-900 tracking-tight mb-3">
-                  Password Reset!
-                </h2>
-                <p className="text-gray-500 text-[15px] mb-4">
-                  Your password has been successfully updated. Redirecting you to login...
-                </p>
-            </div>
-          ) : (
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {error && (
-              <div className="bg-red-50 text-red-500 text-[13px] p-3 rounded-xl">
-                {error}
+      {/* Main Wide Card - Matching Mockup */}
+      <div className="w-full max-w-[1120px] bg-white rounded-3xl sm:rounded-[36px] card-elevation-shadow border border-slate-100 p-8 sm:p-12 lg:p-14 relative z-10 transition-all duration-300">
+        
+        <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-8 lg:gap-8">
+          
+          {/* LEFT COLUMN: Logo, Headline, and Subtitle */}
+          <div className="lg:col-span-4 flex flex-col justify-between self-stretch">
+            <div>
+              {/* Brand Logo */}
+              <div className="mb-10 sm:mb-14">
+                <Link href="/" className="inline-flex items-center gap-2.5 group">
+                  <Image
+                    src="/nannex-horizontal.png"
+                    alt="nannex"
+                    width={180}
+                    height={46}
+                    className="h-10 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-300"
+                    priority
+                  />
+                </Link>
               </div>
-            )}
-            <div className="space-y-2">
-              <label className="text-[13px] font-semibold text-gray-900">New password</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" strokeWidth={1.5} />
-                </div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  className="block w-full pl-11 pr-11 py-3 border border-gray-200 rounded-lg text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#5D5FEF] focus:border-[#5D5FEF] transition-colors text-[14px] [&:-webkit-autofill]:shadow-[0_0_0px_1000px_white_inset]"
-                  placeholder="Enter new password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" strokeWidth={1.5} /> : <Eye className="h-5 w-5" strokeWidth={1.5} />}
-                </button>
-              </div>
+
+              {/* Header Title */}
+              <h1 className="text-3xl sm:text-[38px] font-extrabold text-slate-900 tracking-tight leading-[1.15]">
+                Create new<br />password
+              </h1>
               
-              <div className="pt-2">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[12px] font-semibold text-gray-500">
-                    Password strength: <span className={textColor}>{strengthText}</span>
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div 
-                      key={i} 
-                      className={`h-1.5 flex-1 rounded-full transition-colors ${
-                        i <= score ? 'bg-[#5D5FEF]' : 'bg-gray-200'
-                      }`}
-                    ></div>
-                  ))}
-                </div>
-              </div>
+              {/* Subtitle */}
+              <p className="mt-3 text-sm text-slate-500 font-normal leading-relaxed max-w-[270px]">
+                Secure your account with a strong password.
+              </p>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[13px] font-semibold text-gray-900">Confirm new password</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" strokeWidth={1.5} />
-                </div>
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  className="block w-full pl-11 pr-11 py-3 border border-gray-200 rounded-lg text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#5D5FEF] focus:border-[#5D5FEF] transition-colors text-[14px] [&:-webkit-autofill]:shadow-[0_0_0px_1000px_white_inset]"
-                  placeholder="Confirm new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-5 w-5" strokeWidth={1.5} /> : <Eye className="h-5 w-5" strokeWidth={1.5} />}
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-[#F9F9FF] rounded-lg p-4 border border-[#F0F1FA] flex gap-3 text-left">
-              <div className="mt-0.5 flex-shrink-0">
-                <Shield className="w-5 h-5 text-[#5D5FEF]" strokeWidth={2} />
-              </div>
-              <div>
-                <p className="text-[13px] text-gray-700 font-medium leading-relaxed">
-                  Use a strong password that you don't use on other websites.
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-lg shadow-sm text-[14px] font-semibold text-white bg-[#5D5FEF] hover:bg-[#4a4cc7] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5D5FEF] transition-all mt-6"
-            >
-              Reset password
-            </button>
-          </form>
-          )}
-
-          <div className="w-full flex lg:hidden justify-start mt-8">
-            <Link href="/login" className="inline-flex items-center text-[14px] font-semibold text-[#5D5FEF] hover:text-[#4a4cc7] transition-colors">
-              <ArrowLeft className="w-4 h-4 mr-2" strokeWidth={2.5} />
-              Back to sign in
-            </Link>
+            {/* Empty space for bottom alignment on desktop */}
+            <div className="hidden lg:block"></div>
           </div>
+
+          {/* CENTER COLUMN: 3D Shield Illustration */}
+          <div className="lg:col-span-4 flex items-center justify-center py-2 sm:py-4">
+            <div className="relative w-full max-w-[280px] sm:max-w-[340px] aspect-square flex items-center justify-center animate-float-hero">
+              <Image
+                src="/shield-illustration.png"
+                alt="Security Shield"
+                width={560}
+                height={560}
+                className="w-full h-full object-contain mix-blend-multiply drop-shadow-[0_20px_35px_rgba(124,58,237,0.12)]"
+                priority
+              />
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Interactive Password Form */}
+          <div className="lg:col-span-4 flex flex-col justify-center">
+            <div className="w-full max-w-[370px] mx-auto lg:ml-auto lg:mr-0">
+
+              {isSuccess ? (
+                <div className="text-center py-6 space-y-4 animate-in fade-in duration-500">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-600 flex items-center justify-center mx-auto shadow-md shadow-emerald-500/10">
+                    <CheckCircle2 className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                      Password Reset!
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500">
+                      Your password has been successfully updated. Redirecting to sign in...
+                    </p>
+                  </div>
+                  <div className="pt-2">
+                    <Link
+                      href="/login"
+                      className="inline-flex items-center justify-center w-full py-3 px-6 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold text-xs sm:text-sm shadow-md shadow-purple-600/20 transition-all"
+                    >
+                      Sign in now
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  
+                  {/* Error Notification */}
+                  {error && (
+                    <div className="p-3 rounded-xl bg-red-50 border border-red-200/80 text-red-600 text-xs font-medium flex items-center gap-2 shadow-sm">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  {/* New Password */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-800">
+                      New password
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-purple-600 transition-colors">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (error) setError("");
+                        }}
+                        placeholder="Enter new password"
+                        className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200/90 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all shadow-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    {/* 3-Tier Password Strength Bars Matching Mockup */}
+                    <div className="grid grid-cols-3 gap-2 pt-1.5">
+                      {/* Bar 1: Red */}
+                      <div
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          score >= 1 ? "bg-[#EF4444]" : "bg-slate-200"
+                        }`}
+                      />
+                      {/* Bar 2: Orange/Amber */}
+                      <div
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          score >= 2 ? "bg-[#F59E0B]" : "bg-slate-200"
+                        }`}
+                      />
+                      {/* Bar 3: Green */}
+                      <div
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          score >= 3 ? "bg-[#10B981]" : "bg-slate-200"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Confirm New Password */}
+                  <div className="space-y-1.5 pt-0.5">
+                    <label className="block text-xs font-semibold text-slate-800">
+                      Confirm new password
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-purple-600 transition-colors">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          if (error) setError("");
+                        }}
+                        placeholder="Confirm new password"
+                        className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200/90 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all shadow-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Security Advice Callout Box Matching Mockup */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-3">
+                    <Shield className="w-4 h-4 text-purple-600 mt-0.5 shrink-0" />
+                    <p className="text-[11px] sm:text-xs text-slate-600 font-normal leading-relaxed">
+                      Use a strong password (min. 12 chars, mix of upper, lower, special, numbers).
+                    </p>
+                  </div>
+
+                  {/* Submit Button Matching Mockup */}
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full mt-2 py-3 px-6 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold text-xs sm:text-sm shadow-md shadow-purple-600/20 hover:shadow-purple-600/35 hover:scale-[1.005] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <span>{isLoading ? "Resetting password..." : "Reset password"}</span>
+                    {isLoading && (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    )}
+                  </button>
+
+                  {/* Back to sign in link Centered Below Button */}
+                  <div className="pt-2 text-center">
+                    <Link
+                      href="/login"
+                      className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors"
+                    >
+                      <span>&larr;</span> Back to sign in
+                    </Link>
+                  </div>
+
+                </form>
+              )}
+
+            </div>
+          </div>
+
         </div>
+
       </div>
     </div>
   );
@@ -243,7 +308,11 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-white"><div className="w-8 h-8 border-4 border-[#5D5FEF] border-t-transparent rounded-full animate-spin"></div></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F4F6FB] flex items-center justify-center font-sans text-slate-500 text-sm">
+        <div className="w-8 h-8 border-3 border-purple-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
       <ResetPasswordForm />
     </Suspense>
   );

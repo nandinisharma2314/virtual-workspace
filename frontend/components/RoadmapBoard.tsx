@@ -88,13 +88,26 @@ export default function RoadmapBoard({
     }
   }, [currentWorkspace?.id]);
 
-  // Lists from backend board
-  const lists: any[] = board?.lists || (Array.isArray(roadmap) ? roadmap : null) || [
+  // Lists from backend board normalized so every column and task has a unique id
+  const rawLists: any[] = board?.lists || (Array.isArray(roadmap) ? roadmap : null) || [
     { id: 1, title: "To Do", accent: "bg-gray-400", tasks: [] },
     { id: 2, title: "In Progress", accent: "bg-blue-500", tasks: [] },
     { id: 3, title: "In Review", accent: "bg-amber-500", tasks: [] },
     { id: 4, title: "Done", accent: "bg-emerald-500", tasks: [] },
   ];
+
+  const lists: any[] = rawLists.map((list: any, listIdx: number) => {
+    const listId = list.id ?? list.key ?? listIdx + 1;
+    const normalizedTasks = (list.tasks || []).map((task: any, taskIdx: number) => ({
+      ...task,
+      id: task.id ?? `task-${listId}-${taskIdx}-${task.title || ""}`,
+    }));
+    return {
+      ...list,
+      id: listId,
+      tasks: normalizedTasks,
+    };
+  });
 
   const handleAddList = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,9 +350,9 @@ export default function RoadmapBoard({
       {/* Main Board View */}
       {tab === "board" && (
         <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden flex gap-4 pb-2">
-          {filteredLists.map((list) => (
+          {filteredLists.map((list, listIdx) => (
             <div
-              key={list.id}
+              key={list.id || `col-${listIdx}`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, list.id)}
               className="w-80 shrink-0 bg-gray-50/80 rounded-2xl p-3 border border-gray-100 flex flex-col justify-between min-h-0 max-h-full"
@@ -366,10 +379,10 @@ export default function RoadmapBoard({
               {/* Cards Container */}
               <div className="flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-1">
                 <AnimatePresence mode="popLayout">
-                  {list.tasks?.map((task: any) => (
+                  {list.tasks?.map((task: any, taskIdx: number) => (
                     <motion.div
                       layout
-                      key={task.id}
+                      key={task.id || `card-${list.id}-${taskIdx}`}
                       draggable
                       onDragStart={(e: any) => handleDragStart(e, task.id)}
                       onClick={() => {
@@ -493,16 +506,16 @@ export default function RoadmapBoard({
       {/* List, Timeline, and Gantt alternative tabs */}
       {tab === "list" && (
         <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50/50 rounded-2xl p-4 space-y-4">
-          {filteredLists.map((list) => (
-            <div key={list.id} className="space-y-2">
+          {filteredLists.map((list, listIdx) => (
+            <div key={list.id || `list-col-${listIdx}`} className="space-y-2">
               <h4 className="text-xs font-bold text-gray-800 flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${list.accent}`} /> {list.title} (
                 {list.tasks?.length || 0})
               </h4>
               <div className="space-y-1.5">
-                {list.tasks?.map((task: any) => (
+                {list.tasks?.map((task: any, taskIdx: number) => (
                   <div
-                    key={task.id}
+                    key={task.id || `task-row-${list.id}-${taskIdx}`}
                     onClick={() => {
                       setSelectedTaskId(task.id);
                       setIsCardModalOpen(true);

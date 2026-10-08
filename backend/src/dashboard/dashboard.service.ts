@@ -51,34 +51,37 @@ export class DashboardService {
     ];
 
     // Roadmap logic
-    const todoTasks = allTasks.filter(t => t.status === 'todo').map(t => ({ title: t.title, tag: "DEV", tagColor: "bg-blue-100 text-blue-700", people: ["you"] }));
-    const inProgressTasks = allTasks.filter(t => t.status === 'in_progress' || t.status === 'inProgress').map(t => ({ title: t.title, tag: "DEV", tagColor: "bg-blue-100 text-blue-700", people: ["you"] }));
-    const doneTasks = allTasks.filter(t => t.status === 'completed' || t.status === 'done').map(t => ({ title: t.title, tag: "DEV", tagColor: "bg-blue-100 text-blue-700", people: ["you"] }));
+    const todoTasks = allTasks.filter(t => t.status === 'todo').map((t, idx) => ({ id: t.id || `todo-${idx}`, title: t.title, tag: "DEV", tagColor: "bg-blue-100 text-blue-700", people: ["you"] }));
+    const inProgressTasks = allTasks.filter(t => t.status === 'in_progress' || t.status === 'inProgress').map((t, idx) => ({ id: t.id || `prog-${idx}`, title: t.title, tag: "DEV", tagColor: "bg-blue-100 text-blue-700", people: ["you"] }));
+    const doneTasks = allTasks.filter(t => t.status === 'completed' || t.status === 'done').map((t, idx) => ({ id: t.id || `done-${idx}`, title: t.title, tag: "DEV", tagColor: "bg-blue-100 text-blue-700", people: ["you"] }));
 
     const roadmap = [
       {
+        id: 1,
         key: "todo",
         title: "To Do",
         count: todoTasks.length,
         accent: "bg-gray-400",
         headerBg: "bg-gray-50",
-        tasks: todoTasks.length ? todoTasks : [{ title: "No pending tasks", tag: "N/A", tagColor: "bg-gray-100 text-gray-700", people: [] }]
+        tasks: todoTasks.length ? todoTasks : [{ id: 101, title: "No pending tasks", tag: "N/A", tagColor: "bg-gray-100 text-gray-700", people: [] }]
       },
       {
+        id: 2,
         key: "inprogress",
         title: "In Progress",
         count: inProgressTasks.length,
         accent: "bg-blue-500",
         headerBg: "bg-blue-50",
-        tasks: inProgressTasks.length ? inProgressTasks : [{ title: "No active tasks", tag: "N/A", tagColor: "bg-gray-100 text-gray-700", people: [] }]
+        tasks: inProgressTasks.length ? inProgressTasks : [{ id: 102, title: "No active tasks", tag: "N/A", tagColor: "bg-gray-100 text-gray-700", people: [] }]
       },
       {
+        id: 3,
         key: "done",
         title: "Done",
         count: doneTasks.length,
         accent: "bg-emerald-500",
         headerBg: "bg-emerald-50",
-        tasks: doneTasks.length ? doneTasks : [{ title: "No completed tasks", tag: "N/A", tagColor: "bg-gray-100 text-gray-700", people: [] }]
+        tasks: doneTasks.length ? doneTasks : [{ id: 103, title: "No completed tasks", tag: "N/A", tagColor: "bg-gray-100 text-gray-700", people: [] }]
       },
     ];
 

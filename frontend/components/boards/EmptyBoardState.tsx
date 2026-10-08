@@ -2,7 +2,7 @@ import React from 'react';
 import { Plus, Sparkles, Layout } from 'lucide-react';
 
 interface EmptyBoardStateProps {
-  onCreateBoard: () => void;
+  onCreateBoard?: () => void;
 }
 
 export default function EmptyBoardState({ onCreateBoard }: EmptyBoardStateProps) {
@@ -64,20 +64,22 @@ export default function EmptyBoardState({ onCreateBoard }: EmptyBoardStateProps)
               Put everything in one place, visualize your workflow, and start moving things forward with your first Workspace board.
             </p>
             
-            <div className="flex flex-col items-center gap-4">
-              <button
-                onClick={onCreateBoard}
-                className="group/btn relative inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 text-white text-[14px] font-bold px-8 py-3 rounded-xl transition-all shadow-[0_0_20px_rgba(79,70,229,0.25)] hover:shadow-[0_0_30px_rgba(79,70,229,0.45)] hover:-translate-y-0.5 overflow-hidden bg-[length:200%_auto] hover:bg-[right_center] w-[260px]"
-              >
-                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 ease-out rounded-xl"></div>
-                <Plus size={18} className="relative z-10" />
-                <span className="relative z-10">Create a Workspace board</span>
-              </button>
-              
-              <button className="text-[13px] font-bold text-gray-400 hover:text-gray-700 transition-colors mt-2">
-                Got it! Dismiss this.
-              </button>
-            </div>
+            {onCreateBoard ? (
+              <div className="flex flex-col items-center gap-4">
+                <button
+                  onClick={onCreateBoard}
+                  className="group/btn relative inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 text-white text-[14px] font-bold px-8 py-3 rounded-xl transition-all shadow-[0_0_20px_rgba(79,70,229,0.25)] hover:shadow-[0_0_30px_rgba(79,70,229,0.45)] hover:-translate-y-0.5 overflow-hidden bg-[length:200%_auto] hover:bg-[right_center] w-[260px]"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 ease-out rounded-xl"></div>
+                  <Plus size={18} className="relative z-10" />
+                  <span className="relative z-10">Create a Workspace board</span>
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 font-semibold italic">
+                Ask your workspace admin or owner to create boards.
+              </p>
+            )}
           </div>
         </div>
       </div>

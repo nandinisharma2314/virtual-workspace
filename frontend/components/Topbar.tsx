@@ -38,7 +38,7 @@ const createMenuItems = [
 ];
 
 export default function Topbar({ user }: { user?: { name: string; email: string; role?: string; avatar?: string } }) {
-  const { currentWorkspace, currentMember } = useWorkspace();
+  const { currentWorkspace, currentMember, can } = useWorkspace();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -66,6 +66,15 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
       .catch(() => {});
     }
   }, [currentUser]);
+
+  const visibleCreateMenuItems = createMenuItems.filter((item) => {
+    if (!currentUser || currentUser.role === "Admin" || currentWorkspace?.isOwner) return true;
+    if (item.name === "New Task") return can("tasks:create");
+    if (item.name === "New Project") return can("projects:create");
+    if (item.name === "New Channel") return can("channels:create");
+    if (item.name === "Invite Member") return can("members:invite");
+    return false;
+  });
 
   // Handle Cmd+K and Escape
   useEffect(() => {
@@ -244,42 +253,44 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
       </div>
 
       <div className="ml-auto flex items-center gap-2 shrink-0">
-        <div className="relative" ref={createRef}>
-          <button 
-            onClick={() => setIsCreateOpen(!isCreateOpen)}
-            className="flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 transition-all"
-          >
-            <Plus size={14} strokeWidth={2.5} />
-            Create
-          </button>
-          
-          {isCreateOpen && (
-            <div className="absolute right-0 top-[calc(100%+8px)] w-48 rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden z-50">
-              <div className="p-1.5">
-                {createMenuItems.map((item) => (
-                  <button
-                    key={item.name}
-                    onClick={() => {
-                      if ((item as any).isChannel) {
-                        window.dispatchEvent(new CustomEvent('open-create-channel'));
-                        router.push('/chat?create=true');
-                      } else if (item.path) {
-                        router.push(item.path);
-                      }
-                      setIsCreateOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-gray-50 transition-colors group"
-                  >
-                    <item.icon size={15} className="text-gray-400 group-hover:text-indigo-600 transition-colors" />
-                    <span className="text-[13px] font-semibold text-gray-700 group-hover:text-gray-900">
-                      {item.name}
-                    </span>
-                  </button>
-                ))}
+        {visibleCreateMenuItems.length > 0 && (
+          <div className="relative" ref={createRef}>
+            <button 
+              onClick={() => setIsCreateOpen(!isCreateOpen)}
+              className="flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 transition-all"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              Create
+            </button>
+            
+            {isCreateOpen && (
+              <div className="absolute right-0 top-[calc(100%+8px)] w-48 rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden z-50">
+                <div className="p-1.5">
+                  {visibleCreateMenuItems.map((item) => (
+                    <button
+                      key={item.name}
+                      onClick={() => {
+                        if ((item as any).isChannel) {
+                          window.dispatchEvent(new CustomEvent('open-create-channel'));
+                          router.push('/chat?create=true');
+                        } else if (item.path) {
+                          router.push(item.path);
+                        }
+                        setIsCreateOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-gray-50 transition-colors group"
+                    >
+                      <item.icon size={15} className="text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                      <span className="text-[13px] font-semibold text-gray-700 group-hover:text-gray-900">
+                        {item.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
         <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors">
           <HelpCircle size={16} />
         </button>

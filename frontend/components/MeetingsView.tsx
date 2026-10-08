@@ -61,6 +61,7 @@ export default function MeetingsView() {
   const router = useRouter();
   const { currentWorkspace, can } = useWorkspace();
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const canManageMeetings = Boolean(currentUser?.role === "Admin" || currentWorkspace?.isOwner || can("meetings:manage"));
   const [isInCall, setIsInCall] = useState(false);
   const [callingMeeting, setCallingMeeting] = useState<any | null>(null);
   const [upcomingMeetings, setUpcomingMeetings] = useState<any[]>([]);
@@ -393,9 +394,11 @@ export default function MeetingsView() {
                   </div>
                   <h3 className="text-lg font-bold text-gray-900">No Meetings Scheduled</h3>
                   <p className="text-sm text-gray-500 max-w-sm mt-1 mb-4">You have no upcoming or active meetings at this time. Create one to get started.</p>
-                  <button onClick={() => setShowNewMeetingModal(true)} className="flex items-center gap-2 rounded-xl bg-[#4F46E5] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-600 transition-colors">
-                    <Plus size={16} /> Schedule Meeting
-                  </button>
+                  {canManageMeetings && (
+                    <button onClick={() => setShowNewMeetingModal(true)} className="flex items-center gap-2 rounded-xl bg-[#4F46E5] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-600 transition-colors">
+                      <Plus size={16} /> Schedule Meeting
+                    </button>
+                  )}
                 </div>
               )}
             </motion.div>

@@ -59,12 +59,44 @@ export default function Sidebar() {
     .catch(() => {});
   }, []);
 
-  const visibleSidebarPrimary = sidebarPrimary.filter(item => {
+  const visibleSidebarPrimary = sidebarPrimary.filter((item) => {
     // If Admin globally or Workspace Owner, show everything
     if (!currentUser || currentUser.role === "Admin" || currentWorkspace?.isOwner) return true;
-    
-    // For workspace members, check role permissions:
+
+    // Granular permissions per section:
     if (item.label === "Reports" && !can("reports:view")) return false;
+    if (
+      item.label === "Boards" &&
+      !can("boards:read_all") &&
+      !can("boards:read_assigned") &&
+      !can("boards:create")
+    )
+      return false;
+    if (
+      item.label === "Projects" &&
+      !can("projects:read_all") &&
+      !can("projects:read_assigned") &&
+      !can("projects:create")
+    )
+      return false;
+    if (
+      item.label === "Sprints" &&
+      !can("sprints:manage") &&
+      !can("tasks:read_all") &&
+      !can("tasks:read_assigned")
+    )
+      return false;
+    if (
+      item.label === "Meetings" &&
+      !can("meetings:manage") &&
+      !can("meetings:read") &&
+      !can("meetings:rsvp")
+    )
+      return false;
+    if (item.label === "Files" && !can("files:manage")) return false;
+    if (item.label === "Documents" && !can("documents:manage")) return false;
+    if (item.label === "Teams" && !can("teams:manage")) return false;
+
     return true;
   });
 

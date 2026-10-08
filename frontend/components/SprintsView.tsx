@@ -46,6 +46,9 @@ const columns = [
 
 export default function SprintsView() {
   const { currentWorkspace, can } = useWorkspace();
+  const canManageSprints = Boolean(currentWorkspace?.isOwner) || can("sprints:manage");
+  const canCreateTask = Boolean(currentWorkspace?.isOwner) || can("tasks:create");
+
   const [sprints, setSprints] = useState<any[]>([]);
   const [activeSprintId, setActiveSprintId] = useState<string>("");
   const [workspaceTasks, setWorkspaceTasks] = useState<any[]>([]);
@@ -294,7 +297,7 @@ export default function SprintsView() {
 
         {/* Right Controls */}
         <div className="flex items-center gap-2.5">
-          {activeTab === "board" && activeSprint?.status === "active" && (
+          {canManageSprints && activeTab === "board" && activeSprint?.status === "active" && (
             <button
               onClick={() => setIsCompleteSprintModalOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
@@ -303,12 +306,14 @@ export default function SprintsView() {
             </button>
           )}
 
-          <button
-            onClick={() => setIsCreateSprintModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
-          >
-            <Plus size={14} /> Create Sprint
-          </button>
+          {canManageSprints && (
+            <button
+              onClick={() => setIsCreateSprintModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+            >
+              <Plus size={14} /> Create Sprint
+            </button>
+          )}
         </div>
       </div>
 
@@ -449,7 +454,7 @@ export default function SprintsView() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {sprint.status === "planned" && (
+                    {canManageSprints && sprint.status === "planned" && (
                       <button
                         onClick={() => {
                           setSprintToStart(sprint);
@@ -493,15 +498,17 @@ export default function SprintsView() {
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAssignTaskToSprint(t.id, null);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 text-[10px] font-bold text-gray-400 hover:text-rose-600 transition"
-                        >
-                          Move to Backlog
-                        </button>
+                        {canManageSprints && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAssignTaskToSprint(t.id, null);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 text-[10px] font-bold text-gray-400 hover:text-rose-600 transition"
+                          >
+                            Move to Backlog
+                          </button>
+                        )}
                         <span className="text-[10px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded-md border border-gray-200">
                           {t.storyPoints || 0} pts
                         </span>
@@ -515,37 +522,39 @@ export default function SprintsView() {
                   ))}
 
                   {/* Quick Add Issue into this Sprint */}
-                  {quickSprintTarget === String(sprint.id) ? (
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-xl border border-indigo-200">
-                      <input
-                        type="text"
-                        autoFocus
-                        placeholder="What needs to be done?"
-                        value={quickTitle}
-                        onChange={(e) => setQuickTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleQuickCreateIssue(sprint.id);
-                          if (e.key === "Escape") setQuickSprintTarget(null);
-                        }}
-                        className="flex-1 text-xs px-2 py-1 bg-white rounded-lg border border-gray-200 outline-none"
-                      />
+                  {canCreateTask && (
+                    quickSprintTarget === String(sprint.id) ? (
+                      <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-xl border border-indigo-200">
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="What needs to be done?"
+                          value={quickTitle}
+                          onChange={(e) => setQuickTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleQuickCreateIssue(sprint.id);
+                            if (e.key === "Escape") setQuickSprintTarget(null);
+                          }}
+                          className="flex-1 text-xs px-2 py-1 bg-white rounded-lg border border-gray-200 outline-none"
+                        />
+                        <button
+                          onClick={() => handleQuickCreateIssue(sprint.id)}
+                          className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold"
+                        >
+                          Create
+                        </button>
+                      </div>
+                    ) : (
                       <button
-                        onClick={() => handleQuickCreateIssue(sprint.id)}
-                        className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold"
+                        onClick={() => {
+                          setQuickSprintTarget(String(sprint.id));
+                          setQuickTitle("");
+                        }}
+                        className="w-full text-left py-2 px-3 text-xs font-bold text-gray-400 hover:text-indigo-600 flex items-center gap-1.5 transition"
                       >
-                        Create
+                        <Plus size={13} /> Create issue in {sprint.name}
                       </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setQuickSprintTarget(String(sprint.id));
-                        setQuickTitle("");
-                      }}
-                      className="w-full text-left py-2 px-3 text-xs font-bold text-gray-400 hover:text-indigo-600 flex items-center gap-1.5 transition"
-                    >
-                      <Plus size={13} /> Create issue in {sprint.name}
-                    </button>
+                    )
                   )}
                 </div>
               </div>
@@ -593,7 +602,7 @@ export default function SprintsView() {
 
                   <div className="flex items-center gap-3">
                     {/* Move to Sprint dropdown */}
-                    {sprints.length > 0 && (
+                    {canManageSprints && sprints.length > 0 && (
                       <select
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => {

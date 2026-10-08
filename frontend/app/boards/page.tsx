@@ -16,7 +16,8 @@ import { useWorkspace } from "@/lib/WorkspaceContext";
 function BoardsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, can } = useWorkspace();
+  const canCreateBoard = Boolean(currentWorkspace?.isOwner) || can("boards:create");
 
   const [activeTemplate, setActiveTemplate] = useState<ChannelTemplate | null>(null);
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
@@ -42,8 +43,8 @@ function BoardsPageContent() {
         let list = await res.json();
         if (!Array.isArray(list)) list = [];
 
-        // If no boards in workspace, create default Roadmap board
-        if (list.length === 0) {
+        // If no boards in workspace, create default Roadmap board (only if permitted)
+        if (list.length === 0 && canCreateBoard) {
           const createRes = await fetch(`${API_URL}/boards`, {
             method: "POST",
             headers: getAuthHeaders({
@@ -171,34 +172,38 @@ function BoardsPageContent() {
                       </button>
                     ))}
 
-                    <div className="pt-1 border-t border-gray-100">
-                      <button
-                        onClick={() => {
-                          setIsBoardDropdownOpen(false);
-                          setIsCreateBoardModalOpen(true);
-                        }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50/70 rounded-xl transition"
-                      >
-                        <Plus size={14} /> Create Board
-                      </button>
-                    </div>
+                    {canCreateBoard && (
+                      <div className="pt-1 border-t border-gray-100">
+                        <button
+                          onClick={() => {
+                            setIsBoardDropdownOpen(false);
+                            setIsCreateBoardModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50/70 rounded-xl transition"
+                        >
+                          <Plus size={14} /> Create Board
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
             </div>
 
-            <button
-              onClick={() => setIsCreateBoardModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
-            >
-              <Plus size={14} /> New Board
-            </button>
+            {canCreateBoard && (
+              <button
+                onClick={() => setIsCreateBoardModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+              >
+                <Plus size={14} /> New Board
+              </button>
+            )}
           </div>
 
           {/* Main Board Container */}
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             {boards.length === 0 && !loading ? (
-              <EmptyBoardState onCreateBoard={() => setIsCreateBoardModalOpen(true)} />
+              <EmptyBoardState onCreateBoard={canCreateBoard ? () => setIsCreateBoardModalOpen(true) : undefined} />
             ) : (
               <RoadmapBoard
                 board={activeBoard}

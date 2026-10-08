@@ -42,7 +42,16 @@ export default function RoadmapBoard({
   bgGradient?: string;
   onBoardUpdated?: () => void;
 }) {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, can } = useWorkspace();
+  const canEditBoard = Boolean(currentWorkspace?.isOwner) || can("boards:edit");
+  const canCreateTask = Boolean(currentWorkspace?.isOwner) || can("tasks:create");
+  const canMoveCards =
+    Boolean(currentWorkspace?.isOwner) ||
+    can("boards:edit") ||
+    can("tasks:edit_all") ||
+    can("tasks:edit_assigned") ||
+    can("tasks:edit");
+
   const [tab, setTab] = useState("board");
   const [filterQuery, setFilterQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -306,12 +315,14 @@ export default function RoadmapBoard({
           </div>
 
           {/* Add Column Button */}
-          <button
-            onClick={() => setIsAddingList(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 transition"
-          >
-            <Plus size={14} /> Add Column
-          </button>
+          {canEditBoard && (
+            <button
+              onClick={() => setIsAddingList(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 transition"
+            >
+              <Plus size={14} /> Add Column
+            </button>
+          )}
         </div>
       </div>
 
@@ -367,13 +378,15 @@ export default function RoadmapBoard({
                   </span>
                 </div>
 
-                <button
-                  onClick={() => handleDeleteList(list.id)}
-                  className="p-1 text-gray-400 hover:text-rose-500 rounded transition"
-                  title="Delete column"
-                >
-                  <Trash2 size={13} />
-                </button>
+                {canEditBoard && (
+                  <button
+                    onClick={() => handleDeleteList(list.id)}
+                    className="p-1 text-gray-400 hover:text-rose-500 rounded transition"
+                    title="Delete column"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
               </div>
 
               {/* Cards Container */}
@@ -383,8 +396,11 @@ export default function RoadmapBoard({
                     <motion.div
                       layout
                       key={task.id || `card-${list.id}-${taskIdx}`}
-                      draggable
-                      onDragStart={(e: any) => handleDragStart(e, task.id)}
+                      draggable={canMoveCards}
+                      onDragStart={(e: any) => {
+                        if (!canMoveCards) return;
+                        handleDragStart(e, task.id);
+                      }}
                       onClick={() => {
                         setSelectedTaskId(task.id);
                         setIsCardModalOpen(true);
@@ -487,7 +503,7 @@ export default function RoadmapBoard({
                     </button>
                   </div>
                 </div>
-              ) : (
+              ) : canCreateTask ? (
                 <button
                   onClick={() => {
                     setAddingTaskColId(list.id);
@@ -497,7 +513,7 @@ export default function RoadmapBoard({
                 >
                   <Plus size={13} /> Add Card
                 </button>
-              )}
+              ) : null}
             </div>
           ))}
         </div>

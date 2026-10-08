@@ -72,7 +72,7 @@ export default function AdminSidebar() {
       {/* Bottom Switch to Main App */}
       <div className="p-3 border-t border-gray-100/80">
         <a
-          href="http://localhost:3000"
+          href="https://virtual-workspace-g8w6.vercel.app"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 border border-gray-200/80 shadow-2xs transition-all"

@@ -76,7 +76,7 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
           </p>
           <div className="mt-6 flex flex-col gap-3">
             <a
-              href="http://localhost:3000/login"
+              href="https://virtual-workspace-g8w6.vercel.app/login"
               className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-md hover:bg-indigo-700 transition-all"
             >
               <span>Sign In to WorkFlow</span>
@@ -108,7 +108,7 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
           </p>
           <div className="mt-6 flex flex-col gap-3">
             <a
-              href="http://localhost:3000"
+              href="https://virtual-workspace-g8w6.vercel.app"
               className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-xs font-bold text-white shadow-md hover:bg-gray-800 transition-all"
             >
               <ArrowLeft size={14} />

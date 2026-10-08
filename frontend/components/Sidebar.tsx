@@ -17,7 +17,6 @@ import {
   Plus,
   HelpCircle,
   Layers,
-  ShieldCheck,
 } from "lucide-react";
 import { sidebarPrimary, favorites } from "@/lib/uiConstants";
 import { useState, useEffect } from "react";
@@ -188,23 +187,8 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* 4. Admin Console for system administrators */}
-        {currentUser?.role?.toLowerCase() === "admin" && (
-          <div className="mt-auto shrink-0 pt-2 pb-1 border-t border-purple-100 z-10 w-[216px]">
-            <a
-              href="http://localhost:3002"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-purple-700 bg-purple-50/80 hover:bg-purple-100 transition-colors shadow-2xs"
-            >
-              <ShieldCheck size={18} className="text-purple-600 shrink-0" strokeWidth={2.2} />
-              <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">Admin Console</span>
-            </a>
-          </div>
-        )}
-
-        {/* 5. Help & Support Footer pushed to bottom and elevated above floating desktop icon */}
-        <div className={`${currentUser?.role?.toLowerCase() === "admin" ? "pt-1.5" : "mt-auto pt-3"} shrink-0 border-t border-gray-100/80 pb-2 z-10 w-[216px]`}>
+        {/* 4. Help & Support Footer pushed to bottom and elevated above floating desktop icon */}
+        <div className="mt-auto shrink-0 pt-3 border-t border-gray-100/80 pb-2 z-10 w-[216px]">
           <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
             <HelpCircle size={18} className="text-gray-500 shrink-0" strokeWidth={1.9} />
             <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">Help &amp; Support</span>

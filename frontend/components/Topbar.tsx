@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Search, Plus, HelpCircle, Bell, ChevronDown, Folder, Users, FileText, CheckCircle2, Command, User, Settings, LogOut, Hash, ShieldCheck } from "lucide-react";
+import { Search, Plus, HelpCircle, Bell, ChevronDown, Folder, Users, FileText, CheckCircle2, Command, User, Settings, LogOut, Hash } from "lucide-react";
 import Avatar from "./Avatar";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
@@ -363,11 +363,9 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
             <span className="hidden text-left leading-tight sm:block">
               <span className="block text-[13.5px] sm:text-[14px] font-extrabold text-[#111827]">{currentUser?.name || "Loading..."}</span>
               <span className="block text-[11px] font-medium text-[#6B7280] mt-0.5">
-                {currentUser?.role?.toLowerCase() === "admin"
-                  ? "Admin"
-                  : currentWorkspace?.isOwner
-                    ? "Workspace Owner"
-                    : (currentMember?.customRoleLabel || currentMember?.roleName || currentUser?.role || "Member")}
+                {currentWorkspace?.isOwner
+                  ? "Workspace Owner"
+                  : (currentMember?.customRoleLabel || currentMember?.roleName || "Member")}
               </span>
             </span>
             <ChevronDown size={14} className="hidden text-gray-500 sm:block ml-1" strokeWidth={2.2} />
@@ -385,19 +383,7 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
                 </div>
               </div>
               <div className="p-1.5">
-                {[
-                  ...(currentUser?.role?.toLowerCase() === "admin"
-                    ? [{
-                        name: "Admin Console",
-                        icon: ShieldCheck,
-                        action: () => { window.open("http://localhost:3002", "_blank"); },
-                        textClass: "text-purple-700 font-bold",
-                        bgClass: "bg-purple-100 group-hover:bg-purple-200",
-                        iconClass: "text-purple-600",
-                      }]
-                    : []),
-                  ...profileMenuItems,
-                ].map((item) => (
+                {profileMenuItems.map((item) => (
                   <button
                     key={item.name}
                     onClick={() => {

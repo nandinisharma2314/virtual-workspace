@@ -72,19 +72,34 @@ export default function Sidebar() {
     <aside className="group hidden w-[72px] hover:w-[240px] transition-[width] duration-300 ease-in-out shrink-0 flex-col border-r border-gray-200/80 bg-white lg:flex h-screen overflow-hidden z-50 relative">
       <div className="w-[240px] flex flex-col h-full pt-4 pb-8 px-3">
         {/* 1. Seamless Logo Header Section */}
-        <div className="flex shrink-0 items-center px-1 pb-3 mb-1 overflow-hidden h-14">
+        <div className="flex shrink-0 items-center px-2 pb-2.5 mb-1 h-11 overflow-hidden">
           <Link 
             href="/" 
-            className="flex items-center shrink-0 overflow-hidden w-[36px] group-hover:w-[160px] transition-[width] duration-300 ease-in-out"
+            className="flex items-center gap-2 select-none group/logo"
           >
-            <Image
-              src="/workflow-logo.png"
-              alt="Workflow"
-              width={200}
-              height={56}
-              className="h-9 w-[160px] min-w-[160px] object-contain object-left shrink-0 transition-all duration-300 group-hover:h-11 group-hover:min-w-[190px]"
-              priority
-            />
+            {/* 3D Brand Emblem - compact, refined and centered in collapsed mode */}
+            <div className="relative w-7 h-7 shrink-0 flex items-center justify-center">
+              <Image
+                src="/nannex-icon.png"
+                alt="nannex"
+                width={28}
+                height={28}
+                className="w-7 h-7 object-contain shrink-0 group-hover/logo:scale-105 transition-transform duration-200"
+                priority
+              />
+            </div>
+
+            {/* Brand Wordmark - sleek typography that smoothly fades in on sidebar expansion */}
+            <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <Image
+                src="/nannex-wordmark.png"
+                alt="nannex"
+                width={100}
+                height={18}
+                className="h-[18px] w-auto object-contain"
+                priority
+              />
+            </div>
           </Link>
         </div>
 

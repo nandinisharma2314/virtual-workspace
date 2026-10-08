@@ -114,9 +114,9 @@ function LoginForm() {
                 <Image
                   src="/nannex-horizontal.png"
                   alt="nannex"
-                  width={170}
-                  height={42}
-                  className="h-9 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-300"
+                  width={130}
+                  height={30}
+                  className="h-7 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-300"
                   priority
                 />
               </Link>

@@ -6,6 +6,7 @@ interface BrandLogoProps {
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   showTagline?: boolean;
+  variant?: "horizontal" | "icon" | "wordmark" | "full";
 }
 
 export default function BrandLogo({
@@ -13,19 +14,29 @@ export default function BrandLogo({
   size = "md",
   className = "",
   showTagline = false,
+  variant = "horizontal",
 }: BrandLogoProps) {
   const heights = {
-    sm: "h-7",
-    md: "h-9",
-    lg: "h-11",
-    xl: "h-14",
+    sm: "h-5",
+    md: "h-7",
+    lg: "h-9",
+    xl: "h-11",
   }[size];
+
+  const imageSrc =
+    variant === "icon"
+      ? "/nannex-icon.png"
+      : variant === "wordmark"
+      ? "/nannex-wordmark.png"
+      : variant === "full"
+      ? "/nannex-full.png"
+      : "/nannex-horizontal.png";
 
   const content = (
     <div className={`inline-flex flex-col items-start group select-none ${className}`}>
       <div className="flex items-center gap-2">
         <Image
-          src="/nannex-horizontal.png"
+          src={imageSrc}
           alt="nannex"
           width={240}
           height={60}

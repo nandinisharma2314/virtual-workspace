@@ -107,9 +107,9 @@ function ResetPasswordForm() {
                   <Image
                     src="/nannex-horizontal.png"
                     alt="nannex"
-                    width={180}
-                    height={46}
-                    className="h-10 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-300"
+                    width={130}
+                    height={30}
+                    className="h-7 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-300"
                     priority
                   />
                 </Link>

@@ -23,8 +23,9 @@ export class ProjectsService {
       .returning();
 
     // Assign project members if provided
-    if (createProjectDto.assignedUserIds && createProjectDto.assignedUserIds.length > 0) {
-      const memberValues = createProjectDto.assignedUserIds.map((uid) => ({
+    const targetMemberIds = createProjectDto.assignedUserIds || createProjectDto.memberIds;
+    if (targetMemberIds && targetMemberIds.length > 0) {
+      const memberValues = targetMemberIds.map((uid) => ({
         projectId: project.id,
         userId: uid,
         role: uid === project.managerId ? 'manager' : 'member',

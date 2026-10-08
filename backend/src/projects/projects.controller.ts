@@ -68,8 +68,20 @@ export class ProjectsController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.projectsService.findOne(id);
+  async findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    const userId = req.user.sub;
+    const project = await this.projectsService.findOne(id);
+    if (!project) return null;
+    if (project.workspaceId) {
+      const auth = await this.workspacesService.getUserPermissionsInWorkspace(userId, project.workspaceId);
+      if (!auth.isOwner && !auth.permissions.includes('projects:read_all')) {
+        const isMember = project.members?.some((m: any) => m.userId === userId) || project.managerId === userId;
+        if (!isMember) {
+          throw new ForbiddenException('You do not have access to this project');
+        }
+      }
+    }
+    return project;
   }
 
   @Patch(':id')

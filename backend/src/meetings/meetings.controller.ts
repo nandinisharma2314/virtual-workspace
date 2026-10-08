@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Headers, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Headers, Query, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { MeetingsService } from './meetings.service.js';
 import { CreateMeetingDto } from './dto/create-meeting.dto.js';
 import { UpdateMeetingDto } from './dto/update-meeting.dto.js';
@@ -32,21 +32,31 @@ export class MeetingsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.meetingsService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.meetingsService.findOne(id);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post(':id/rsvp')
+  respondRSVP(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('status') status: string,
+    @Request() req: any,
+  ) {
+    return this.meetingsService.respondRSVP(id, req.user.sub, status || 'accepted');
   }
 
   @Patch(':id')
   update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateMeetingDto: UpdateMeetingDto,
     @Request() req: any,
   ) {
-    return this.meetingsService.update(+id, updateMeetingDto, req.user.sub);
+    return this.meetingsService.update(id, updateMeetingDto, req.user.sub);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Request() req: any) {
-    return this.meetingsService.remove(+id, req.user.sub);
+  remove(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.meetingsService.remove(id, req.user.sub);
   }
 }

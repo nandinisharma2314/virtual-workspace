@@ -22,6 +22,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   private readonly logger = new Logger(ChatGateway.name);
+  private readonly onlineUsers = new Map<number, Set<string>>();
+  private readonly userStatus = new Map<number, string>();
 
   constructor(
     private readonly chatService: ChatService,
@@ -56,6 +58,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         (client.data as any).workspaceId = Number(rawWsId);
       }
 
+      const userId = payload.sub;
+      if (!this.onlineUsers.has(userId)) {
+        this.onlineUsers.set(userId, new Set());
+      }
+      this.onlineUsers.get(userId)!.add(client.id);
+      this.userStatus.set(userId, 'online');
+
+      // Send initial presence snapshot to this connecting client
+      const snapshot: Record<number, string> = {};
+      this.userStatus.forEach((status, uid) => {
+        snapshot[uid] = status;
+      });
+      client.emit('presence_snapshot', snapshot);
+
+      // Broadcast user is online
+      this.server.emit('user_presence', { userId, status: 'online' });
+
       this.logger.log(`Client authenticated: ${client.id} (User: ${payload.sub}, Workspace: ${(client.data as any)?.workspaceId || 'none'})`);
     } catch (error) {
       this.logger.error(`Unauthorized client (invalid token): ${client.id}`);
@@ -64,7 +83,29 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   handleDisconnect(client: Socket) {
+    const user = (client as any).user;
+    if (user && user.sub) {
+      const userId = user.sub;
+      const sockets = this.onlineUsers.get(userId);
+      if (sockets) {
+        sockets.delete(client.id);
+        if (sockets.size === 0) {
+          this.onlineUsers.delete(userId);
+          this.userStatus.delete(userId);
+          this.server.emit('user_presence', { userId, status: 'offline' });
+        }
+      }
+    }
     this.logger.log(`Client disconnected: ${client.id}`);
+  }
+
+  @SubscribeMessage('set_presence')
+  handleSetPresence(@MessageBody() payload: { status: string }, @ConnectedSocket() client: Socket) {
+    const userId = (client as any).user?.sub;
+    if (userId && payload.status) {
+      this.userStatus.set(userId, payload.status);
+      this.server.emit('user_presence', { userId, status: payload.status });
+    }
   }
 
   private getScopedRoom(channelId: string, client?: Socket): string {
@@ -221,4 +262,3 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.to(room).emit('webrtc-ice-candidate', payload);
   }
 }
-

@@ -1,8 +1,4 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-if (!API_URL) {
-  throw new Error("NEXT_PUBLIC_API_URL is not defined in environment variables");
-}
+export const API_URL: string = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
 export function getActiveWorkspaceId(): number | null {
   if (typeof window === "undefined") return null;

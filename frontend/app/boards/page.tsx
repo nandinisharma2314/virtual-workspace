@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import RoadmapBoard from "@/components/RoadmapBoard";
@@ -8,118 +8,112 @@ import EmptyBoardState from "@/components/boards/EmptyBoardState";
 import CreateBoardModal, { CustomBoard } from "@/components/boards/CreateBoardModal";
 import MyTasksBoard from "@/components/chat/templates/MyTasksBoard";
 import { getTemplateById, ChannelTemplate } from "@/lib/templateConfig";
-import { Plus, ChevronDown, Check, FolderKanban } from "lucide-react";
+import { Plus, ChevronDown, Check, FolderKanban, Sparkles } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 function BoardsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [hasBoards, setHasBoards] = useState(true);
+  const { currentWorkspace } = useWorkspace();
+
   const [activeTemplate, setActiveTemplate] = useState<ChannelTemplate | null>(null);
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
-  const [customBoards, setCustomBoards] = useState<CustomBoard[]>([]);
-  const [activeBoardTitle, setActiveBoardTitle] = useState<string>("Product Roadmap");
-  const [activeBoardBg, setActiveBoardBg] = useState<string>("from-indigo-600 to-purple-600");
+  const [boards, setBoards] = useState<any[]>([]);
+  const [activeBoard, setActiveBoard] = useState<any>(null);
   const [isBoardDropdownOpen, setIsBoardDropdownOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Load custom boards and active board from localStorage or URL
-  const loadBoards = () => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("custom_workspace_boards");
-      if (stored) {
-        try {
-          const parsed: CustomBoard[] = JSON.parse(stored);
-          setCustomBoards(parsed);
-        } catch (e) {}
-      }
-
-      const activeTitle = localStorage.getItem("active_board_title");
-      if (activeTitle) setActiveBoardTitle(activeTitle);
-
-      const activeBg = localStorage.getItem("active_board_bg");
-      if (activeBg) setActiveBoardBg(activeBg);
-
-      // Check URL query param first (?template=... or ?id=...)
-      const queryTemplate = searchParams.get("template");
-      if (queryTemplate) {
-        const found = getTemplateById(queryTemplate);
-        if (found) {
-          setActiveTemplate(found);
-          localStorage.setItem("active_board_template", found.id);
-          return;
-        }
-      }
-
-      const templateId = localStorage.getItem("active_board_template");
-      if (templateId) {
-        const found = getTemplateById(templateId);
-        if (found) {
-          setActiveTemplate(found);
-        } else {
-          setActiveTemplate(null);
-        }
-      } else {
-        setActiveTemplate(null);
-      }
+  const loadBoards = useCallback(async () => {
+    const wsId = currentWorkspace?.id || getActiveWorkspaceId();
+    if (!wsId) {
+      setLoading(false);
+      return;
     }
-  };
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/boards?workspaceId=${wsId}`, {
+        headers: getAuthHeaders({ "x-workspace-id": String(wsId) }),
+      });
+
+      if (res.ok) {
+        let list = await res.json();
+        if (!Array.isArray(list)) list = [];
+
+        // If no boards in workspace, create default Roadmap board
+        if (list.length === 0) {
+          const createRes = await fetch(`${API_URL}/boards`, {
+            method: "POST",
+            headers: getAuthHeaders({
+              "Content-Type": "application/json",
+              "x-workspace-id": String(wsId),
+            }),
+            body: JSON.stringify({
+              title: "Product Roadmap",
+              workspaceId: Number(wsId),
+              bgGradient: "from-indigo-600 to-purple-600",
+            }),
+          });
+          if (createRes.ok) {
+            const newBoard = await createRes.json();
+            list = [newBoard];
+          }
+        }
+
+        setBoards(list);
+
+        const queryId = searchParams.get("id");
+        const found = queryId ? list.find((b: any) => String(b.id) === queryId) : null;
+        const target = found || list[0] || null;
+
+        if (target) {
+          const detailRes = await fetch(`${API_URL}/boards/${target.id}`, {
+            headers: getAuthHeaders({ "x-workspace-id": String(wsId) }),
+          });
+          if (detailRes.ok) {
+            const fullBoard = await detailRes.json();
+            setActiveBoard(fullBoard);
+          } else {
+            setActiveBoard(target);
+          }
+        } else {
+          setActiveBoard(null);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load boards:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentWorkspace?.id, searchParams]);
 
   useEffect(() => {
-    loadBoards();
-  }, [searchParams]);
-
-  const handleSelectBoard = (board: CustomBoard) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("active_board_id", board.id);
-      localStorage.setItem("active_board_title", board.title);
-      localStorage.setItem("active_board_bg", board.bgGradient);
-
-      if (board.templateId) {
-        localStorage.setItem("active_board_template", board.templateId);
-      } else {
-        localStorage.removeItem("active_board_template");
+    // Check URL query param first for template (?template=...)
+    const queryTemplate = searchParams.get("template");
+    if (queryTemplate) {
+      const found = getTemplateById(queryTemplate);
+      if (found) {
+        setActiveTemplate(found);
+        return;
       }
     }
+    loadBoards();
+  }, [loadBoards, searchParams]);
 
-    setActiveBoardTitle(board.title);
-    setActiveBoardBg(board.bgGradient);
-
-    if (board.templateId) {
-      const found = getTemplateById(board.templateId);
-      setActiveTemplate(found || null);
-    } else {
-      setActiveTemplate(null);
-    }
-
+  const handleSelectBoard = async (boardItem: any) => {
     setIsBoardDropdownOpen(false);
+    router.push(`/boards?id=${boardItem.id}`);
   };
 
-  const handleBoardCreated = (board: CustomBoard) => {
-    setCustomBoards((prev) => [board, ...prev]);
-    handleSelectBoard(board);
-  };
-
-  // If a template is active, render the full-screen Trello board all over the page!
   if (activeTemplate) {
     return (
       <MyTasksBoard
         template={activeTemplate}
         onBackToDashboard={() => {
           setActiveTemplate(null);
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("active_board_template");
-          }
           router.push("/boards");
-        }}
-        onSwitchTemplate={(templateId) => {
-          const found = getTemplateById(templateId);
-          if (found) {
-            setActiveTemplate(found);
-            if (typeof window !== "undefined") {
-              localStorage.setItem("active_board_template", found.id);
-            }
-            router.push(`/boards?template=${found.id}`);
-          }
         }}
       />
     );
@@ -132,69 +126,48 @@ function BoardsPageContent() {
       <div className="flex min-w-0 flex-1 flex-col h-full overflow-hidden">
         <Topbar />
 
-        <main className="flex-1 w-full h-full min-h-0 overflow-hidden flex flex-col px-5 py-4">
-          
-          {/* Top Board Switcher & Actions Bar */}
-          <div className="flex items-center justify-between pb-3 mb-2 border-b border-gray-200/80 shrink-0">
-            <div className="flex items-center gap-3">
-              {/* Board Selector Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsBoardDropdownOpen((prev) => !prev)}
-                  className="flex items-center gap-2.5 px-3 py-1.5 bg-white border border-gray-200 hover:border-gray-300 rounded-xl text-xs font-extrabold text-gray-900 shadow-2xs transition-all cursor-pointer group"
-                >
-                  <div
-                    className={`w-4 h-4 rounded-md bg-gradient-to-tr ${activeBoardBg} shrink-0 shadow-xs`}
-                  />
-                  <span className="text-sm font-black tracking-tight">{activeBoardTitle}</span>
-                  <ChevronDown size={14} className="text-gray-400 group-hover:text-gray-600 transition-colors" />
-                </button>
+        <main className="flex-1 min-h-0 overflow-hidden flex flex-col p-4 bg-[#FAFBFC]">
+          {/* Top Board Bar */}
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <div className="relative">
+              <button
+                onClick={() => setIsBoardDropdownOpen(!isBoardDropdownOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200/80 rounded-xl shadow-xs hover:bg-gray-50 transition"
+              >
+                <div
+                  className={`w-3.5 h-3.5 rounded-md bg-gradient-to-tr ${
+                    activeBoard?.bgGradient || "from-indigo-600 to-purple-600"
+                  }`}
+                />
+                <span className="text-xs font-black text-gray-800">
+                  {activeBoard?.title || "Product Roadmap"}
+                </span>
+                <ChevronDown size={14} className="text-gray-400" />
+              </button>
 
-                {/* Dropdown Menu */}
-                {isBoardDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1.5 w-64 bg-white border border-gray-200 rounded-2xl p-1.5 shadow-xl z-30 space-y-1">
-                    <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-gray-400">
+              {isBoardDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsBoardDropdownOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1.5 w-60 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 p-2 space-y-1">
+                    <div className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 px-2 py-1">
                       Workspace Boards
                     </div>
 
-                    {/* Standard Product Roadmap */}
-                    <button
-                      onClick={() => {
-                        if (typeof window !== "undefined") {
-                          localStorage.removeItem("active_board_template");
-                          localStorage.setItem("active_board_title", "Product Roadmap");
-                          localStorage.setItem("active_board_bg", "from-indigo-600 to-purple-600");
-                        }
-                        setActiveBoardTitle("Product Roadmap");
-                        setActiveBoardBg("from-indigo-600 to-purple-600");
-                        setActiveTemplate(null);
-                        setIsBoardDropdownOpen(false);
-                      }}
-                      className="w-full px-2.5 py-1.5 rounded-xl hover:bg-gray-50 flex items-center justify-between text-xs font-bold text-gray-800 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-4 h-4 rounded-md bg-gradient-to-tr from-indigo-600 to-purple-600 shrink-0" />
-                        <span className="truncate">Product Roadmap</span>
-                      </div>
-                      {activeBoardTitle === "Product Roadmap" && !activeTemplate && (
-                        <Check size={13} className="text-indigo-600" />
-                      )}
-                    </button>
-
-                    {/* Custom Created Boards */}
-                    {customBoards.map((b) => (
+                    {boards.map((b) => (
                       <button
                         key={b.id}
                         onClick={() => handleSelectBoard(b)}
-                        className="w-full px-2.5 py-1.5 rounded-xl hover:bg-gray-50 flex items-center justify-between text-xs font-bold text-gray-800 transition-colors cursor-pointer"
+                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition text-left ${
+                          activeBoard?.id === b.id
+                            ? "bg-indigo-50 text-indigo-700"
+                            : "hover:bg-gray-50 text-gray-700"
+                        }`}
                       >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className={`w-4 h-4 rounded-md bg-gradient-to-tr ${b.bgGradient} shrink-0`} />
+                        <div className="flex items-center gap-2 truncate">
+                          <div className={`w-3 h-3 rounded-md bg-gradient-to-tr ${b.bgGradient || "from-indigo-600 to-purple-600"}`} />
                           <span className="truncate">{b.title}</span>
                         </div>
-                        {activeBoardTitle === b.title && (
-                          <Check size={13} className="text-indigo-600" />
-                        )}
+                        {activeBoard?.id === b.id && <Check size={14} className="text-indigo-600 shrink-0" />}
                       </button>
                     ))}
 
@@ -204,60 +177,47 @@ function BoardsPageContent() {
                           setIsBoardDropdownOpen(false);
                           setIsCreateBoardModalOpen(true);
                         }}
-                        className="w-full px-2.5 py-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/70 rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50/70 rounded-xl transition"
                       >
-                        <Plus size={13} strokeWidth={2.5} />
-                        <span>Create new board</span>
+                        <Plus size={14} /> Create Board
                       </button>
                     </div>
                   </div>
-                )}
-              </div>
-
-              {activeTemplate && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                  Template Board
-                </span>
+                </>
               )}
             </div>
 
-            {/* Right Action Buttons */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => router.push("/templates")}
-                className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200/90 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-              >
-                <FolderKanban size={13} className="text-gray-500" />
-                <span>Templates</span>
-              </button>
-
-              <button
-                onClick={() => setIsCreateBoardModalOpen(true)}
-                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus size={14} strokeWidth={2.5} />
-                <span>Create Board</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setIsCreateBoardModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+            >
+              <Plus size={14} /> New Board
+            </button>
           </div>
 
-          {/* Main Content Area */}
-          {hasBoards ? (
-            <RoadmapBoard
-              boardTitle={activeBoardTitle}
-              bgGradient={activeBoardBg}
-            />
-          ) : (
-            <EmptyBoardState onCreateBoard={() => setIsCreateBoardModalOpen(true)} />
-          )}
+          {/* Main Board Container */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            {boards.length === 0 && !loading ? (
+              <EmptyBoardState onCreateBoard={() => setIsCreateBoardModalOpen(true)} />
+            ) : (
+              <RoadmapBoard
+                board={activeBoard}
+                boardTitle={activeBoard?.title || "Kanban Board"}
+                bgGradient={activeBoard?.bgGradient || "from-indigo-600 to-purple-600"}
+                onBoardUpdated={loadBoards}
+              />
+            )}
+          </div>
         </main>
       </div>
 
-      {/* Create Board Modal */}
       <CreateBoardModal
         isOpen={isCreateBoardModalOpen}
         onClose={() => setIsCreateBoardModalOpen(false)}
-        onBoardCreated={handleBoardCreated}
+        onBoardCreated={() => {
+          loadBoards();
+        }}
+        defaultWorkspace={currentWorkspace?.name || "Workspace"}
       />
     </div>
   );
@@ -265,7 +225,13 @@ function BoardsPageContent() {
 
 export default function BoardsPage() {
   return (
-    <Suspense fallback={<div className="h-screen w-screen bg-[#FAFBFC] flex items-center justify-center text-xs text-gray-500 font-semibold">Loading boards...</div>}>
+    <Suspense
+      fallback={
+        <div className="flex h-screen w-screen items-center justify-center bg-[#FAFBFC]">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+        </div>
+      }
+    >
       <BoardsPageContent />
     </Suspense>
   );

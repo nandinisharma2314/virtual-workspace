@@ -22,6 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { WorkspacesModule } from './workspaces/workspaces.module.js';
+import { BoardsModule } from './boards/boards.module.js';
 
 
 @Module({
@@ -49,6 +50,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module.js';
     MailModule,
     AdminModule,
     WorkspacesModule,
+    BoardsModule,
   ],
 
   controllers: [AppController],

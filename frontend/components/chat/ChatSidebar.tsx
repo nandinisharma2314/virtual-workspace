@@ -5,8 +5,9 @@ import { Plus, SquarePen, Hash, Lock, Check, X, Mail } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import CreateChannelModal from "./CreateChannelModal";
-import { API_URL, getAuthHeaders } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getAuthToken } from "@/lib/apis";
 import { useWorkspace } from "@/lib/WorkspaceContext";
+import { io } from "socket.io-client";
 
 type Props = {
   selectedChannelId: string;
@@ -31,6 +32,30 @@ export default function ChatSidebar({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [presenceMap, setPresenceMap] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+    const socket = io(API_URL.replace("/api", ""), {
+      auth: { token },
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("presence_snapshot", (snapshot: Record<number, string>) => {
+      if (snapshot && typeof snapshot === "object") {
+        setPresenceMap(snapshot);
+      }
+    });
+
+    socket.on("user_presence", ({ userId, status }: { userId: number; status: string }) => {
+      setPresenceMap((prev) => ({ ...prev, [userId]: status }));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const fetchChannels = useCallback(async () => {
     try {
@@ -376,7 +401,16 @@ export default function ChatSidebar({
                   <span className="flex items-center gap-2 truncate">
                     <span className="relative shrink-0">
                       <Avatar person={person} name={u.name} avatar={u.avatar} size={22} />
-                      <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full ${u.status === 'Active' ? 'bg-emerald-500' : 'bg-gray-400'} ring-1 ring-white`} />
+                      <span
+                        className={`absolute bottom-0 right-0 h-2 w-2 rounded-full ring-1 ring-white ${
+                          (presenceMap[u.id] === 'online')
+                            ? 'bg-emerald-500'
+                            : (presenceMap[u.id] === 'away')
+                            ? 'bg-amber-500'
+                            : 'bg-gray-300'
+                        }`}
+                        title={presenceMap[u.id] || 'offline'}
+                      />
                     </span>
                     <span className="truncate flex items-center gap-1.5">
                       <span className="truncate">{u.name}</span>

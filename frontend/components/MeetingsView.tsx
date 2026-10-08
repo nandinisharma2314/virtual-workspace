@@ -110,6 +110,8 @@ export default function MeetingsView() {
             time: `${formatTime(start)} - ${formatTime(end)}`,
             date: start.toDateString() === now.toDateString() ? "Today" : start.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
             attendees: colors[idx % colors.length],
+            myRsvp: m.myRsvp || 'pending',
+            realAttendees: m.attendees || [],
             isNow
           };
         });
@@ -126,6 +128,19 @@ export default function MeetingsView() {
       }
     })
     .catch(() => {});
+  };
+
+  const handleRSVP = async (meetingId: number, status: 'accepted' | 'declined' | 'tentative') => {
+    try {
+      await fetch(`${API_URL}/meetings/${meetingId}/rsvp`, {
+        method: "POST",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ status }),
+      });
+      fetchMeetings();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   useEffect(() => {
@@ -506,6 +521,28 @@ export default function MeetingsView() {
                         {copiedId === meeting.id ? "Copied" : "Copy"}
                       </button>
                     )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 pt-3 border-t border-gray-100/60 mt-3">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">RSVP:</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRSVP(meeting.id, 'accepted'); }}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${meeting.myRsvp === 'accepted' ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-emerald-50'}`}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRSVP(meeting.id, 'tentative'); }}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${meeting.myRsvp === 'tentative' ? 'bg-amber-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-amber-50'}`}
+                    >
+                      Maybe
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRSVP(meeting.id, 'declined'); }}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${meeting.myRsvp === 'declined' ? 'bg-rose-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-rose-50'}`}
+                    >
+                      Decline
+                    </button>
                   </div>
                 </motion.div>
               ))) : (

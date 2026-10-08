@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 export interface CustomBoard {
   id: string;
@@ -87,7 +89,9 @@ export default function CreateBoardModal({
 
   if (!isOpen) return null;
 
-  const handleCreate = (e: React.FormEvent) => {
+  const { currentWorkspace } = useWorkspace();
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!boardTitle.trim()) {
       setShowValidation(true);
@@ -97,44 +101,39 @@ export default function CreateBoardModal({
     setIsSubmitting(true);
 
     try {
-      const newBoard: CustomBoard = {
-        id: `board-${Date.now()}`,
-        title: boardTitle.trim(),
-        workspace: defaultWorkspace,
-        visibility,
-        bgGradient: selectedBg.gradient,
-        templateId: selectedTemplate === "blank" ? undefined : selectedTemplate,
-        createdAt: new Date().toISOString(),
-      };
+      const wsId = currentWorkspace?.id || getActiveWorkspaceId();
+      const res = await fetch(`${API_URL}/boards`, {
+        method: "POST",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          title: boardTitle.trim(),
+          workspaceId: wsId ? Number(wsId) : undefined,
+          bgGradient: selectedBg.gradient,
+          isPrivate: visibility === "private",
+          templateId: selectedTemplate === "blank" ? undefined : selectedTemplate,
+        }),
+      });
 
-      if (typeof window !== "undefined") {
-        // Save to custom boards list
-        const existingRaw = localStorage.getItem("custom_workspace_boards");
-        const existing: CustomBoard[] = existingRaw ? JSON.parse(existingRaw) : [];
-        const updated = [newBoard, ...existing];
-        localStorage.setItem("custom_workspace_boards", JSON.stringify(updated));
+      if (res.ok) {
+        const board = await res.json();
+        const customBoard: CustomBoard = {
+          id: String(board.id),
+          title: board.title,
+          workspace: currentWorkspace?.name || defaultWorkspace,
+          visibility,
+          bgGradient: board.bgGradient || selectedBg.gradient,
+          createdAt: board.createdAt,
+        };
 
-        // Set active board configuration
-        localStorage.setItem("active_board_id", newBoard.id);
-        localStorage.setItem("active_board_title", newBoard.title);
-        localStorage.setItem("active_board_bg", newBoard.bgGradient);
-
-        if (newBoard.templateId) {
-          localStorage.setItem("active_board_template", newBoard.templateId);
-        } else {
-          localStorage.removeItem("active_board_template");
+        if (onBoardCreated) {
+          onBoardCreated(customBoard);
         }
-      }
 
-      if (onBoardCreated) {
-        onBoardCreated(newBoard);
-      }
-
-      onClose();
-      if (newBoard.templateId) {
-        router.push(`/boards?template=${newBoard.templateId}`);
+        onClose();
+        router.push(`/boards?id=${board.id}`);
       } else {
-        router.push(`/boards?id=${newBoard.id}`);
+        const err = await res.json();
+        console.error("Failed to create board:", err);
       }
     } catch (err) {
       console.error("Failed to create board:", err);

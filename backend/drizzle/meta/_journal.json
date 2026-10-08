@@ -15,6 +15,13 @@
       "when": 1791371463136,
       "tag": "0001_burly_proemial_gods",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791489064144,
+      "tag": "0002_even_plazm",
+      "breakpoints": true
     }
   ]
 }

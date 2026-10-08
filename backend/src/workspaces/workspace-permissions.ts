@@ -14,7 +14,14 @@ export const WORKSPACE_PERMISSIONS = {
   PROJECTS_DELETE: 'projects:delete',
   PROJECTS_ASSIGN: 'projects:assign',
 
-  // Tasks & Sprints
+  // Boards (Trello)
+  BOARDS_CREATE: 'boards:create',
+  BOARDS_READ_ALL: 'boards:read_all',
+  BOARDS_READ_ASSIGNED: 'boards:read_assigned',
+  BOARDS_EDIT: 'boards:edit',
+  BOARDS_DELETE: 'boards:delete',
+
+  // Tasks & Sprints (Jira)
   TASKS_CREATE: 'tasks:create',
   TASKS_READ_ALL: 'tasks:read_all',
   TASKS_READ_ASSIGNED: 'tasks:read_assigned',
@@ -24,7 +31,7 @@ export const WORKSPACE_PERMISSIONS = {
   TASKS_ASSIGN: 'tasks:assign',
   SPRINTS_MANAGE: 'sprints:manage',
 
-  // Teams & Communication
+  // Teams & Communication (Teams & Slack)
   TEAMS_MANAGE: 'teams:manage',
   CHANNELS_CREATE: 'channels:create',
   FILES_MANAGE: 'files:manage',
@@ -38,7 +45,7 @@ export type WorkspacePermission = (typeof WORKSPACE_PERMISSIONS)[keyof typeof WO
 export interface PermissionDefinition {
   key: WorkspacePermission;
   label: string;
-  group: 'Workspace' | 'Members' | 'Projects' | 'Tasks' | 'Collaboration' | 'Analytics';
+  group: 'Workspace' | 'Members' | 'Projects' | 'Boards' | 'Tasks' | 'Collaboration' | 'Analytics';
   description?: string;
 }
 
@@ -48,12 +55,20 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: 'members:invite', label: 'Invite New Members', group: 'Members', description: 'Can invite members and assign initial roles' },
   { key: 'members:remove', label: 'Remove Members', group: 'Members', description: 'Can kick members from the workspace' },
   { key: 'members:assign_role', label: 'Change Member Roles', group: 'Members', description: 'Can reassign member roles and custom labels' },
+  
   { key: 'projects:create', label: 'Create Projects', group: 'Projects', description: 'Can create new projects' },
   { key: 'projects:read_all', label: 'View All Projects in Workspace', group: 'Projects', description: 'Can view every project in the workspace' },
   { key: 'projects:read_assigned', label: 'View Only Assigned Projects', group: 'Projects', description: 'Can only view projects where user is assigned' },
   { key: 'projects:edit', label: 'Edit Projects', group: 'Projects', description: 'Can update project details and settings' },
   { key: 'projects:delete', label: 'Delete Projects', group: 'Projects', description: 'Can delete projects' },
   { key: 'projects:assign', label: 'Assign Projects & Assignees', group: 'Projects', description: 'Can assign managers, supervisors, and employees to projects' },
+
+  { key: 'boards:create', label: 'Create Kanban Boards', group: 'Boards', description: 'Can create new visual Kanban boards' },
+  { key: 'boards:read_all', label: 'View All Boards', group: 'Boards', description: 'Can view all boards in the workspace' },
+  { key: 'boards:read_assigned', label: 'View Only Assigned Boards', group: 'Boards', description: 'Can only view boards where user is a member' },
+  { key: 'boards:edit', label: 'Edit Boards & Columns', group: 'Boards', description: 'Can modify board columns, titles, and layout' },
+  { key: 'boards:delete', label: 'Delete Boards', group: 'Boards', description: 'Can delete boards from workspace' },
+
   { key: 'tasks:create', label: 'Create Tasks', group: 'Tasks', description: 'Can create new tasks' },
   { key: 'tasks:read_all', label: 'View All Tasks in Workspace', group: 'Tasks', description: 'Can view all tasks in the workspace' },
   { key: 'tasks:read_assigned', label: 'View Only Assigned Tasks', group: 'Tasks', description: 'Can view only tasks assigned to self' },
@@ -61,7 +76,8 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: 'tasks:edit_assigned', label: 'Edit Assigned Tasks', group: 'Tasks', description: 'Can edit status and details of assigned tasks' },
   { key: 'tasks:delete', label: 'Delete Tasks', group: 'Tasks', description: 'Can delete tasks' },
   { key: 'tasks:assign', label: 'Assign Tasks to Others', group: 'Tasks', description: 'Can assign tasks to any member' },
-  { key: 'sprints:manage', label: 'Manage Sprints', group: 'Tasks', description: 'Can create and start sprints' },
+  { key: 'sprints:manage', label: 'Manage Sprints', group: 'Tasks', description: 'Can create, start, and complete sprints' },
+
   { key: 'teams:manage', label: 'Manage Teams', group: 'Collaboration', description: 'Can create and manage teams' },
   { key: 'channels:create', label: 'Create Channels', group: 'Collaboration', description: 'Can create chat channels' },
   { key: 'files:manage', label: 'Upload & Delete Files', group: 'Collaboration', description: 'Can upload and delete files' },
@@ -78,6 +94,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'projects:read_all',
     'projects:edit',
     'projects:assign',
+    'boards:create',
+    'boards:read_all',
+    'boards:edit',
+    'boards:delete',
     'tasks:create',
     'tasks:read_all',
     'tasks:edit_all',
@@ -93,6 +113,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   Supervisor: [
     'projects:read_all',
     'projects:assign',
+    'boards:create',
+    'boards:read_all',
+    'boards:edit',
     'tasks:create',
     'tasks:read_all',
     'tasks:edit_all',
@@ -106,6 +129,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
   'Normal Employee': [
     'projects:read_assigned',
+    'boards:read_all',
     'tasks:read_assigned',
     'tasks:edit_assigned',
     'files:manage',

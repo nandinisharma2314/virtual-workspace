@@ -4,8 +4,8 @@ import { UpdateMeetingDto } from './dto/update-meeting.dto.js';
 import { DatabaseService } from '../database/database.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { WorkspacesService } from '../workspaces/workspaces.service.js';
-import { meetings, users } from '../database/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { meetings, users, meetingAttendees } from '../database/schema.js';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 
 @Injectable()
 export class MeetingsService {
@@ -15,10 +15,22 @@ export class MeetingsService {
     private readonly workspacesService: WorkspacesService,
   ) {}
 
-  async create(createMeetingDto: CreateMeetingDto, userId: number, workspaceId?: number) {
+  async create(createMeetingDto: any, userId: number, workspaceId?: number) {
     const [user] = await this.dbService.db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) {
       throw new ForbiddenException('User not found');
+    }
+
+    if (!workspaceId) {
+      const rawWs = createMeetingDto.workspaceId;
+      if (rawWs && !isNaN(Number(rawWs))) {
+        workspaceId = Number(rawWs);
+      } else {
+        const userWs = await this.workspacesService.getUserWorkspaces(userId);
+        if (userWs.length > 0) {
+          workspaceId = userWs[0].id;
+        }
+      }
     }
 
     if (workspaceId) {
@@ -34,13 +46,35 @@ export class MeetingsService {
       .insert(meetings)
       .values({
         title: createMeetingDto.title,
-        description: createMeetingDto.description,
+        description: createMeetingDto.description || null,
         startTime: new Date(createMeetingDto.startTime),
         endTime: new Date(createMeetingDto.endTime),
         organizerId: userId,
+        teamId: createMeetingDto.teamId || null,
         workspaceId: workspaceId || null,
       })
       .returning();
+
+    // Auto-add organizer as accepted
+    await this.dbService.db.insert(meetingAttendees).values({
+      meetingId: newMeeting.id,
+      userId,
+      status: 'accepted',
+      respondedAt: new Date(),
+    });
+
+    // Add invited attendees if specified
+    if (createMeetingDto.attendeeIds && Array.isArray(createMeetingDto.attendeeIds)) {
+      for (const attendeeId of createMeetingDto.attendeeIds) {
+        if (attendeeId !== userId) {
+          await this.dbService.db.insert(meetingAttendees).values({
+            meetingId: newMeeting.id,
+            userId: attendeeId,
+            status: 'pending',
+          });
+        }
+      }
+    }
 
     const notifMsg = `${user.name} scheduled a new meeting: "${createMeetingDto.title}"`;
     if (workspaceId) {
@@ -49,30 +83,43 @@ export class MeetingsService {
       await this.notificationsService.notifyAllExcept(userId, notifMsg, 'Meeting');
     }
 
-    return newMeeting;
+    return this.findOne(newMeeting.id);
   }
 
   async findAll(userId: number, workspaceId?: number) {
-    if (workspaceId) {
-      return await this.dbService.db
-        .select()
-        .from(meetings)
-        .where(eq(meetings.workspaceId, workspaceId))
-        .orderBy(meetings.startTime);
+    let query = this.dbService.db.select().from(meetings);
+    let meetingList = workspaceId
+      ? await query.where(eq(meetings.workspaceId, workspaceId)).orderBy(meetings.startTime)
+      : await query.orderBy(meetings.startTime);
+
+    const meetingIds = meetingList.map((m) => m.id);
+    let allAttendees: any[] = [];
+    if (meetingIds.length > 0) {
+      allAttendees = await this.dbService.db
+        .select({
+          id: meetingAttendees.id,
+          meetingId: meetingAttendees.meetingId,
+          userId: meetingAttendees.userId,
+          status: meetingAttendees.status,
+          respondedAt: meetingAttendees.respondedAt,
+          name: users.name,
+          email: users.email,
+          avatar: users.avatar,
+        })
+        .from(meetingAttendees)
+        .innerJoin(users, eq(meetingAttendees.userId, users.id))
+        .where(inArray(meetingAttendees.meetingId, meetingIds));
     }
 
-    const [user] = await this.dbService.db.select().from(users).where(eq(users.id, userId)).limit(1);
-    const isAdmin = user && user.role === 'Admin';
-
-    if (isAdmin) {
-      return await this.dbService.db.select().from(meetings).orderBy(meetings.startTime);
-    } else {
-      return await this.dbService.db
-        .select()
-        .from(meetings)
-        .where(eq(meetings.organizerId, userId))
-        .orderBy(meetings.startTime);
-    }
+    return meetingList.map((m) => {
+      const attendees = allAttendees.filter((a) => a.meetingId === m.id);
+      const userRsvp = attendees.find((a) => a.userId === userId);
+      return {
+        ...m,
+        attendees,
+        myRsvp: userRsvp?.status || (m.organizerId === userId ? 'accepted' : 'pending'),
+      };
+    });
   }
 
   async findOne(id: number) {
@@ -80,7 +127,56 @@ export class MeetingsService {
     if (!meeting) {
       throw new NotFoundException(`Meeting with ID ${id} not found`);
     }
-    return meeting;
+
+    const attendees = await this.dbService.db
+      .select({
+        id: meetingAttendees.id,
+        meetingId: meetingAttendees.meetingId,
+        userId: meetingAttendees.userId,
+        status: meetingAttendees.status,
+        respondedAt: meetingAttendees.respondedAt,
+        name: users.name,
+        email: users.email,
+        avatar: users.avatar,
+      })
+      .from(meetingAttendees)
+      .innerJoin(users, eq(meetingAttendees.userId, users.id))
+      .where(eq(meetingAttendees.meetingId, id));
+
+    return {
+      ...meeting,
+      attendees,
+    };
+  }
+
+  async respondRSVP(meetingId: number, userId: number, status: string) {
+    const meeting = await this.findOne(meetingId);
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    const [existing] = await this.dbService.db
+      .select()
+      .from(meetingAttendees)
+      .where(and(eq(meetingAttendees.meetingId, meetingId), eq(meetingAttendees.userId, userId)));
+
+    if (existing) {
+      const [updated] = await this.dbService.db
+        .update(meetingAttendees)
+        .set({ status, respondedAt: new Date() })
+        .where(eq(meetingAttendees.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await this.dbService.db
+        .insert(meetingAttendees)
+        .values({
+          meetingId,
+          userId,
+          status,
+          respondedAt: new Date(),
+        })
+        .returning();
+      return created;
+    }
   }
 
   async update(id: number, updateMeetingDto: UpdateMeetingDto, userId?: number) {

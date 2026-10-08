@@ -8,6 +8,8 @@ export const users = pgTable('users', {
   role: varchar('role', { length: 100 }).default('Member'),
   department: varchar('department', { length: 100 }).default('Engineering'),
   status: varchar('status', { length: 100 }).default('Active'),
+  presence: varchar('presence', { length: 50 }).default('offline'), // 'online' | 'away' | 'dnd' | 'offline'
+  lastActiveAt: timestamp('last_active_at'),
   avatar: text('avatar'),
   bio: text('bio'),
   language: varchar('language', { length: 100 }).default('English (US)'),
@@ -104,6 +106,36 @@ export const projectMembers = pgTable('project_members', {
   assignedAt: timestamp('assigned_at').defaultNow().notNull(),
 });
 
+export const boards = pgTable('boards', {
+  id: serial('id').primaryKey(),
+  workspaceId: integer('workspace_id').references(() => workspaces.id).notNull(),
+  projectId: integer('project_id').references(() => projects.id),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  bgGradient: varchar('bg_gradient', { length: 255 }).default('from-indigo-600 to-purple-600'),
+  isPrivate: boolean('is_private').default(false).notNull(),
+  creatorId: integer('creator_id').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const boardLists = pgTable('board_lists', {
+  id: serial('id').primaryKey(),
+  boardId: integer('board_id').references(() => boards.id, { onDelete: 'cascade' }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  position: integer('position').default(0).notNull(),
+  accent: varchar('accent', { length: 100 }).default('bg-gray-400'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const boardMembers = pgTable('board_members', {
+  id: serial('id').primaryKey(),
+  boardId: integer('board_id').references(() => boards.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  role: varchar('role', { length: 50 }).default('member').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 
 export const sprints = pgTable('sprints', {
   id: serial('id').primaryKey(),
@@ -113,8 +145,33 @@ export const sprints = pgTable('sprints', {
   startDate: timestamp('start_date'),
   endDate: timestamp('end_date'),
   status: varchar('status', { length: 50 }).default('planned'),
+  goal: text('goal'),
+  sprintNumber: integer('sprint_number'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const channels = pgTable('channels', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  creatorId: integer('creator_id').references(() => users.id),
+  workspaceId: integer('workspace_id').references(() => workspaces.id),
+  teamId: integer('team_id').references(() => teams.id),
+  isPrivate: boolean('is_private').default(false).notNull(),
+  bgGradient: varchar('bg_gradient', { length: 255 }).default('from-indigo-600 via-indigo-700 to-purple-800'),
+  isTemplate: boolean('is_template').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const channelMembers = pgTable('channel_members', {
+  id: serial('id').primaryKey(),
+  channelId: varchar('channel_id', { length: 255 }).references(() => channels.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  addedById: integer('added_by_id').references(() => users.id),
+  status: varchar('status', { length: 50 }).default('accepted').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 export const tasks = pgTable('tasks', {
@@ -125,12 +182,56 @@ export const tasks = pgTable('tasks', {
   priority: varchar('priority', { length: 50 }).default('medium'),
   projectId: integer('project_id').references(() => projects.id),
   sprintId: integer('sprint_id').references(() => sprints.id),
+  boardId: integer('board_id').references(() => boards.id),
+  boardListId: integer('board_list_id').references(() => boardLists.id),
+  order: integer('order').default(0).notNull(),
   assigneeId: integer('assignee_id').references(() => users.id),
   channelId: varchar('channel_id', { length: 255 }).references(() => channels.id),
   workspaceId: integer('workspace_id').references(() => workspaces.id),
   estimatedHours: real('estimated_hours'),
+  storyPoints: real('story_points'),
+  issueType: varchar('issue_type', { length: 50 }).default('task').notNull(), // 'task' | 'story' | 'bug' | 'epic'
+  epicId: integer('epic_id'),
+  coverColor: varchar('cover_color', { length: 100 }),
+  dueDate: timestamp('due_date'),
+  completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const taskChecklists = pgTable('task_checklists', {
+  id: serial('id').primaryKey(),
+  taskId: integer('task_id').references(() => tasks.id, { onDelete: 'cascade' }).notNull(),
+  title: varchar('title', { length: 255 }).default('Checklist').notNull(),
+  position: integer('position').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const taskChecklistItems = pgTable('task_checklist_items', {
+  id: serial('id').primaryKey(),
+  checklistId: integer('checklist_id').references(() => taskChecklists.id, { onDelete: 'cascade' }).notNull(),
+  title: varchar('title', { length: 500 }).notNull(),
+  isCompleted: boolean('is_completed').default(false).notNull(),
+  position: integer('position').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const taskComments = pgTable('task_comments', {
+  id: serial('id').primaryKey(),
+  taskId: integer('task_id').references(() => tasks.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const taskActivities = pgTable('task_activities', {
+  id: serial('id').primaryKey(),
+  taskId: integer('task_id').references(() => tasks.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  action: varchar('action', { length: 100 }).notNull(), // e.g. 'created', 'status_changed', 'moved', 'assigned', 'commented'
+  details: jsonb('details'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 export const timeLogs = pgTable('time_logs', {
@@ -167,6 +268,7 @@ export const files = pgTable('files', {
   type: varchar('type', { length: 100 }),
   uploadedById: integer('uploaded_by_id').references(() => users.id),
   projectId: integer('project_id').references(() => projects.id),
+  teamId: integer('team_id').references(() => teams.id),
   workspaceId: integer('workspace_id').references(() => workspaces.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -191,6 +293,15 @@ export const meetings = pgTable('meetings', {
   organizerId: integer('organizer_id').references(() => users.id),
   teamId: integer('team_id').references(() => teams.id),
   workspaceId: integer('workspace_id').references(() => workspaces.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const meetingAttendees = pgTable('meeting_attendees', {
+  id: serial('id').primaryKey(),
+  meetingId: integer('meeting_id').references(() => meetings.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  status: varchar('status', { length: 50 }).default('pending').notNull(), // 'pending' | 'accepted' | 'declined' | 'tentative'
+  respondedAt: timestamp('responded_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -219,26 +330,5 @@ export const notifications = pgTable('notifications', {
   content: text('content').notNull(),
   type: varchar('type', { length: 100 }).default('system').notNull(),
   isRead: boolean('is_read').default(false).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
-
-export const channels = pgTable('channels', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  description: text('description'),
-  creatorId: integer('creator_id').references(() => users.id),
-  workspaceId: integer('workspace_id').references(() => workspaces.id),
-  bgGradient: varchar('bg_gradient', { length: 255 }).default('from-indigo-600 via-indigo-700 to-purple-800'),
-  isTemplate: boolean('is_template').default(false).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
-export const channelMembers = pgTable('channel_members', {
-  id: serial('id').primaryKey(),
-  channelId: varchar('channel_id', { length: 255 }).references(() => channels.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  addedById: integer('added_by_id').references(() => users.id),
-  status: varchar('status', { length: 50 }).default('accepted').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

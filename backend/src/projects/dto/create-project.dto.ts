@@ -24,6 +24,10 @@ export class CreateProjectDto {
   @IsOptional()
   assignedUserIds?: number[];
 
+  @IsArray()
+  @IsOptional()
+  memberIds?: number[];
+
   @IsString()
   @IsOptional()
   status?: string;

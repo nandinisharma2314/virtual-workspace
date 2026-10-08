@@ -1,12 +1,19 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ShieldAlert, LogIn, RefreshCw, ArrowLeft } from "lucide-react";
+import { ShieldAlert, LogIn, ArrowLeft } from "lucide-react";
 import { API_URL } from "@/lib/apis";
 
 export default function AdminAuthGuard({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<"loading" | "authorized" | "unauthorized" | "forbidden">("loading");
   const [user, setUser] = useState<any>(null);
+
+  // Login form state (the admin site is a separate origin, so it needs its own login)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const checkAdminAuth = async () => {
     setStatus("loading");
@@ -48,6 +55,38 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
     }
   };
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        setLoginError("Invalid email or password.");
+        return;
+      }
+      const data = await res.json();
+      localStorage.setItem("token", data.access_token);
+      setPassword("");
+      await checkAdminAuth();
+    } catch {
+      setLoginError("Cannot reach the server. Check your connection and try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSignOut = () => {
+    localStorage.removeItem("token");
+    document.cookie = "token=; path=/; max-age=0";
+    setUser(null);
+    setStatus("unauthorized");
+  };
+
   useEffect(() => {
     checkAdminAuth();
   }, []);
@@ -74,21 +113,34 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
           <p className="mt-2 text-xs font-medium text-gray-500 leading-relaxed">
             You must be signed in with a System Super-Administrator account to access this console.
           </p>
-          <div className="mt-6 flex flex-col gap-3">
-            <a
-              href="https://virtual-workspace-g8w6.vercel.app/login"
-              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-md hover:bg-indigo-700 transition-all"
-            >
-              <span>Sign In to WorkFlow</span>
-            </a>
+          <form onSubmit={handleLogin} className="mt-6 flex flex-col gap-3 text-left">
+            <input
+              type="email"
+              required
+              autoComplete="username"
+              placeholder="Admin email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="rounded-xl border border-gray-200 px-3 py-2.5 text-xs outline-none focus:border-indigo-500"
+            />
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="rounded-xl border border-gray-200 px-3 py-2.5 text-xs outline-none focus:border-indigo-500"
+            />
+            {loginError && <p className="text-xs font-medium text-red-600">{loginError}</p>}
             <button
-              onClick={checkAdminAuth}
-              className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all"
+              type="submit"
+              disabled={submitting}
+              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-md hover:bg-indigo-700 transition-all disabled:opacity-60"
             >
-              <RefreshCw size={13} />
-              <span>Retry Session Check</span>
+              <span>{submitting ? "Signing in..." : "Sign In"}</span>
             </button>
-          </div>
+          </form>
         </div>
       </div>
     );
@@ -107,6 +159,12 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
             System Super-Admin privilege is required to access workspace operations and cross-tenant telemetry.
           </p>
           <div className="mt-6 flex flex-col gap-3">
+            <button
+              onClick={handleSignOut}
+              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-md hover:bg-indigo-700 transition-all"
+            >
+              <span>Sign out and use another account</span>
+            </button>
             <a
               href="https://virtual-workspace-g8w6.vercel.app"
               className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-xs font-bold text-white shadow-md hover:bg-gray-800 transition-all"

@@ -1,22 +1,19 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
 import { Activity, Bell, Shield, User } from "lucide-react";
 
 export default function AdminTopbar({ title, subtitle }: { title: string; subtitle?: string }) {
   const [adminUser, setAdminUser] = useState<any>(null);
 
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
-    if (token) {
-      fetch(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => res.ok ? res.json() : null)
-        .then(data => { if (data) setAdminUser(data); })
-        .catch(() => {});
-    }
+    fetch(`${API_URL}/auth/me`, {
+      headers: getAuthHeaders(),
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setAdminUser(data); })
+      .catch(() => {});
   }, []);
 
   return (

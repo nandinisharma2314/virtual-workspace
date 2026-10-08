@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import AdminTopbar from "@/components/AdminTopbar";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
 import { toast, confirmDialog } from "@/lib/toast";
 import {
   Palette,
@@ -36,8 +36,8 @@ export default function AdminThemesPage() {
     try {
       setLoading(true);
       const [resWallpapers, resThemes] = await Promise.all([
-        fetch(`${API_URL}/admin/wallpapers`),
-        fetch(`${API_URL}/admin/themes`),
+        fetch(`${API_URL}/admin/wallpapers`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/admin/themes`, { headers: getAuthHeaders() }),
       ]);
 
       if (resWallpapers.ok) {
@@ -81,7 +81,6 @@ export default function AdminThemesPage() {
 
     setSaving(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
       const endpoint = modalType === "wallpaper" ? `${API_URL}/admin/wallpapers` : `${API_URL}/admin/themes`;
       
       const payload = modalType === "wallpaper"
@@ -92,7 +91,7 @@ export default function AdminThemesPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...getAuthHeaders(),
         },
         body: JSON.stringify(payload),
       });
@@ -120,11 +119,10 @@ export default function AdminThemesPage() {
       confirmText: "Delete",
       onConfirm: async () => {
         try {
-          const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
           const endpoint = type === "wallpaper" ? `${API_URL}/admin/wallpapers/${id}` : `${API_URL}/admin/themes/${id}`;
           const res = await fetch(endpoint, {
             method: "DELETE",
-            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            headers: getAuthHeaders(),
           });
           if (res.ok) {
             toast.success("Asset deleted successfully.");

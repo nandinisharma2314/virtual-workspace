@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { JwtService } from '@nestjs/jwt';
 import { DatabaseService } from '../database/database.service.js';
 import * as schema from '../database/schema.js';
-import { messages, users, channels, channelMembers, workspaceMembers, workspaces } from '../database/schema.js';
+import { messages, users, channels, channelMembers, workspaceMembers, workspaces, workspaceRoles } from '../database/schema.js';
 import { eq, desc, inArray, or, and, sql, isNull, ilike } from 'drizzle-orm';
 import * as nodemailer from 'nodemailer';
 import { NotificationsService } from '../notifications/notifications.service.js';
@@ -14,7 +14,21 @@ export class ChatService {
     private readonly notificationsService: NotificationsService,
     private readonly jwtService: JwtService,
   ) {}
-  private async getOrEnsureChannel(channelId: string) {
+
+  getCanonicalDmChannelId(channelId: string, currentUserId?: number): string {
+    if (!channelId || !channelId.startsWith('dm-')) return channelId;
+    const parts = channelId.substring(3).split('-').map(Number).filter(n => !isNaN(n));
+    if (parts.length === 2) {
+      return `dm-${Math.min(parts[0], parts[1])}-${Math.max(parts[0], parts[1])}`;
+    }
+    if (parts.length === 1 && currentUserId) {
+      const targetId = parts[0];
+      return `dm-${Math.min(currentUserId, targetId)}-${Math.max(currentUserId, targetId)}`;
+    }
+    return channelId;
+  }
+
+  async getOrEnsureChannel(channelId: string) {
     let [channel] = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
     if (!channel && channelId === 'c-general') {
       await this.dbService.db.insert(channels).values({
@@ -24,54 +38,121 @@ export class ChatService {
       }).onConflictDoNothing();
       const res = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
       channel = res[0];
+    } else if (!channel && channelId.startsWith('c-general-ws-')) {
+      const wsId = Number(channelId.replace('c-general-ws-', ''));
+      if (!isNaN(wsId)) {
+        await this.dbService.db.insert(channels).values({
+          id: channelId,
+          name: 'general',
+          description: 'Company-wide announcements and discussion',
+          workspaceId: wsId,
+          isTemplate: false,
+        }).onConflictDoNothing();
+        const res = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
+        channel = res[0];
+      }
     }
     return channel;
   }
 
-  private async isUserAdminOrWsOwner(userId: number, workspaceId?: number | null): Promise<boolean> {
+  async isUserAdminOrWsOwner(userId: number, workspaceId?: number | null): Promise<boolean> {
     const [user] = await this.dbService.db.select().from(users).where(eq(users.id, userId)).limit(1);
-    if (user && user.role === 'Admin') return true;
+    if (user && user.role?.toLowerCase() === 'admin') return true;
     if (workspaceId) {
       const [ws] = await this.dbService.db.select().from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1);
       if (ws && ws.ownerId === userId) return true;
+
+      const [member] = await this.dbService.db
+        .select({ roleName: workspaceRoles.name })
+        .from(workspaceMembers)
+        .leftJoin(workspaceRoles, eq(workspaceMembers.roleId, workspaceRoles.id))
+        .where(and(
+          eq(workspaceMembers.workspaceId, workspaceId),
+          eq(workspaceMembers.userId, userId),
+          eq(workspaceMembers.status, 'active')
+        ))
+        .limit(1);
+      if (member && (member.roleName?.toLowerCase() === 'admin' || member.roleName === 'Workspace Owner')) {
+        return true;
+      }
     }
     return false;
   }
 
+  async checkChannelAccess(channelId: string, userId?: number): Promise<boolean> {
+    if (!userId) return false;
+
+    // Check system super-admin
+    const [user] = await this.dbService.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (user && user.role?.toLowerCase() === 'admin') return true;
+
+    // 1. Direct Messages
+    if (channelId.startsWith('dm-')) {
+      const canonical = this.getCanonicalDmChannelId(channelId, userId);
+      const parts = canonical.substring(3).split('-').map(Number);
+      if (parts.length === 2) {
+        return parts[0] === userId || parts[1] === userId;
+      }
+      return true;
+    }
+
+    // 2. Global general channel
+    if (channelId === 'c-general') return true;
+
+    // 3. Database channel check
+    const [dbChannel] = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId)).limit(1);
+    if (!dbChannel) {
+      return true;
+    }
+
+    // Channel creator always has access
+    if (dbChannel.creatorId === userId) return true;
+
+    // Workspace owner or workspace admin
+    if (dbChannel.workspaceId) {
+      const isWsAdmin = await this.isUserAdminOrWsOwner(userId, dbChannel.workspaceId);
+      if (isWsAdmin) return true;
+
+      // Default/general channel of the workspace: ANY active member of that workspace has access!
+      if (dbChannel.id === `c-general-ws-${dbChannel.workspaceId}` || dbChannel.name === 'general') {
+        const [wsMember] = await this.dbService.db
+          .select({ id: workspaceMembers.id })
+          .from(workspaceMembers)
+          .where(and(
+            eq(workspaceMembers.workspaceId, dbChannel.workspaceId),
+            eq(workspaceMembers.userId, userId),
+            eq(workspaceMembers.status, 'active')
+          ))
+          .limit(1);
+        if (wsMember) return true;
+      }
+    }
+
+    // Explicit accepted membership in channelMembers
+    const [membership] = await this.dbService.db
+      .select({ id: channelMembers.id })
+      .from(channelMembers)
+      .where(and(
+        eq(channelMembers.channelId, channelId),
+        eq(channelMembers.userId, userId),
+        eq(channelMembers.status, 'accepted')
+      ))
+      .limit(1);
+
+    return Boolean(membership);
+  }
+
   async getMessagesByChannel(channelId: string, userId?: number) {
-    // For direct messages, verify the requesting user is a participant
-    if (channelId.startsWith('dm-') && userId) {
-      const parts = channelId.replace('dm-', '').split('_').map(Number).filter(n => !isNaN(n));
-      if (parts.length > 0 && !parts.includes(userId)) {
+    const canonicalChannelId = this.getCanonicalDmChannelId(channelId, userId);
+
+    if (userId) {
+      const hasAccess = await this.checkChannelAccess(canonicalChannelId, userId);
+      if (!hasAccess) {
         return [];
       }
     }
 
-    // Check channel access if not dm-
-    if (!channelId.startsWith('dm-') && userId) {
-      const [dbChannel] = await this.dbService.db
-        .select()
-        .from(channels)
-        .where(eq(channels.id, channelId));
-
-      if (dbChannel) {
-        const isAdminOrOwner = await this.isUserAdminOrWsOwner(userId, dbChannel.workspaceId);
-        const isCreator = dbChannel.creatorId === userId;
-        const [membership] = await this.dbService.db
-          .select()
-          .from(channelMembers)
-          .where(and(
-            eq(channelMembers.channelId, channelId),
-            eq(channelMembers.userId, userId),
-            eq(channelMembers.status, 'accepted')
-          ));
-
-        if (!isAdminOrOwner && !isCreator && !membership) {
-          return [];
-        }
-      }
-    }
-
+    const isDm = canonicalChannelId.startsWith('dm-');
     const rawMessages = await this.dbService.db
       .select({
         id: messages.id,
@@ -88,7 +169,11 @@ export class ChatService {
       })
       .from(messages)
       .leftJoin(users, eq(messages.senderId, users.id))
-      .where(eq(messages.channelId, channelId))
+      .where(
+        isDm
+          ? or(eq(messages.channelId, canonicalChannelId), eq(messages.channelId, channelId))
+          : eq(messages.channelId, canonicalChannelId)
+      )
       .orderBy(messages.createdAt);
 
     return rawMessages.map(m => ({
@@ -107,12 +192,13 @@ export class ChatService {
   }
 
   async saveMessage(userId: number, content: string, channelId: string, parentId?: number, attachment?: any) {
+    const canonicalChannelId = this.getCanonicalDmChannelId(channelId, userId);
     const [saved] = await this.dbService.db
       .insert(messages)
       .values({
         content,
         senderId: userId,
-        channelId: channelId,
+        channelId: canonicalChannelId,
         parentId: parentId || null,
         attachments: attachment ? [attachment] : null,
       })
@@ -124,7 +210,7 @@ export class ChatService {
       .from(users)
       .where(eq(users.id, userId));
       
-    if (user && user.role === 'Admin' && !channelId.startsWith('dm-')) {
+    if (user && user.role === 'Admin') {
       await this.notificationsService.notifyAllExcept(userId, `Admin ${user.name} sent a message in ${channelId}: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
     }
 
@@ -208,21 +294,32 @@ export class ChatService {
     const [currentUser] = await this.dbService.db.select().from(users).where(eq(users.id, userId));
     if (!currentUser) return [];
 
+    const defaultWsChannelId = workspaceId ? `c-general-ws-${workspaceId}` : 'c-general';
+    if (workspaceId) {
+      await this.getOrEnsureChannel(defaultWsChannelId);
+    }
+
+    const isAdminOrOwner = await this.isUserAdminOrWsOwner(userId, workspaceId);
+
     const whereConditions = workspaceId
       ? and(
           eq(channels.workspaceId, workspaceId),
-          or(
-            and(eq(channelMembers.userId, userId), eq(channelMembers.status, 'accepted')),
-            eq(channels.creatorId, userId)
-          )
+          isAdminOrOwner
+            ? sql`true`
+            : or(
+                and(eq(channelMembers.userId, userId), eq(channelMembers.status, 'accepted')),
+                eq(channels.creatorId, userId),
+                eq(channels.id, defaultWsChannelId),
+                eq(channels.name, 'general')
+              )
         )
       : or(
           and(eq(channelMembers.userId, userId), eq(channelMembers.status, 'accepted')),
-          eq(channels.creatorId, userId)
+          eq(channels.creatorId, userId),
+          eq(channels.id, 'c-general')
         );
 
-    // Strict privacy for all users:
-    // Only return channels where the user is an accepted member or the creator
+    // Return visible channels
     const rawUserChannels = await this.dbService.db
       .select({
         id: channels.id,
@@ -249,11 +346,22 @@ export class ChatService {
     const enhanced = await Promise.all(
       userChannels.map(async (c) => {
         let membersCount = 1;
-        const memberRows = await this.dbService.db
-          .select({ count: sql`count(*)` })
-          .from(channelMembers)
-          .where(and(eq(channelMembers.channelId, c.id), eq(channelMembers.status, 'accepted')));
-        membersCount = Number(memberRows[0]?.count || 1);
+        if (c.id === 'c-general') {
+          const userRows = await this.dbService.db.select({ count: sql`count(*)` }).from(users);
+          membersCount = Number(userRows[0]?.count || 1);
+        } else if (workspaceId && (c.id === defaultWsChannelId || c.name === 'general')) {
+          const wsMemberRows = await this.dbService.db
+            .select({ count: sql`count(*)` })
+            .from(workspaceMembers)
+            .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.status, 'active')));
+          membersCount = Number(wsMemberRows[0]?.count || 1);
+        } else {
+          const memberRows = await this.dbService.db
+            .select({ count: sql`count(*)` })
+            .from(channelMembers)
+            .where(and(eq(channelMembers.channelId, c.id), eq(channelMembers.status, 'accepted')));
+          membersCount = Number(memberRows[0]?.count || 1);
+        }
 
         const latestMsg = await this.dbService.db
           .select({
@@ -833,41 +941,96 @@ export class ChatService {
   }
 
   async getChannelInfo(channelId: string, userId?: number) {
-    const [dbChannel] = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
+    const canonicalChannelId = this.getCanonicalDmChannelId(channelId, userId);
 
-    // Access control check for private channels
-    if (dbChannel && userId) {
-      const isAdminOrOwner = await this.isUserAdminOrWsOwner(userId, dbChannel.workspaceId);
-      const isCreator = dbChannel.creatorId === userId;
-      const [membership] = await this.dbService.db
-        .select()
-        .from(channelMembers)
-        .where(and(
-          eq(channelMembers.channelId, channelId), 
-          eq(channelMembers.userId, userId),
-          eq(channelMembers.status, 'accepted')
-        ));
-
-      if (!isAdminOrOwner && !isCreator && !membership) {
+    if (userId) {
+      const hasAccess = await this.checkChannelAccess(canonicalChannelId, userId);
+      if (!hasAccess) {
         throw new ForbiddenException('You do not have access to this channel.');
       }
     }
+
+    // Direct Message handling
+    if (canonicalChannelId.startsWith('dm-')) {
+      const parts = canonicalChannelId.substring(3).split('-').map(Number);
+      const dmUsers = await this.dbService.db
+        .select({
+          id: users.id,
+          name: users.name,
+          role: users.role,
+          avatar: users.avatar,
+          email: users.email,
+          status: users.status,
+          department: users.department,
+        })
+        .from(users)
+        .where(inArray(users.id, parts));
+
+      const otherUser = dmUsers.find(u => u.id !== userId) || dmUsers[0];
+      return {
+        id: canonicalChannelId,
+        name: otherUser ? `@${otherUser.name}` : canonicalChannelId,
+        description: otherUser ? `Direct conversation with ${otherUser.name}` : 'Direct Message',
+        creatorId: null,
+        avatar: otherUser?.avatar,
+        status: otherUser?.status || 'Active',
+        membersCount: dmUsers.length,
+        members: dmUsers.map(u => ({
+          id: u.id,
+          name: u.name,
+          role: u.role,
+          email: u.email,
+          avatarPerson: u.name.split(' ')[0].toLowerCase(),
+          avatar: u.avatar
+        })),
+        pendingMembers: [],
+        tasks: [],
+        files: [],
+      };
+    }
+
+    const [dbChannel] = await this.dbService.db.select().from(channels).where(eq(channels.id, channelId));
 
     let name = dbChannel ? `# ${dbChannel.name}` : (channelId.startsWith('c-') ? `# ${channelId.substring(2)}` : channelId);
     let description = dbChannel?.description || "Discussion channel";
 
     // Fetch accepted members from database for this specific channel
-    const memberUsers = await this.dbService.db
-      .select({
-        id: users.id,
-        name: users.name,
-        role: users.role,
-        avatar: users.avatar,
-        email: users.email,
-      })
-      .from(channelMembers)
-      .innerJoin(users, eq(channelMembers.userId, users.id))
-      .where(and(eq(channelMembers.channelId, channelId), eq(channelMembers.status, 'accepted')));
+    let memberUsers;
+    if (channelId === 'c-general') {
+      memberUsers = await this.dbService.db
+        .select({
+          id: users.id,
+          name: users.name,
+          role: users.role,
+          avatar: users.avatar,
+          email: users.email,
+        })
+        .from(users);
+    } else if (dbChannel?.workspaceId && (dbChannel.id === `c-general-ws-${dbChannel.workspaceId}` || dbChannel.name === 'general')) {
+      memberUsers = await this.dbService.db
+        .select({
+          id: users.id,
+          name: users.name,
+          role: users.role,
+          avatar: users.avatar,
+          email: users.email,
+        })
+        .from(workspaceMembers)
+        .innerJoin(users, eq(workspaceMembers.userId, users.id))
+        .where(and(eq(workspaceMembers.workspaceId, dbChannel.workspaceId), eq(workspaceMembers.status, 'active')));
+    } else {
+      memberUsers = await this.dbService.db
+        .select({
+          id: users.id,
+          name: users.name,
+          role: users.role,
+          avatar: users.avatar,
+          email: users.email,
+        })
+        .from(channelMembers)
+        .innerJoin(users, eq(channelMembers.userId, users.id))
+        .where(and(eq(channelMembers.channelId, channelId), eq(channelMembers.status, 'accepted')));
+    }
 
     // Fetch pending invitees
     const pendingUsers = await this.dbService.db

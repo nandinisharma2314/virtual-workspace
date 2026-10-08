@@ -1,7 +1,7 @@
 "use client";
 
 import Avatar from "@/components/Avatar";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getAuthToken } from "@/lib/apis";
 import { toast, confirmDialog } from "@/lib/toast";
 import { useWorkspace } from "@/lib/WorkspaceContext";
 import {
@@ -110,7 +110,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
   }, [channelId]);
 
   useEffect(() => {
-    fetch(`${API_URL}/admin/templates`)
+    fetch(`${API_URL}/admin/templates`, { headers: getAuthHeaders() })
       .then(res => res.ok ? res.json() : null)
       .then(data => { if (Array.isArray(data) && data.length > 0) setDynamicTemplates(data); })
       .catch(() => {});
@@ -135,21 +135,17 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
 
     if (!channelId.startsWith("dm-")) {
       try {
-        const token = document.cookie.split("; ").find((row) => row.startsWith("token="))?.split("=")[1];
-        if (token) {
-          await fetch(`${API_URL}/chat/info/${channelId}`, {
-            method: "PATCH",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              name: info?.name || channelId,
-              description: info?.description || "",
-              bgGradient: bgUrl,
-            }),
-          });
-        }
+        await fetch(`${API_URL}/chat/info/${channelId}`, {
+          method: "PATCH",
+          headers: getAuthHeaders({
+            "Content-Type": "application/json",
+          }),
+          body: JSON.stringify({
+            name: info?.name || channelId,
+            description: info?.description || "",
+            bgGradient: bgUrl,
+          }),
+        });
       } catch (e) {
         console.error(e);
       }
@@ -171,21 +167,17 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
 
     if (!channelId.startsWith("dm-")) {
       try {
-        const token = document.cookie.split("; ").find((row) => row.startsWith("token="))?.split("=")[1];
-        if (token) {
-          await fetch(`${API_URL}/chat/info/${channelId}`, {
-            method: "PATCH",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              name: info?.name || channelId,
-              description: info?.description || "",
-              bgGradient: "white",
-            }),
-          });
-        }
+        await fetch(`${API_URL}/chat/info/${channelId}`, {
+          method: "PATCH",
+          headers: getAuthHeaders({
+            "Content-Type": "application/json",
+          }),
+          body: JSON.stringify({
+            name: info?.name || channelId,
+            description: info?.description || "",
+            bgGradient: "white",
+          }),
+        });
       } catch (e) {
         console.error(e);
       }
@@ -193,6 +185,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
   };
 
   const currentUserId = currentUser?.id || currentUser?.sub;
+  const isGeneralChannel = channelId === 'c-general' || channelId.startsWith('c-general-ws-');
   const isCreator = info?.creatorId 
     ? (info.creatorId === currentUserId) 
     : (currentUser?.role === 'Admin' || currentWorkspace?.isOwner || can("channels:manage"));
@@ -205,12 +198,12 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
 
   const fetchInfo = async () => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      const token = getAuthToken();
       if (!token) return;
       
       // Fetch channel info
       const res = await fetch(`${API_URL}/chat/info/${channelId}`, {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders()
       });
       if (res.ok) {
         const data = await res.json();
@@ -222,7 +215,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
       // Fetch current user
       if (!currentUser) {
         const userRes = await fetch(`${API_URL}/auth/me?_t=${Date.now()}`, {
-          headers: { "Authorization": `Bearer ${token}` }
+          headers: getAuthHeaders()
         });
         if (userRes.ok) {
           const userData = await userRes.json();
@@ -232,7 +225,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
 
       // Fetch workspace users for member picker
       fetch(`${API_URL}/chat/direct-message-users`, {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders()
       })
         .then(res => res.json())
         .then(data => {
@@ -255,13 +248,11 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
     setAddMemberError("");
     setAddMemberSuccess("");
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const res = await fetch(`${API_URL}/chat/members/${channelId}`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
+        headers: getAuthHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         body: JSON.stringify({ email: emailToUse })
       });
       const data = await res.json();
@@ -289,13 +280,11 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
       variant: "danger",
       confirmText: "Remove Member",
       onConfirm: async () => {
-        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-        if (!token) return;
         setMemberActionLoading(memberId);
         try {
           const res = await fetch(`${API_URL}/chat/channels/${channelId}/members/${memberId}`, {
             method: "DELETE",
-            headers: { "Authorization": `Bearer ${token}` }
+            headers: getAuthHeaders()
           });
           if (res.ok) {
             setActiveMemberMenu(null);
@@ -318,12 +307,10 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
   };
 
   const handleRevokeInvitation = async (targetUserId: number) => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) return;
     try {
       const res = await fetch(`${API_URL}/chat/channels/${channelId}/invitations/${targetUserId}`, {
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders()
       });
       if (res.ok) {
         await fetchInfo();
@@ -337,13 +324,11 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
     setResendingEmail(email);
     setPendingFeedback(null);
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const res = await fetch(`${API_URL}/chat/members/${channelId}`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
+        headers: getAuthHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         body: JSON.stringify({ email })
       });
       const data = await res.json();
@@ -365,14 +350,11 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
 
   const handleSaveInfo = async () => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      if (!token) return;
       const res = await fetch(`${API_URL}/chat/info/${channelId}`, {
         method: "PATCH",
-        headers: { 
-          "Authorization": `Bearer ${token}`,
+        headers: getAuthHeaders({ 
           "Content-Type": "application/json"
-        },
+        }),
         body: JSON.stringify({ name: editName, description: editDesc })
       });
       if (res.ok) {
@@ -471,7 +453,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
         ) : (
           <div className="shrink-0 flex items-start gap-3">
             <div className={`w-11 h-11 rounded-2xl ${info?.bgGradient ? `bg-gradient-to-br ${info.bgGradient}` : 'bg-gray-100'} ${info?.bgGradient ? 'text-white' : 'text-gray-700'} font-black text-2xl flex items-center justify-center shrink-0 shadow-2xs`}>
-              {channelId !== 'c-general' && !channelId.startsWith('dm-') ? <Lock size={20} /> : "#"}
+              {!isGeneralChannel && !channelId.startsWith('dm-') ? <Lock size={20} /> : "#"}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
@@ -491,7 +473,7 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
               <p className="text-[11.5px] font-medium text-gray-400 mt-0.5 leading-snug break-words pr-2">
                 {info?.description || "Company wide announcements and general discussion"}
               </p>
-              {channelId !== 'c-general' && !channelId.startsWith('dm-') && (
+              {!isGeneralChannel && !channelId.startsWith('dm-') && (
                 <div className="inline-flex items-center gap-1 mt-1 text-[10.5px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
                   <Lock size={10} strokeWidth={2.5} />
                   <span>Private Channel</span>
@@ -1051,13 +1033,11 @@ export default function ChatInfoPanel({ onClose, channelId = "c-general", onUpda
                       )
                     }));
                     try {
-                      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
                       await fetch(`${API_URL}/tasks/${t.id}`, {
                         method: "PATCH",
-                        headers: {
-                          "Authorization": `Bearer ${token}`,
+                        headers: getAuthHeaders({
                           "Content-Type": "application/json"
-                        },
+                        }),
                         body: JSON.stringify({ status: newStatus })
                       });
                     } catch (e) {

@@ -5,18 +5,29 @@ import { useSearchParams } from "next/navigation";
 import ChatSidebar from "./chat/ChatSidebar";
 import ChatFeed from "./chat/ChatFeed";
 import ChatInfoPanel from "./chat/ChatInfoPanel";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getActiveWorkspaceId } from "@/lib/apis";
+import { useWorkspace } from "@/lib/WorkspaceContext";
 
 export default function ChatView() {
   const searchParams = useSearchParams();
+  const { currentWorkspace } = useWorkspace();
   const channelParam = searchParams ? searchParams.get("channel") : null;
   const acceptChannelParam = searchParams ? searchParams.get("acceptChannel") : null;
   const declineChannelParam = searchParams ? searchParams.get("declineChannel") : null;
 
-  const [selectedChannelId, setSelectedChannelId] = useState<string>(channelParam || acceptChannelParam || "c-general");
+  const activeWsId = currentWorkspace?.id || getActiveWorkspaceId();
+  const defaultInitialChannel = channelParam || acceptChannelParam || (activeWsId ? `c-general-ws-${activeWsId}` : "c-general");
+
+  const [selectedChannelId, setSelectedChannelId] = useState<string>(defaultInitialChannel);
   const [selectedDMId, setSelectedDMId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [inviteFeedback, setInviteFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!channelParam && !acceptChannelParam && !selectedDMId && currentWorkspace?.id) {
+      setSelectedChannelId(`c-general-ws-${currentWorkspace.id}`);
+    }
+  }, [currentWorkspace?.id, channelParam, acceptChannelParam, selectedDMId]);
 
   useEffect(() => {
     const urlToken = searchParams ? searchParams.get("token") : null;

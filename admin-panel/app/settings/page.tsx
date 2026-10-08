@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import AdminTopbar from "@/components/AdminTopbar";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
 import { toast } from "@/lib/toast";
 import {
   SlidersHorizontal,
@@ -36,8 +36,8 @@ export default function AdminSettingsPage() {
       try {
         setLoading(true);
         const [resSettings, resSuggestions] = await Promise.all([
-          fetch(`${API_URL}/admin/settings`),
-          fetch(`${API_URL}/admin/ai-suggestions`),
+          fetch(`${API_URL}/admin/settings`, { headers: getAuthHeaders() }),
+          fetch(`${API_URL}/admin/ai-suggestions`, { headers: getAuthHeaders() }),
         ]);
 
         if (resSettings.ok) {
@@ -70,14 +70,13 @@ export default function AdminSettingsPage() {
     e.preventDefault();
     setSavingSettings(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
       const exts = allowedExtensions.split(",").map((s) => s.trim()).filter(Boolean);
 
       const res = await fetch(`${API_URL}/admin/settings`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           workspaceName: workspaceName.trim(),
@@ -108,12 +107,11 @@ export default function AdminSettingsPage() {
     const updated = [...aiSuggestions, newSuggestion.trim()];
     setSavingSuggestions(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
       const res = await fetch(`${API_URL}/admin/ai-suggestions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({ suggestions: updated }),
       });
@@ -136,12 +134,11 @@ export default function AdminSettingsPage() {
     const updated = aiSuggestions.filter((_, i) => i !== indexToDelete);
     setSavingSuggestions(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
       const res = await fetch(`${API_URL}/admin/ai-suggestions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({ suggestions: updated }),
       });

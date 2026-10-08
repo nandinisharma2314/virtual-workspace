@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import AdminTopbar from "@/components/AdminTopbar";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
 import { toast, confirmDialog } from "@/lib/toast";
 import {
   FolderKanban,
@@ -37,8 +37,8 @@ export default function AdminTemplatesPage() {
     try {
       setLoading(true);
       const [resTemplates, resCategories] = await Promise.all([
-        fetch(`${API_URL}/admin/templates`),
-        fetch(`${API_URL}/admin/categories`),
+        fetch(`${API_URL}/admin/templates`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/admin/categories`, { headers: getAuthHeaders() }),
       ]);
 
       if (resTemplates.ok) {
@@ -69,8 +69,6 @@ export default function AdminTemplatesPage() {
 
     setSaving(true);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
-      
       const columns = columnsInput
         .split(",")
         .map((c, i) => ({ id: `col-${i + 1}`, title: c.trim(), cards: [] }))
@@ -94,7 +92,7 @@ export default function AdminTemplatesPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...getAuthHeaders(),
         },
         body: JSON.stringify(payload),
       });
@@ -122,10 +120,9 @@ export default function AdminTemplatesPage() {
       confirmText: "Delete",
       onConfirm: async () => {
         try {
-          const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
           const res = await fetch(`${API_URL}/admin/templates/${id}`, {
             method: "DELETE",
-            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            headers: getAuthHeaders(),
           });
           if (res.ok) {
             toast.success("Template deleted from database.");

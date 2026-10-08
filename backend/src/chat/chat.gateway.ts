@@ -68,8 +68,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private getScopedRoom(channelId: string, client?: Socket): string {
-    const wsId = (client?.data as any)?.workspaceId;
-    return wsId ? `ws_${wsId}_${channelId}` : channelId;
+    const userId = (client as any)?.user?.sub;
+    return this.chatService.getCanonicalDmChannelId(channelId, userId);
   }
 
   @SubscribeMessage('join_channel')

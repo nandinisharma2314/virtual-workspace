@@ -44,7 +44,7 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
       const userData = await res.json();
       setUser(userData);
 
-      if (userData.role === "Admin") {
+      if (userData.role?.toLowerCase() === "admin") {
         setStatus("authorized");
       } else {
         setStatus("forbidden");

@@ -3,7 +3,7 @@ import {
     Injectable,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { eq, or } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 
 import { DatabaseService } from '../database/database.service.js';
 import { users, notifications, settings, reports, meetings, documents, files, messages, tasks, channelMembers, channels } from '../database/schema.js';
@@ -41,6 +41,12 @@ export class UsersService {
             throw new ConflictException('Email already registered');
         }
 
+        // Check if first user in the database -> grant Admin role automatically
+        const [userCount] = await this.database.db.select({ count: sql`count(*)` }).from(users);
+        const isFirstUser = Number(userCount?.count || 0) === 0;
+        const assignedRole = (createUserDto as any).role || (isFirstUser ? 'Admin' : 'Member');
+        const assignedStatus = (createUserDto as any).status || 'Active';
+
         // Hash password before storing it
         const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -50,8 +56,8 @@ export class UsersService {
                 name,
                 email,
                 password: hashedPassword,
-                role: 'Member',
-                status: 'Active',
+                role: assignedRole,
+                status: assignedStatus,
                 ...(department ? { department } : {}),
             })
             .returning({

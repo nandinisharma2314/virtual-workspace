@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import AdminTopbar from "@/components/AdminTopbar";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
 import { toast } from "@/lib/toast";
 import {
   Users,
@@ -26,9 +26,8 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
       const res = await fetch(`${API_URL}/admin/users`, {
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         const data = await res.json();
@@ -48,12 +47,11 @@ export default function AdminUsersPage() {
   const handleUpdateRole = async (userId: number, newRole: string) => {
     setUpdatingId(userId);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
       const res = await fetch(`${API_URL}/admin/users/${userId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({ role: newRole }),
       });
@@ -77,12 +75,11 @@ export default function AdminUsersPage() {
     const nextStatus = currentStatus.toLowerCase() === "active" ? "Suspended" : "Active";
     setUpdatingId(userId);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
       const res = await fetch(`${API_URL}/admin/users/${userId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({ status: nextStatus }),
       });

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import AdminTopbar from "@/components/AdminTopbar";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
 import {
   Users,
   MessageSquare,
@@ -27,9 +27,8 @@ export default function AdminDashboardPage() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const token = typeof window !== 'undefined' ? localStorage.getItem("token") || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] : null;
       const res = await fetch(`${API_URL}/admin/stats`, {
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         const data = await res.json();

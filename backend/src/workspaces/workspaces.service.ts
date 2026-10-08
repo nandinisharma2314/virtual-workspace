@@ -503,6 +503,14 @@ export class WorkspacesService {
         customRoleLabel: dto.customRoleLabel || null,
         status: 'active',
       });
+
+      // Ensure user is also in workspace general channel
+      await this.dbService.db.insert(channelMembers).values({
+        channelId: `c-general-ws-${workspaceId}`,
+        userId: existingUser.id,
+        status: 'accepted',
+      }).onConflictDoNothing();
+
       await this.dbService.db
         .update(workspaceInvites)
         .set({ status: 'accepted' })
@@ -616,6 +624,13 @@ export class WorkspacesService {
       });
     }
 
+    // Ensure user is added to workspace default general channel
+    await this.dbService.db.insert(channelMembers).values({
+      channelId: `c-general-ws-${invite.workspaceId}`,
+      userId,
+      status: 'accepted',
+    }).onConflictDoNothing();
+
     await this.dbService.db
       .update(workspaceInvites)
       .set({ status: 'accepted' })
@@ -640,7 +655,14 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const isOwner = ws.ownerId === userId;
+    const [user] = await this.dbService.db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    const isSystemAdmin = user?.role?.toLowerCase() === 'admin';
+    const isOwner = ws.ownerId === userId || isSystemAdmin;
 
     const [member] = await this.dbService.db
       .select({

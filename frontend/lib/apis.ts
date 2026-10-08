@@ -15,15 +15,20 @@ export function getActiveWorkspaceId(): number | null {
   return cookieVal && !isNaN(Number(cookieVal)) ? Number(cookieVal) : null;
 }
 
+export function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return (
+    localStorage.getItem("token") ||
+    document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("token="))
+      ?.split("=")[1] ||
+    null
+  );
+}
+
 export function getAuthHeaders(extraHeaders: Record<string, string> = {}): HeadersInit {
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("token") ||
-        document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("token="))
-          ?.split("=")[1]
-      : null;
+  const token = getAuthToken();
   const wsId = getActiveWorkspaceId();
   const headers: Record<string, string> = {
     ...extraHeaders,

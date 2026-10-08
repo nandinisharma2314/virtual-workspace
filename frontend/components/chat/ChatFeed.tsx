@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { ChatMessage } from "@/lib/chatTypes";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getAuthToken } from "@/lib/apis";
 import { toast, confirmDialog } from "@/lib/toast";
 import Avatar from "@/components/Avatar";
 import { io, Socket } from "socket.io-client";
@@ -170,7 +170,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
   const [dynamicTemplates, setDynamicTemplates] = useState<ChannelTemplate[]>(channelTemplates);
 
   useEffect(() => {
-    fetch(`${API_URL}/admin/templates`)
+    fetch(`${API_URL}/admin/templates`, { headers: getAuthHeaders() })
       .then(res => res.ok ? res.json() : null)
       .then(data => { if (Array.isArray(data) && data.length > 0) setDynamicTemplates(data); })
       .catch(() => {});
@@ -209,13 +209,11 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
     if (!newTaskTitle.trim() || isCreatingTask) return;
     setIsCreatingTask(true);
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const res = await fetch(`${API_URL}/tasks`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
+        headers: getAuthHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         body: JSON.stringify({
           title: newTaskTitle.trim(),
           priority: newTaskPriority.toLowerCase(),
@@ -261,14 +259,14 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
   const router = useRouter();
 
   useEffect(() => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    const token = getAuthToken();
     if (token) {
       try { setCurrentUser(JSON.parse(atob(token.split('.')[1]))); } catch (e) { }
     }
   }, []);
 
   useEffect(() => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    const token = getAuthToken();
 
     // 1. Fetch initial messages for channel
     const fetchMessages = async () => {
@@ -276,7 +274,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
         if (!token) return;
 
         const res = await fetch(`${API_URL}/chat/messages/${channelId}`, {
-          headers: { "Authorization": `Bearer ${token}` }
+          headers: getAuthHeaders()
         });
         if (res.ok) {
           const data = await res.json();
@@ -284,7 +282,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
         }
 
         const infoRes = await fetch(`${API_URL}/chat/info/${channelId}`, {
-          headers: { "Authorization": `Bearer ${token}` }
+          headers: getAuthHeaders()
         });
         if (infoRes.ok) {
           const infoData = await infoRes.json();
@@ -298,7 +296,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
 
     // 2. Setup Socket
     socketRef.current = io(API_URL, {
-      auth: { token }
+      auth: { token, workspaceId: currentWorkspace?.id }
     });
 
     // Join channel room
@@ -399,21 +397,17 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
 
     if (!channelId.startsWith("dm-")) {
       try {
-        const token = document.cookie.split("; ").find((row) => row.startsWith("token="))?.split("=")[1];
-        if (token) {
-          await fetch(`${API_URL}/chat/info/${channelId}`, {
-            method: "PATCH",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              name: info?.name || channelId,
-              description: info?.description || "",
-              bgGradient: bgUrlOrGradient,
-            }),
-          });
-        }
+        await fetch(`${API_URL}/chat/info/${channelId}`, {
+          method: "PATCH",
+          headers: getAuthHeaders({
+            "Content-Type": "application/json",
+          }),
+          body: JSON.stringify({
+            name: info?.name || channelId,
+            description: info?.description || "",
+            bgGradient: bgUrlOrGradient,
+          }),
+        });
       } catch (err) {
         console.error("Failed to sync channel wallpaper to backend", err);
       }
@@ -435,21 +429,17 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
 
     if (!channelId.startsWith("dm-")) {
       try {
-        const token = document.cookie.split("; ").find((row) => row.startsWith("token="))?.split("=")[1];
-        if (token) {
-          await fetch(`${API_URL}/chat/info/${channelId}`, {
-            method: "PATCH",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              name: info?.name || channelId,
-              description: info?.description || "",
-              bgGradient: "white",
-            }),
-          });
-        }
+        await fetch(`${API_URL}/chat/info/${channelId}`, {
+          method: "PATCH",
+          headers: getAuthHeaders({
+            "Content-Type": "application/json",
+          }),
+          body: JSON.stringify({
+            name: info?.name || channelId,
+            description: info?.description || "",
+            bgGradient: "white",
+          }),
+        });
       } catch (err) {
         console.error("Failed to reset channel wallpaper in backend", err);
       }
@@ -482,11 +472,9 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
 
     if (pendingAttachment && pendingAttachment.file) {
       try {
-        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-        
         // 1. Get signed URL
         const res = await fetch(`${API_URL}/files/upload-url?filename=${encodeURIComponent(pendingAttachment.file.name)}&contentType=${encodeURIComponent(pendingAttachment.file.type)}`, {
-          headers: { "Authorization": `Bearer ${token}` }
+          headers: getAuthHeaders()
         });
         if (!res.ok) throw new Error("Failed to get upload URL");
         const { uploadUrl, storageKey } = await res.json();
@@ -504,7 +492,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
         // 3. Save metadata to backend
         const fileRes = await fetch(`${API_URL}/files`, {
           method: 'POST',
-          headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             name: pendingAttachment.file.name,
             size: pendingAttachment.file.size,
@@ -644,13 +632,13 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
     }
 
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      const token = getAuthToken();
       if (!token) {
         toast.error("You are not authenticated.");
         return;
       }
       const res = await fetch(`${API_URL}/files/${attachment.fileId}/download-url?name=${encodeURIComponent(attachment.name || '')}`, {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: getAuthHeaders()
       });
       if (!res.ok) {
         toast.error("Failed to get download URL. The file might no longer exist.");
@@ -1598,13 +1586,11 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                                 )
                               }));
                               try {
-                                const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
                                 await fetch(`${API_URL}/tasks/${t.id}`, {
                                   method: "PATCH",
-                                  headers: {
-                                    "Authorization": `Bearer ${token}`,
+                                  headers: getAuthHeaders({
                                     "Content-Type": "application/json"
-                                  },
+                                  }),
                                   body: JSON.stringify({ status: newStatus })
                                 });
                               } catch (e) {
@@ -1963,10 +1949,9 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                 onClick={async () => {
                   if (editTaskTitle && editTaskTitle.trim() !== "" && editTaskTitle !== taskToEdit.title) {
                     try {
-                      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
                       const res = await fetch(`${API_URL}/tasks/${taskToEdit.id}`, {
                         method: "PATCH",
-                        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                        headers: getAuthHeaders({ "Content-Type": "application/json" }),
                         body: JSON.stringify({ title: editTaskTitle.trim() })
                       });
                       if (res.ok) {
@@ -2016,10 +2001,9 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
               <button
                 onClick={async () => {
                   try {
-                    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
                     const res = await fetch(`${API_URL}/tasks/${taskToDelete.id}`, {
                       method: "DELETE",
-                      headers: { "Authorization": `Bearer ${token}` }
+                      headers: getAuthHeaders()
                     });
                     if (res.ok) {
                       setInfo((prev: any) => ({ ...prev, tasks: prev.tasks.filter((task: any) => task.id !== taskToDelete.id) }));

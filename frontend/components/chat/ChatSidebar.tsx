@@ -41,6 +41,12 @@ export default function ChatSidebar({
         const data = await res.json();
         if (Array.isArray(data)) {
           setChannelsList(data);
+          if (data.length > 0 && !selectedDMId) {
+            const hasCurrent = data.some((c: any) => c.id === selectedChannelId);
+            if (!hasCurrent) {
+              onSelectChannel(data[0].id);
+            }
+          }
         }
       }
       setChannelsLoaded(true);
@@ -48,7 +54,7 @@ export default function ChatSidebar({
       console.error(err);
       setChannelsLoaded(true);
     }
-  }, []);
+  }, [selectedChannelId, selectedDMId, onSelectChannel]);
 
   const fetchInvitations = useCallback(async () => {
     try {
@@ -180,13 +186,14 @@ export default function ChatSidebar({
     if (!currentUser?.id) return `dm-${targetUserId}`;
     const minId = Math.min(currentUser.id, targetUserId);
     const maxId = Math.max(currentUser.id, targetUserId);
-    return `dm-${minId}_${maxId}`;
+    return `dm-${minId}-${maxId}`;
   };
 
   const isDMActive = (targetUserId: number) => {
     if (!selectedDMId) return false;
-    const canonical = getCanonicalDMId(targetUserId);
-    return selectedDMId === canonical || selectedDMId === `dm-${targetUserId}`;
+    const minId = Math.min(currentUser?.id || 0, targetUserId);
+    const maxId = Math.max(currentUser?.id || 0, targetUserId);
+    return selectedDMId === `dm-${minId}-${maxId}` || selectedDMId === `dm-${minId}_${maxId}` || selectedDMId === `dm-${targetUserId}`;
   };
 
   return (
@@ -197,7 +204,7 @@ export default function ChatSidebar({
           Chat
         </h2>
         <div className="flex items-center gap-1.5">
-          {(!currentWorkspace || Boolean(currentWorkspace.isOwner) || can("channels:create")) && (
+          {(!currentWorkspace || Boolean(currentWorkspace.isOwner) || can("channels:create") || currentUser?.role?.toLowerCase() === 'admin') && (
             <button 
               onClick={() => setIsCreateModalOpen(true)}
               className="flex items-center gap-1 text-[11.5px] font-bold text-blue-600 bg-blue-50/80 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors border border-blue-200/60 shadow-2xs"
@@ -278,19 +285,20 @@ export default function ChatSidebar({
             <span className="text-[12px] font-black uppercase tracking-wider text-gray-400">
               Channels
             </span>
-            {/* Anyone can create a channel per requirements */}
-            <button 
-              onClick={() => setIsCreateModalOpen(true)}
-              className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-1 rounded-md transition-colors"
-              title="Create Channel"
-            >
-              <Plus size={15} strokeWidth={2.4} />
-            </button>
+            {(!currentWorkspace || Boolean(currentWorkspace.isOwner) || can("channels:create") || currentUser?.role?.toLowerCase() === 'admin') && (
+              <button 
+                onClick={() => setIsCreateModalOpen(true)}
+                className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-1 rounded-md transition-colors"
+                title="Create Channel"
+              >
+                <Plus size={15} strokeWidth={2.4} />
+              </button>
+            )}
           </div>
           <div className="space-y-[1px] max-h-52 overflow-y-auto [scrollbar-width:none]">
             {displayedChannels.map((c) => {
               const isActive = selectedChannelId === c.id && !selectedDMId;
-              const isPrivate = c.id !== "c-general";
+              const isPrivate = c.id !== "c-general" && !c.id.startsWith("c-general-ws-") && c.name !== "general";
               return (
                 <button
                   key={c.id}

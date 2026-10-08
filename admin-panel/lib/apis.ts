@@ -1,6 +1,19 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL;
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-if (!API_URL) {
-  throw new Error("NEXT_PUBLIC_API_URL is not defined in environment variables");
+export function getAuthHeaders(extraHeaders: Record<string, string> = {}): HeadersInit {
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("token") ||
+        document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("token="))
+          ?.split("=")[1]
+      : null;
+  const headers: Record<string, string> = {
+    ...extraHeaders,
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
 }
-

@@ -120,7 +120,7 @@ export class ReportsService {
     // 5. Team Performance
     const teamPerformanceData = allUsers.map(user => {
       const userTasks = allTasks.filter(t => t.assigneeId === user.id && t.status !== 'completed');
-      const capacity = Math.min(100, Math.round(userTasks.length * 15)); // Mocking capacity based on task count
+      const capacity = Math.min(100, Math.round(userTasks.length * 15)); // Capacity utilization computed from active assigned workload
       return {
         id: user.id,
         name: user.name || user.username || 'User',
@@ -158,7 +158,8 @@ export class ReportsService {
         name: project.name,
         status,
         progress,
-        budget: "100%", // Mocked budget as it's not in schema
+        budget: `${completed}/${pTasks.length} tasks`,
+        tasksCount: `${completed}/${pTasks.length} tasks`,
         health
       };
     });

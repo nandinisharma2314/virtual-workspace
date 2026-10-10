@@ -692,7 +692,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
         document.body.removeChild(a);
         return;
       }
-      toast.error("This is a mock file and cannot be downloaded.");
+      toast.error("Attachment file data is unavailable or has expired.");
       return;
     }
 

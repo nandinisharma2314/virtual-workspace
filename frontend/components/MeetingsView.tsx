@@ -95,11 +95,15 @@ export default function MeetingsView() {
             return `${h}:${min} ${ampm}`;
           };
 
-          const colors = [
-            [{ initials: "NS", color: "bg-emerald-400" }, { initials: "AP", color: "bg-sky-400" }],
-            [{ initials: "AS", color: "bg-rose-400" }, { initials: "RV", color: "bg-indigo-400" }],
-            [{ initials: "JD", color: "bg-amber-400" }, { initials: "MK", color: "bg-purple-500" }]
-          ];
+          const bgPalette = ["bg-emerald-500", "bg-sky-500", "bg-rose-500", "bg-indigo-500", "bg-amber-500", "bg-purple-500"];
+          const realAttendeesList = Array.isArray(m.attendees) ? m.attendees : [];
+          const attendees = realAttendeesList.map((a: any, aIdx: number) => {
+            const aName = a.name || a.email || "User";
+            const parts = aName.trim().split(/\s+/);
+            const initials = parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : aName.slice(0, 2).toUpperCase();
+            const color = bgPalette[(a.userId || aIdx) % bgPalette.length];
+            return { initials, color, name: aName, userId: a.userId, status: a.status };
+          });
 
           return {
             id: m.id,
@@ -110,9 +114,9 @@ export default function MeetingsView() {
             rawEndTime: m.endTime,
             time: `${formatTime(start)} - ${formatTime(end)}`,
             date: start.toDateString() === now.toDateString() ? "Today" : start.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-            attendees: colors[idx % colors.length],
+            attendees,
             myRsvp: m.myRsvp || 'pending',
-            realAttendees: m.attendees || [],
+            realAttendees: realAttendeesList,
             isNow
           };
         });
@@ -357,7 +361,11 @@ export default function MeetingsView() {
                       )}
                       <div className="flex flex-col">
                         <span className="text-[12px] text-gray-400 font-medium">Host</span>
-                        <span className="text-[14px] text-gray-900 font-bold">{currentUser?.fullName || currentUser?.username || "You"}</span>
+                        <span className="text-[14px] text-gray-900 font-bold">
+                          {activeMeeting.organizerId === currentUser?.id 
+                            ? (currentUser?.fullName || currentUser?.name || currentUser?.username || "You") 
+                            : (activeMeeting.realAttendees?.find((a: any) => a.userId === activeMeeting.organizerId)?.name || "Organizer")}
+                        </span>
                       </div>
                     </div>
                   </div>

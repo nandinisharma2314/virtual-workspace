@@ -331,7 +331,7 @@ export default function ReportsView() {
                     <th className="px-5 py-2 font-extrabold">Project Name</th>
                     <th className="px-5 py-2 font-extrabold">Status</th>
                     <th className="px-5 py-2 font-extrabold w-1/3">Progress</th>
-                    <th className="px-5 py-2 font-extrabold">Budget</th>
+                    <th className="px-5 py-2 font-extrabold">Tasks Completed</th>
                     <th className="px-5 py-2 font-extrabold text-right">Health</th>
                   </tr>
                 </thead>
@@ -362,7 +362,7 @@ export default function ReportsView() {
                         </div>
                       </td>
                       <td className="px-5 py-2.5 text-[12px] font-semibold text-gray-700">
-                        {project.budget}
+                        {project.tasksCount || project.budget}
                       </td>
                       <td className="px-5 py-2.5 text-right">
                         <span className={`text-[12px] font-bold ${

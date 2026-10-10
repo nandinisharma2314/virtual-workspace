@@ -154,13 +154,13 @@ export default function FilesView() {
         const data = await res.json();
         const mappedFiles = data.map((f: any) => {
           const { category, ext, bg, color } = getCategoryAndExt(f.name, f.type);
-          let sizeStr = "1.2 MB";
-          let sizeValue = 1.2;
+          let sizeStr = "—";
+          let sizeValue = 0;
 
           if (f.size) {
             if (typeof f.size === 'string') {
               sizeStr = f.size.includes('MB') || f.size.includes('KB') ? f.size : parseFloat(f.size) + " MB";
-              sizeValue = parseFloat(f.size) || 1.2;
+              sizeValue = parseFloat(f.size) || 0;
             } else if (typeof f.size === 'number') {
               if (f.size < 1024 * 1024) {
                 sizeStr = (f.size / 1024).toFixed(1) + " KB";

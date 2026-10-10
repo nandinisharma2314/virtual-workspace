@@ -516,7 +516,7 @@ export class WorkspacesService {
         .set({ status: 'accepted' })
         .where(eq(workspaceInvites.id, invite.id));
 
-      const directLink = `${frontendUrl}/home?workspaceId=${workspaceId}`;
+      const directLink = `${frontendUrl}/?workspaceId=${workspaceId}`;
 
       try {
         await this.mailService.sendWorkspaceInvitation({

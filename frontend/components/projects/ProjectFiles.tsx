@@ -30,7 +30,7 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
           const typeLower = (f.type || '').toLowerCase();
           const ext = nameExt || typeLower;
 
-          let sizeStr = "1.2 MB";
+          let sizeStr = "—";
           if (f.size) {
             if (typeof f.size === 'string') {
               sizeStr = f.size.includes('MB') || f.size.includes('KB') ? f.size : parseFloat(f.size) + " MB";
@@ -43,14 +43,16 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
             }
           }
 
+          const uploaderName = f.uploaderName || (f.uploadedById ? `Member #${f.uploadedById}` : "Workspace Member");
+
           return {
             id: f.id,
             name: f.name,
             type: ext || 'document',
-            uploader: { name: "You", person: "you" },
+            uploader: { name: uploaderName, avatar: f.uploaderAvatar },
             size: sizeStr,
             updated: new Date(f.createdAt).toLocaleDateString(),
-            url: f.url || '#'
+            url: f.url || ''
           };
         });
         mappedFiles.sort((a: any, b: any) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
@@ -250,8 +252,8 @@ export default function ProjectFiles({ projectId }: { projectId?: number }) {
                 </td>
                 <td className="py-3 px-5">
                   <div className="flex items-center gap-2">
-                    <Avatar person={item.uploader?.person || "you"} size={22} />
-                    <span className="text-[12.5px] font-semibold text-gray-700">{item.uploader?.name || "You"}</span>
+                    <Avatar name={item.uploader?.name} avatar={item.uploader?.avatar} size={22} />
+                    <span className="text-[12.5px] font-semibold text-gray-700">{item.uploader?.name}</span>
                   </div>
                 </td>
                 <td className="py-3 px-5">

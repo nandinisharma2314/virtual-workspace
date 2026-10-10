@@ -621,6 +621,7 @@ export class ChatService {
       let transporter;
       
       // If the user has provided real SMTP credentials in their .env
+      let testAccountUser: string | null = null;
       if (process.env.SMTP_USER && process.env.SMTP_PASS) {
         transporter = nodemailer.createTransport({
           service: 'gmail',
@@ -630,8 +631,8 @@ export class ChatService {
           },
         });
       } else {
-        // Fallback to ethereal for testing if no real credentials are provided
         const testAccount = await nodemailer.createTestAccount();
+        testAccountUser = testAccount.user;
         transporter = nodemailer.createTransport({
           host: 'smtp.ethereal.email',
           port: 587,
@@ -643,10 +644,7 @@ export class ChatService {
         });
       }
 
-      const fromAddress = process.env.SMTP_USER;
-      if (!fromAddress) {
-        throw new Error('SMTP_USER environment variable is required');
-      }
+      const fromAddress = process.env.SMTP_USER || testAccountUser || 'notifications@nannex.com';
 
       const info = await transporter.sendMail({
         from: `"WorkFlow" <${fromAddress}>`,

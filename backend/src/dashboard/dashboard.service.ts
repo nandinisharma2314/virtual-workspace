@@ -213,28 +213,17 @@ export class DashboardService {
       });
     });
 
-    // Fallback: Add tasks as calendar events to ensure calendar isn't completely empty
-    globalTasks.forEach((t, i) => {
-      const d = new Date(t.createdAt);
-      // Give tasks a 1 hour block for the calendar
-      const e = new Date(d.getTime() + 60 * 60 * 1000);
-      
-      const formatTime = (date: Date) => {
-        let h = date.getHours();
-        const m = date.getMinutes().toString().padStart(2, '0');
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        h = h % 12 || 12;
-        return `${h}:${m} ${ampm}`;
-      };
-
+    // Add tasks with deadlines to calendarData
+    globalTasks.filter((t) => t.dueDate).forEach((t) => {
+      const d = new Date(t.dueDate);
       const pad = (n: number) => String(n).padStart(2, '0');
       const localDateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
       calendarData.push({
         date: localDateStr,
-        title: `Task: ${t.title}`,
-        time: `${formatTime(d)} - ${formatTime(e)}`,
-        color: colors[(i + dbMeetings.length) % colors.length]
+        title: `Due: ${t.title}`,
+        time: 'Deadline',
+        color: 'bg-amber-500',
       });
     });
 
@@ -247,8 +236,7 @@ export class DashboardService {
       { color: "text-amber-500", bg: "bg-amber-50" },
     ];
     
-    let futureMeetings = dbMeetings.filter(m => new Date(m.startTime) >= now);
-    if (futureMeetings.length === 0) futureMeetings = dbMeetings;
+    const futureMeetings = dbMeetings.filter(m => new Date(m.startTime) >= now);
     
     futureMeetings.slice(0, 3).forEach((m, i) => {
       const d = new Date(m.startTime);
@@ -271,11 +259,16 @@ export class DashboardService {
     });
 
     if (upcomingEventsCard.length < 3) {
-      const activeTasks = globalTasks.filter(t => t.status !== 'completed' && t.status !== 'done');
-      activeTasks.slice(0, 3 - upcomingEventsCard.length).forEach((t, i) => {
+      const activeTasksWithDeadline = globalTasks.filter(
+        (t) => t.status !== 'completed' && t.status !== 'done' && t.dueDate && new Date(t.dueDate) >= now
+      );
+      activeTasksWithDeadline.slice(0, 3 - upcomingEventsCard.length).forEach((t, i) => {
+        const d = new Date(t.dueDate);
+        const isToday = d.toDateString() === now.toDateString();
+        const dayStr = isToday ? "Today" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
         upcomingEventsCard.push({
-          title: `Task: ${t.title}`,
-          time: "Upcoming",
+          title: `Due: ${t.title}`,
+          time: `${dayStr} (Deadline)`,
           color: eventColors[(upcomingEventsCard.length + i) % eventColors.length].color,
           bg: eventColors[(upcomingEventsCard.length + i) % eventColors.length].bg
         });

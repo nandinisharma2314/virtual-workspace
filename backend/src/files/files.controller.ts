@@ -84,13 +84,18 @@ export class FilesController {
   }
 
   @Get()
-  findAll(
+  async findAll(
+    @Req() req: any,
     @Query('projectId') projectId?: string,
     @Headers('x-workspace-id') wsIdHeader?: string,
     @Query('workspaceId') wsIdQuery?: string,
   ) {
+    const userId = req.user?.sub;
     const rawWsId = wsIdHeader || wsIdQuery;
     const workspaceId = rawWsId && !isNaN(Number(rawWsId)) ? Number(rawWsId) : undefined;
+    if (workspaceId && userId) {
+      await this.workspacesService.getUserPermissionsInWorkspace(userId, workspaceId);
+    }
     return this.filesService.findAll(projectId ? +projectId : undefined, workspaceId);
   }
 

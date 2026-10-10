@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreateFileDto } from './dto/create-file.dto.js';
 import { UpdateFileDto } from './dto/update-file.dto.js';
 import { DatabaseService } from '../database/database.service.js';
@@ -113,11 +113,7 @@ export class FilesService {
         .where(eq(schema.users.id, userId));
 
       if (!existingUser) {
-        const [fallbackUser] = await this.dbService.db
-          .select({ id: schema.users.id })
-          .from(schema.users)
-          .limit(1);
-        validUserId = fallbackUser ? fallbackUser.id : null;
+        validUserId = null;
       }
     }
 
@@ -162,30 +158,42 @@ export class FilesService {
   }
 
   async findAll(projectId?: number, workspaceId?: number) {
+    const baseQuery = this.dbService.db
+      .select({
+        id: schema.files.id,
+        name: schema.files.name,
+        url: schema.files.url,
+        storageKey: schema.files.storageKey,
+        size: schema.files.size,
+        type: schema.files.type,
+        uploadedById: schema.files.uploadedById,
+        projectId: schema.files.projectId,
+        workspaceId: schema.files.workspaceId,
+        createdAt: schema.files.createdAt,
+        updatedAt: schema.files.updatedAt,
+        uploaderName: schema.users.name,
+        uploaderAvatar: schema.users.avatar,
+        uploaderEmail: schema.users.email,
+      })
+      .from(schema.files)
+      .leftJoin(schema.users, eq(schema.files.uploadedById, schema.users.id));
+
     if (workspaceId && projectId) {
-      return this.dbService.db
-        .select()
-        .from(schema.files)
+      return baseQuery
         .where(and(eq(schema.files.workspaceId, workspaceId), eq(schema.files.projectId, projectId)))
         .orderBy(desc(schema.files.createdAt));
     }
     if (workspaceId) {
-      return this.dbService.db
-        .select()
-        .from(schema.files)
+      return baseQuery
         .where(eq(schema.files.workspaceId, workspaceId))
         .orderBy(desc(schema.files.createdAt));
     }
     if (projectId) {
-      return this.dbService.db
-        .select()
-        .from(schema.files)
+      return baseQuery
         .where(eq(schema.files.projectId, projectId))
         .orderBy(desc(schema.files.createdAt));
     }
-    return this.dbService.db
-      .select()
-      .from(schema.files)
+    return baseQuery
       .orderBy(desc(schema.files.createdAt));
   }
 
@@ -277,8 +285,11 @@ export class FilesService {
       }
     }
 
-    // Dev mode fallback
-    return { downloadUrl: file.url || `#dev-file-${file.storageKey}` };
+    if (file.url && file.url !== '#' && file.url !== '') {
+      return { downloadUrl: file.url };
+    }
+
+    throw new BadRequestException('Storage service is not configured for downloading this file');
   }
 
   async findOne(id: number) {

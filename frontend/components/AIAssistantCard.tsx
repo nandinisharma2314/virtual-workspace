@@ -11,7 +11,7 @@ interface Message {
   content: string;
 }
 
-export default function AIAssistantCard() {
+export default function AIAssistantCard({ dashboardData }: { dashboardData?: any }) {
   const aiSuggestions = useAiSuggestions();
   const [view, setView] = useState<"idle" | "chat">("idle");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -37,23 +37,31 @@ export default function AIAssistantCard() {
     setInput("");
     setIsTyping(true);
 
-    // Simulate real-time dynamic AI response
+    const stats = dashboardData?.stats || [];
+    const completedVal = stats.find((s: any) => s.label === "Completed")?.value || "0";
+    const inProgressVal = stats.find((s: any) => s.label === "In Progress")?.value || "0";
+    const overdueVal = stats.find((s: any) => s.label === "Overdue")?.value || "0";
+    const eventsCount = dashboardData?.upcomingEventsCard?.length || 0;
+
+    // Real-time dynamic AI response powered by live workspace metrics
     setTimeout(() => {
       let reply = "";
       const q = query.toLowerCase();
       
       if (q.includes("hello") || q.includes("hi") || q.includes("hey")) {
-        reply = "Hello there! How can I assist you with your dashboard today?";
+        reply = "Hello there! How can I assist you with your workspace today?";
       } else if (q.includes("summarize") || q.includes("summary")) {
-        reply = "Here's a quick summary: Your team has completed 12 tasks this week, and you have 3 upcoming meetings.";
+        reply = `Here is your workspace summary: ${completedVal} completed task(s), ${inProgressVal} in progress, and ${eventsCount} upcoming event(s) scheduled.`;
+      } else if (q.includes("overdue")) {
+        reply = `You currently have ${overdueVal} overdue task(s).`;
       } else if (q.includes("schedule") || q.includes("meeting")) {
-        reply = "I'll draft a calendar invite for you right now. Who should I add to the guest list?";
+        reply = "You can schedule meetings or video conferences directly under the Meetings tab with instant attendee invitations.";
       } else if (q.includes("draft") || q.includes("document")) {
-        reply = "I've drafted a project update in your Documents tab. You can review it there.";
+        reply = "You can collaborate on documents in real-time under the Documents tab with Markdown formatting and auto-saving.";
       } else if (q.includes("task") || q.includes("todo")) {
-        reply = "You currently have a few tasks in your 'To Do' list. Would you like me to prioritize them for you?";
+        reply = `You have ${inProgressVal} task(s) currently active in progress and ${completedVal} completed.`;
       } else if (q.includes("progress") || q.includes("status")) {
-        reply = "Your overall project progress is looking good. You're on track to meet your sprint goals.";
+        reply = `Your project status shows ${completedVal} tasks finished and ${inProgressVal} underway.`;
       } else if (q.includes("thank")) {
         reply = "You're very welcome! Let me know if you need anything else.";
       } else if (q.includes("bye")) {

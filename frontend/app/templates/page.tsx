@@ -29,9 +29,13 @@ import {
 import { channelTemplates, templateCategories, ChannelTemplate } from '@/lib/templateConfig';
 import { API_URL } from '@/lib/apis';
 import TemplateModal from "@/components/chat/TemplateModal";
+import { useWorkspace } from "@/lib/WorkspaceContext";
+import { toast } from "@/lib/toast";
 
 export default function TemplatesPage() {
   const router = useRouter();
+  const { currentWorkspace, can } = useWorkspace();
+  const canCreateBoard = Boolean(currentWorkspace?.isOwner) || can("boards:create");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -89,6 +93,10 @@ export default function TemplatesPage() {
   const activeCategoryObj = dynamicCategories.find(c => c.id === activeCategory);
 
   const handleApplyTemplate = (template: ChannelTemplate) => {
+    if (!canCreateBoard) {
+      toast.error("You do not have permission to create boards in this workspace.");
+      return;
+    }
     if (typeof window !== 'undefined') {
       localStorage.setItem('active_board_template', template.id);
       localStorage.setItem('active_board_title', template.templateConfig?.boardName || template.name);
@@ -511,17 +519,19 @@ export default function TemplatesPage() {
                                 >
                                   Preview
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleApplyTemplate(template);
-                                  }}
-                                  className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded-xl transition-all shadow-xs flex items-center gap-1 group-hover:shadow-indigo-500/20 active:scale-95"
-                                >
-                                  <span>Apply</span>
-                                  <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
-                                </button>
+                                {canCreateBoard && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleApplyTemplate(template);
+                                    }}
+                                    className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded-xl transition-all shadow-xs flex items-center gap-1 group-hover:shadow-indigo-500/20 active:scale-95"
+                                  >
+                                    <span>Apply</span>
+                                    <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>

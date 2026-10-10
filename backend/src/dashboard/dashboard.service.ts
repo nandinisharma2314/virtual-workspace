@@ -42,13 +42,13 @@ export class DashboardService {
     let projCompleted = completed;
     let projInProgress = inProgress;
     let projNotStarted = dueToday;
-    const total = projCompleted + projInProgress + projNotStarted || 1; // avoid division by zero
+    const total = projCompleted + projInProgress + projNotStarted;
 
-    const projectProgress = [
+    const projectProgress = total > 0 ? [
       { name: "Completed", value: Math.round((projCompleted/total)*100), color: "#22C55E" },
       { name: "In Progress", value: Math.round((projInProgress/total)*100), color: "#F59E0B" },
       { name: "Not Started", value: Math.round((projNotStarted/total)*100), color: "#3B82F6" },
-    ];
+    ] : [];
 
     // Roadmap logic
     const todoTasks = allTasks.filter(t => t.status === 'todo').map((t, idx) => ({ id: t.id || `todo-${idx}`, title: t.title, tag: "DEV", tagColor: "bg-blue-100 text-blue-700", people: ["you"] }));
@@ -63,7 +63,7 @@ export class DashboardService {
         count: todoTasks.length,
         accent: "bg-gray-400",
         headerBg: "bg-gray-50",
-        tasks: todoTasks.length ? todoTasks : [{ id: 101, title: "No pending tasks", tag: "N/A", tagColor: "bg-gray-100 text-gray-700", people: [] }]
+        tasks: todoTasks
       },
       {
         id: 2,
@@ -72,7 +72,7 @@ export class DashboardService {
         count: inProgressTasks.length,
         accent: "bg-blue-500",
         headerBg: "bg-blue-50",
-        tasks: inProgressTasks.length ? inProgressTasks : [{ id: 102, title: "No active tasks", tag: "N/A", tagColor: "bg-gray-100 text-gray-700", people: [] }]
+        tasks: inProgressTasks
       },
       {
         id: 3,
@@ -81,7 +81,7 @@ export class DashboardService {
         count: doneTasks.length,
         accent: "bg-emerald-500",
         headerBg: "bg-emerald-50",
-        tasks: doneTasks.length ? doneTasks : [{ id: 103, title: "No completed tasks", tag: "N/A", tagColor: "bg-gray-100 text-gray-700", people: [] }]
+        tasks: doneTasks
       },
     ];
 
@@ -176,10 +176,6 @@ export class DashboardService {
           time: timeStr
         };
       });
-
-    if (recentActivity.length === 0) {
-      recentActivity.push({ key: "you", name: user[0]?.name || "You", action: "logged in to dashboard", time: "Just now" });
-    }
 
     // Fetch meetings for the calendar
     let dbMeetings = workspaceId
@@ -284,10 +280,6 @@ export class DashboardService {
           bg: eventColors[(upcomingEventsCard.length + i) % eventColors.length].bg
         });
       });
-    }
-
-    if (upcomingEventsCard.length === 0) {
-       upcomingEventsCard.push({ title: "Personal Review", time: "Today, 4:00 PM", color: "text-blue-500", bg: "bg-blue-50" });
     }
 
     // Populate upcomingList using future meetings

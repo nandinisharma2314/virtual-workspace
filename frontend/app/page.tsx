@@ -13,7 +13,6 @@ import RecentFilesCard from "@/components/RecentFilesCard";
 import ActivityFeedCard from "@/components/ActivityFeedCard";
 import RoadmapBoard from "@/components/RoadmapBoard";
 import GlobalTimeSelector from "@/components/GlobalTimeSelector";
-import WelcomeModalWrapper from "@/components/WelcomeModalWrapper";
 import { ChevronDown } from "lucide-react";
 
 import { cookies } from "next/headers";
@@ -69,7 +68,6 @@ export default async function Home() {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#FAFBFC]">
       <Sidebar />
-      <WelcomeModalWrapper userName={firstName} />
 
       <div className="flex min-w-0 flex-1 flex-col h-full overflow-hidden">
         <Topbar user={user} />
@@ -110,7 +108,7 @@ export default async function Home() {
                   <div className="grid grid-cols-3 gap-3.5 flex-1 min-h-0 overflow-hidden">
                     <div className="flex-1 min-h-0 w-full flex flex-col"><RecentActivityCard recentActivity={dashboardData?.recentActivity} /></div>
                     <div className="flex-1 min-h-0 w-full flex flex-col"><UpcomingEventsCard upcomingEventsCard={dashboardData?.upcomingEventsCard} /></div>
-                    <div className="flex-1 min-h-0 w-full flex flex-col"><AIAssistantCard /></div>
+                    <div className="flex-1 min-h-0 w-full flex flex-col"><AIAssistantCard dashboardData={dashboardData} /></div>
                   </div>
                 </div>
 

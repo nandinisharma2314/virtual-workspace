@@ -17,19 +17,6 @@ const profileMenuItems = [
   { name: "Log out", icon: LogOut, action: () => { document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"; window.location.href = "/login"; }, textClass: "text-rose-600 hover:text-rose-700", bgClass: "group-hover:bg-rose-50", iconClass: "text-rose-500 group-hover:text-rose-600" },
 ];
 
-const searchResults = [
-  { type: "Pages", items: [
-    { name: "Teams Directory", icon: Users, path: "/teams" },
-    { name: "All Projects", icon: Folder, path: "/projects" },
-    { name: "Analytics & Reports", icon: FileText, path: "/reports" },
-  ]},
-  { type: "Quick Actions", items: [
-    { name: "Create New Task", icon: CheckCircle2, action: () => toast.success("Quick Task Created!") },
-    { name: "Create New Channel", icon: Hash, isChannel: true, path: "/chat?create=true" },
-    { name: "Add Team Member", icon: Plus, path: "/teams" },
-  ]}
-];
-
 const createMenuItems = [
   { name: "New Task", icon: CheckCircle2, path: "/boards" },
   { name: "New Project", icon: Folder, path: "/projects" },
@@ -67,8 +54,27 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
     }
   }, [currentUser]);
 
+  const isSuperAdminOrOwner = !currentUser || currentUser.role === "Admin" || currentWorkspace?.isOwner;
+
+  const visiblePages = [
+    ...(isSuperAdminOrOwner || can("teams:manage") ? [{ name: "Teams Directory", icon: Users, path: "/teams" }] : []),
+    ...(isSuperAdminOrOwner || can("projects:read_all") || can("projects:read_assigned") ? [{ name: "All Projects", icon: Folder, path: "/projects" }] : []),
+    ...(isSuperAdminOrOwner || can("reports:view") ? [{ name: "Analytics & Reports", icon: FileText, path: "/reports" }] : []),
+  ];
+
+  const visibleQuickActions = [
+    ...(isSuperAdminOrOwner || can("tasks:create") ? [{ name: "Create New Task", icon: CheckCircle2, path: "/boards" }] : []),
+    ...(isSuperAdminOrOwner || can("channels:create") ? [{ name: "Create New Channel", icon: Hash, isChannel: true, path: "/chat?create=true" }] : []),
+    ...(isSuperAdminOrOwner || can("members:invite") ? [{ name: "Add Team Member", icon: Plus, path: "/teams" }] : []),
+  ];
+
+  const visibleSearchResults = [
+    ...(visiblePages.length > 0 ? [{ type: "Pages", items: visiblePages }] : []),
+    ...(visibleQuickActions.length > 0 ? [{ type: "Quick Actions", items: visibleQuickActions }] : []),
+  ];
+
   const visibleCreateMenuItems = createMenuItems.filter((item) => {
-    if (!currentUser || currentUser.role === "Admin" || currentWorkspace?.isOwner) return true;
+    if (isSuperAdminOrOwner) return true;
     if (item.name === "New Task") return can("tasks:create");
     if (item.name === "New Project") return can("projects:create");
     if (item.name === "New Channel") return can("channels:create");
@@ -212,7 +218,7 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
         {isSearchOpen && (
           <div className="absolute left-0 top-[calc(100%+8px)] w-[400px] rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden z-50">
             <div className="max-h-[320px] overflow-y-auto p-2">
-              {searchResults.map((section, idx) => (
+              {visibleSearchResults.map((section, idx) => (
                 <div key={idx} className="mb-2 last:mb-0">
                   <div className="px-2 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
                     {section.type}
@@ -221,8 +227,8 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
                     <button
                       key={i}
                       onClick={() => {
-                        if (item.action) {
-                          item.action();
+                        if ((item as any).action) {
+                          (item as any).action();
                         } else if (item.path) {
                           router.push(item.path);
                         }
@@ -242,7 +248,7 @@ export default function Topbar({ user }: { user?: { name: string; email: string;
                 </div>
               ))}
               
-              {searchQuery && !searchResults.some(section => section.items.some(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))) && (
+              {searchQuery && !visibleSearchResults.some(section => section.items.some(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))) && (
                 <div className="py-8 text-center text-[13px] font-medium text-gray-500">
                   No results found for "{searchQuery}"
                 </div>

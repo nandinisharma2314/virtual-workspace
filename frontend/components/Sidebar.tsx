@@ -18,12 +18,12 @@ import {
   HelpCircle,
   Layers,
 } from "lucide-react";
-import { sidebarPrimary, favorites } from "@/lib/uiConstants";
+import { sidebarPrimary } from "@/lib/uiConstants";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { API_URL, getAuthHeaders } from "@/lib/apis";
+import { API_URL, getAuthHeaders, getActiveWorkspaceId } from "@/lib/apis";
 import { useWorkspace } from "@/lib/WorkspaceContext";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -46,6 +46,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [activeOverride, setActiveOverride] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [channels, setChannels] = useState<any[]>([]);
   const { currentWorkspace, can } = useWorkspace();
 
   useEffect(() => {
@@ -58,6 +59,22 @@ export default function Sidebar() {
     })
     .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const wsId = currentWorkspace?.id || getActiveWorkspaceId();
+    if (wsId) {
+      fetch(`${API_URL}/chat/channels?workspaceId=${wsId}`, {
+        headers: getAuthHeaders({ "x-workspace-id": String(wsId) }),
+      })
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (Array.isArray(data)) setChannels(data.slice(0, 5));
+        })
+        .catch(() => {});
+    } else {
+      setChannels([]);
+    }
+  }, [currentWorkspace?.id]);
 
   const visibleSidebarPrimary = sidebarPrimary.filter((item) => {
     // If Admin globally or Workspace Owner, show everything
@@ -211,26 +228,43 @@ export default function Sidebar() {
             </div>
           </div>
 
-          {/* 3. Favorites Section positioned naturally beneath More */}
+          {/* 3. Channels Section */}
           <div className="shrink-0">
             <div className="mb-1.5 flex w-[216px] items-center justify-between px-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <span className="text-[13px] font-extrabold text-[#111827]">
-                Favorites
+                Channels
               </span>
-              <button className="text-gray-500 hover:text-gray-800 p-0.5 rounded transition-colors">
-                <Plus size={16} strokeWidth={2.2} />
-              </button>
+              {(Boolean(currentWorkspace?.isOwner) || can("channels:create") || currentUser?.role === "Admin") && (
+                <Link
+                  href="/chat?create=true"
+                  title="Create Channel"
+                  className="text-gray-500 hover:text-gray-800 p-0.5 rounded transition-colors"
+                >
+                  <Plus size={16} strokeWidth={2.2} />
+                </Link>
+              )}
             </div>
-            <ul className="space-y-0.5 w-[216px]">
-              {favorites.map((f) => (
-                <li key={f.label}>
-                  <button className="flex w-full items-center gap-3 rounded-xl px-3 py-1 sm:py-1.5 text-[12.5px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors truncate">
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-sm ${f.color}`} />
-                    <span className="truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">{f.label}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {channels.length > 0 ? (
+              <ul className="space-y-0.5 w-[216px]">
+                {channels.map((c) => (
+                  <li key={c.id}>
+                    <Link
+                      href={`/chat?channel=${c.id}`}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-1 sm:py-1.5 text-[12.5px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors truncate"
+                    >
+                      <span className="text-gray-400 font-bold text-xs shrink-0">#</span>
+                      <span className="truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        {c.name}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="px-3 py-1 text-[11px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                No channels yet
+              </div>
+            )}
           </div>
         </div>
 

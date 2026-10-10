@@ -73,9 +73,4 @@ export const sidebarPrimary: { label: string; icon: string; badge?: string }[] =
   { label: "Reports", icon: "bar-chart" },
 ];
 
-export const favorites = [
-  { label: "#marketing", color: "bg-rose-400" },
-  { label: "#product-design", color: "bg-blue-400" },
-  { label: "#dev-team", color: "bg-emerald-400" },
-  { label: "Customer Support", color: "bg-amber-400" },
-];
+export const favorites: any[] = [];

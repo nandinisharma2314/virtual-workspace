@@ -198,7 +198,43 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('join_video_call')
   handleJoinVideoCall(@MessageBody() payload: { channelId: string; senderId: string; senderName?: string }, @ConnectedSocket() client: Socket) {
     const room = this.getScopedRoom(payload.channelId, client);
+    client.join(room);
+    this.logger.log(`Client ${client.id} (user ${payload.senderId}) joined video call room ${room}`);
     client.to(room).emit('join_video_call', payload);
+  }
+
+  @SubscribeMessage('leave_video_call')
+  handleLeaveVideoCall(@MessageBody() payload: { channelId: string; senderId: string }, @ConnectedSocket() client: Socket) {
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('user_left_call', payload);
+    client.leave(room);
+    this.logger.log(`Client ${client.id} (user ${payload.senderId}) left video call room ${room}`);
+  }
+
+  @SubscribeMessage('end_meeting_call')
+  handleEndMeetingCall(@MessageBody() payload: { channelId: string; senderId: string }, @ConnectedSocket() client: Socket) {
+    const room = this.getScopedRoom(payload.channelId, client);
+    this.server.to(room).emit('meeting_ended', payload);
+    this.logger.log(`Meeting ended in room ${room} by user ${payload.senderId}`);
+  }
+
+  @SubscribeMessage('mute_all_participants')
+  handleMuteAllParticipants(@MessageBody() payload: { channelId: string; senderId: string }, @ConnectedSocket() client: Socket) {
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('mute_all_participants', payload);
+    this.logger.log(`Mute all requested in room ${room} by user ${payload.senderId}`);
+  }
+
+  @SubscribeMessage('typing_start')
+  handleTypingStart(@MessageBody() payload: { channelId: string; userId: string | number; userName: string }, @ConnectedSocket() client: Socket) {
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('user_typing_start', payload);
+  }
+
+  @SubscribeMessage('typing_stop')
+  handleTypingStop(@MessageBody() payload: { channelId: string; userId: string | number }, @ConnectedSocket() client: Socket) {
+    const room = this.getScopedRoom(payload.channelId, client);
+    client.to(room).emit('user_typing_stop', payload);
   }
 
   @SubscribeMessage('invite_video_call')

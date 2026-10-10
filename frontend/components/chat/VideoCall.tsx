@@ -66,7 +66,10 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLocked, setIsChatLocked] = useState(false);
-  const isAdmin = currentUser?.role === "Admin";
+  const currentUserId = String(currentUser?.id ?? currentUser?.sub ?? '');
+  const currentUserName = currentUser?.name || currentUser?.fullName || currentUser?.username || 'You';
+  const isAdmin = Boolean(currentUser?.role?.toLowerCase() === "admin" || currentUser?.role?.toLowerCase() === "owner");
+  const isHostOrAdmin = Boolean(isInitiator || isAdmin);
   const chatEndRef = useRef<HTMLDivElement>(null);
   
   // State for remote streams
@@ -126,7 +129,7 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
         socket.emit('webrtc_ice_candidate', {
           channelId,
           candidate: event.candidate,
-          senderId: currentUser.sub,
+          senderId: currentUserId,
           targetId
         });
       }
@@ -140,7 +143,7 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
     };
 
     return pc;
-  }, [socket, channelId, currentUser, addRemoteStream, removeRemoteStream]);
+  }, [socket, channelId, currentUser, currentUserId, addRemoteStream, removeRemoteStream]);
 
   useEffect(() => {
     if (!socket || !currentUser) return;
@@ -154,13 +157,13 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
         // Announce we joined the call
         socket.emit('join_video_call', {
           channelId,
-          senderId: currentUser.sub,
-          senderName: currentUser.name
+          senderId: currentUserId,
+          senderName: currentUserName
         });
 
         // If we have an initial offer (from a direct invite or ringing), process it
         if (initialOffer && initialOffer.senderId) {
-          const pc = createPeerConnection(initialOffer.senderId);
+          const pc = createPeerConnection(String(initialOffer.senderId));
           if (pc) {
             await pc.setRemoteDescription(new RTCSessionDescription(initialOffer.offer));
             const answer = await pc.createAnswer();
@@ -168,8 +171,8 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
             socket.emit('webrtc_answer', {
               channelId,
               answer,
-              senderId: currentUser.sub,
-              targetId: initialOffer.senderId
+              senderId: currentUserId,
+              targetId: String(initialOffer.senderId)
             });
           }
         }
@@ -188,26 +191,28 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
     startCall();
 
     // Socket listeners
-    const handleUserJoined = async (payload: { senderId: string, senderName: string }) => {
-      if (payload.senderId === currentUser.sub) return;
+    const handleUserJoined = async (payload: { senderId: string, senderName?: string }) => {
+      if (String(payload.senderId) === currentUserId) return;
       // When a new user joins, WE create an offer to them
-      const pc = createPeerConnection(payload.senderId);
+      const targetId = String(payload.senderId);
+      const pc = createPeerConnection(targetId);
       if (pc) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit('webrtc_offer', {
           channelId,
           offer,
-          senderId: currentUser.sub,
-          targetId: payload.senderId
+          senderId: currentUserId,
+          targetId
         });
       }
     };
 
     const handleOffer = async (payload: { offer: any, senderId: string, targetId: string }) => {
-      if (payload.targetId !== currentUser.sub) return;
+      if (String(payload.targetId) !== currentUserId) return;
       
-      const pc = createPeerConnection(payload.senderId);
+      const targetId = String(payload.senderId);
+      const pc = createPeerConnection(targetId);
       if (pc) {
         await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
         const answer = await pc.createAnswer();
@@ -215,25 +220,53 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
         socket.emit('webrtc_answer', {
           channelId,
           answer,
-          senderId: currentUser.sub,
-          targetId: payload.senderId
+          senderId: currentUserId,
+          targetId
         });
       }
     };
 
     const handleAnswer = async (payload: { answer: any, senderId: string, targetId: string }) => {
-      if (payload.targetId !== currentUser.sub) return;
-      const pc = peersRef.current.get(payload.senderId);
+      if (String(payload.targetId) !== currentUserId) return;
+      const pc = peersRef.current.get(String(payload.senderId));
       if (pc) {
         await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
       }
     };
 
     const handleIceCandidate = async (payload: { candidate: any, senderId: string, targetId: string }) => {
-      if (payload.targetId !== currentUser.sub) return;
-      const pc = peersRef.current.get(payload.senderId);
+      if (String(payload.targetId) !== currentUserId) return;
+      const pc = peersRef.current.get(String(payload.senderId));
       if (pc) {
         await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+      }
+    };
+
+    const handleUserLeft = (payload: { senderId: string }) => {
+      const leftId = String(payload.senderId);
+      removeRemoteStream(leftId);
+      const pc = peersRef.current.get(leftId);
+      if (pc) {
+        pc.close();
+        peersRef.current.delete(leftId);
+      }
+    };
+
+    const handleMeetingEnded = (payload: any) => {
+      if (String(payload?.senderId) !== currentUserId) {
+        alert("The host has ended the meeting for all participants.");
+        onClose();
+      }
+    };
+
+    const handleMuteAll = (payload: any) => {
+      if (String(payload?.senderId) !== currentUserId) {
+        if (localStreamRef.current) {
+          localStreamRef.current.getAudioTracks().forEach(track => {
+            track.enabled = false;
+          });
+          setIsMuted(true);
+        }
       }
     };
 
@@ -253,15 +286,26 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
     socket.on('webrtc_offer', handleOffer);
     socket.on('webrtc_answer', handleAnswer);
     socket.on('webrtc_ice_candidate', handleIceCandidate);
+    socket.on('user_left_call', handleUserLeft);
+    socket.on('meeting_ended', handleMeetingEnded);
+    socket.on('mute_all_participants', handleMuteAll);
     socket.on('in_call_message', handleInCallMessage);
     socket.on('in_call_file', handleInCallFile);
     socket.on('toggle_in_call_chat', handleToggleChat);
 
     return () => {
+      socket.emit('leave_video_call', {
+        channelId,
+        senderId: currentUserId
+      });
+
       socket.off('join_video_call', handleUserJoined);
       socket.off('webrtc_offer', handleOffer);
       socket.off('webrtc_answer', handleAnswer);
       socket.off('webrtc_ice_candidate', handleIceCandidate);
+      socket.off('user_left_call', handleUserLeft);
+      socket.off('meeting_ended', handleMeetingEnded);
+      socket.off('mute_all_participants', handleMuteAll);
       socket.off('in_call_message', handleInCallMessage);
       socket.off('in_call_file', handleInCallFile);
       socket.off('toggle_in_call_chat', handleToggleChat);
@@ -275,7 +319,7 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
       peersRef.current.forEach(pc => pc.close());
       peersRef.current.clear();
     };
-  }, [socket, channelId, currentUser, createPeerConnection, initialOffer]);
+  }, [socket, channelId, currentUser, currentUserId, currentUserName, createPeerConnection, initialOffer, onClose, removeRemoteStream]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
@@ -446,8 +490,8 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
 
     const payload = {
       channelId,
-      senderId: currentUser.sub,
-      senderName: currentUser.name,
+      senderId: currentUserId,
+      senderName: currentUserName,
       text: chatInput,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
@@ -464,8 +508,8 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
       reader.onload = (event) => {
         const payload = {
           channelId,
-          senderId: currentUser.sub,
-          senderName: currentUser.name,
+          senderId: currentUserId,
+          senderName: currentUserName,
           file: {
             name: file.name,
             size: (file.size / 1024 / 1024).toFixed(2) + " MB",
@@ -487,7 +531,7 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
     socket.emit('toggle_in_call_chat', {
       channelId,
       isEnabled: !newState,
-      adminId: currentUser.sub
+      adminId: currentUserId
     });
     setIsChatLocked(newState);
   };
@@ -496,11 +540,30 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
     if (socket && currentUser) {
       socket.emit('invite_video_call', {
         channelId,
-        senderId: currentUser.sub,
-        targetId: userId,
-        senderName: currentUser.name
+        senderId: currentUserId,
+        targetId: String(userId),
+        senderName: currentUserName
       });
     }
+  };
+
+  const endMeetingForAll = () => {
+    if (!socket || !isHostOrAdmin) return;
+    if (confirm("Are you sure you want to end this meeting for all participants?")) {
+      socket.emit('end_meeting_call', {
+        channelId,
+        senderId: currentUserId
+      });
+      onClose();
+    }
+  };
+
+  const muteAllParticipants = () => {
+    if (!socket || !isHostOrAdmin) return;
+    socket.emit('mute_all_participants', {
+      channelId,
+      senderId: currentUserId
+    });
   };
 
   if (permissionError) {
@@ -626,16 +689,27 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
             <div>
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">In Call ({remoteStreams.size + 1})</h4>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">In Call ({remoteStreams.size + 1})</h4>
+                {isHostOrAdmin && remoteStreams.size > 0 && (
+                  <button 
+                    onClick={muteAllParticipants}
+                    className="text-xs font-semibold text-gray-600 hover:text-red-600 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-gray-100"
+                    title="Mute all remote participants"
+                  >
+                    <MicOff size={13} /> Mute all
+                  </button>
+                )}
+              </div>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <Avatar person={currentUser?.name} name={currentUser?.name} size={32} />
+                  <Avatar person={currentUserName} name={currentUserName} size={32} />
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-gray-900">{currentUser?.name} <span className="text-gray-400 font-normal">(You)</span></p>
+                    <p className="text-sm font-bold text-gray-900">{currentUserName} <span className="text-gray-400 font-normal">(You{isHostOrAdmin ? ' • Host' : ''})</span></p>
                   </div>
                 </div>
                 {Array.from(remoteStreams.keys()).map(id => {
-                  const member = channelMembers?.find(m => m.id === id || m.name === id) || { name: 'Remote User ' + id };
+                  const member = channelMembers?.find(m => String(m.id ?? m.sub) === String(id) || m.name === id) || { name: 'Participant ' + id };
                   return (
                     <div key={id} className="flex items-center gap-3">
                       <Avatar person={member.name} name={member.name} size={32} />
@@ -648,18 +722,38 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
               </div>
             </div>
 
+            {isHostOrAdmin && (
+              <div className="p-3 bg-red-50/70 border border-red-100 rounded-xl space-y-2">
+                <h4 className="text-[11px] font-bold text-red-800 uppercase tracking-wider">Host Controls</h4>
+                <div className="flex gap-2">
+                  <button
+                    onClick={muteAllParticipants}
+                    className="flex-1 py-1.5 px-2 bg-white hover:bg-gray-50 border border-red-200 text-red-700 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <MicOff size={13} /> Mute All
+                  </button>
+                  <button
+                    onClick={endMeetingForAll}
+                    className="flex-1 py-1.5 px-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <PhoneOff size={13} /> End for All
+                  </button>
+                </div>
+              </div>
+            )}
+
             {isAdmin && channelMembers && channelMembers.length > 0 && (
               <div>
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 mt-6">Invite to Call</h4>
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 mt-4">Invite to Call</h4>
                 <div className="space-y-3">
-                  {channelMembers.filter(m => m.id !== currentUser?.sub && !remoteStreams.has(m.id)).map((member, index) => (
+                  {channelMembers.filter(m => String(m.id ?? m.sub) !== currentUserId && !remoteStreams.has(String(m.id ?? m.sub))).map((member, index) => (
                     <div key={member.id || `member-invite-${index}`} className="flex items-center justify-between group">
                       <div className="flex items-center gap-3">
                         <Avatar person={member.name} name={member.name} size={32} />
                         <p className="text-sm font-bold text-gray-700 group-hover:text-gray-900">{member.name}</p>
                       </div>
                       <button 
-                        onClick={() => inviteUser(member.id)}
+                        onClick={() => inviteUser(member.id ?? member.sub)}
                         className="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-colors text-xs font-bold border border-indigo-100 hover:border-indigo-600 shadow-sm"
                       >
                         Invite
@@ -671,9 +765,9 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
             )}
             
             {!isAdmin && (
-               <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl mt-8">
+               <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl mt-4">
                   <p className="text-xs text-gray-500 font-medium leading-relaxed text-center">
-                    Only admins can invite members to the active call.
+                    Only admins and hosts can invite new members to the active call.
                   </p>
                </div>
             )}
@@ -716,16 +810,16 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
               </div>
             ) : (
               chatMessages.map((msg, i) => (
-                <div key={i} className={`flex flex-col ${msg.senderId === currentUser.sub ? 'items-end' : 'items-start'}`}>
+                <div key={i} className={`flex flex-col ${String(msg.senderId) === currentUserId ? 'items-end' : 'items-start'}`}>
                   <span className="text-[10px] font-bold text-gray-400 mb-0.5 mx-1">{msg.senderName} • {msg.timestamp}</span>
                   {msg.file ? (
-                    <div className={`p-2.5 rounded-xl border max-w-[85%] flex items-center gap-3 ${msg.senderId === currentUser.sub ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white border-gray-200 text-gray-800'}`}>
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${msg.senderId === currentUser.sub ? 'bg-indigo-500' : 'bg-gray-100 text-gray-500'}`}>
+                    <div className={`p-2.5 rounded-xl border max-w-[85%] flex items-center gap-3 ${String(msg.senderId) === currentUserId ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white border-gray-200 text-gray-800'}`}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${String(msg.senderId) === currentUserId ? 'bg-indigo-500' : 'bg-gray-100 text-gray-500'}`}>
                         <Paperclip size={16} />
                       </div>
                       <div className="min-w-0 overflow-hidden">
                         <p className="text-xs font-bold truncate">{msg.file.name}</p>
-                        <p className={`text-[10px] ${msg.senderId === currentUser.sub ? 'text-indigo-200' : 'text-gray-400'}`}>{msg.file.size}</p>
+                        <p className={`text-[10px] ${String(msg.senderId) === currentUserId ? 'text-indigo-200' : 'text-gray-400'}`}>{msg.file.size}</p>
                       </div>
                       <a href={msg.file.data} download={msg.file.name} className="p-1.5 hover:bg-black/10 rounded-md shrink-0 ml-1">
                         <Download size={14} />
@@ -733,7 +827,7 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
                     </div>
                   ) : (
                     <div className={`px-3 py-2 rounded-xl text-[13px] max-w-[85%] shadow-sm ${
-                      msg.senderId === currentUser.sub ? 'bg-[#5E43FF] text-white rounded-tr-sm' : 'bg-white text-gray-800 border border-gray-200 rounded-tl-sm'
+                      String(msg.senderId) === currentUserId ? 'bg-[#5E43FF] text-white rounded-tr-sm' : 'bg-white text-gray-800 border border-gray-200 rounded-tl-sm'
                     }`}>
                       {msg.text}
                     </div>
@@ -881,9 +975,20 @@ export default function VideoCall({ socket, channelId, currentUser, onClose, isI
             <button 
               onClick={onClose}
               className="px-5 py-3 ml-2 rounded-full bg-[#EA4335] text-white hover:bg-[#EA4335]/90 transition-all shadow-sm flex items-center"
+              title="Leave Call"
             >
               <PhoneOff size={20} />
             </button>
+
+            {isHostOrAdmin && (
+              <button 
+                onClick={endMeetingForAll}
+                className="px-3.5 py-2.5 ml-1 rounded-full bg-red-950 text-red-200 border border-red-700/60 hover:bg-red-900 transition-all text-xs font-bold shadow-sm whitespace-nowrap"
+                title="End meeting for all participants"
+              >
+                End for all
+              </button>
+            )}
           </div>
 
           {/* Right: Info, Chat, etc */}
@@ -931,7 +1036,7 @@ function RemoteVideo({ id, stream, members, isPip = false }: { id: string, strea
     }
   }, [stream]);
 
-  const member = members?.find(m => m.id === id || m.name === id) || { name: 'Participant' };
+  const member = members?.find(m => String(m.id ?? m.sub) === String(id) || m.name === id) || { name: 'Participant ' + id };
 
   if (isPip) {
     return (

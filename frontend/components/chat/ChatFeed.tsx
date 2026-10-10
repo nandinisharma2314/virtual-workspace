@@ -152,6 +152,11 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
   const [inlineEditMessageId, setInlineEditMessageId] = useState<string | null>(null);
   const [inlineEditText, setInlineEditText] = useState("");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const currentUserId = String(currentUser?.id ?? currentUser?.sub ?? '');
+  const currentUserName = currentUser?.name || currentUser?.fullName || currentUser?.username || 'You';
+  const [typingUsers, setTypingUsers] = useState<{ userId: string | number; userName: string }[]>([]);
+  const isTypingRef = useRef(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Wallpaper & Template states
   const [isWallpaperModalOpen, setIsWallpaperModalOpen] = useState(false);
@@ -263,6 +268,14 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
     if (token) {
       try { setCurrentUser(JSON.parse(atob(token.split('.')[1]))); } catch (e) { }
     }
+    fetch(`${API_URL}/auth/me`, { headers: getAuthHeaders() })
+      .then(res => res.ok ? res.json() : null)
+      .then(user => {
+        if (user) {
+          setCurrentUser((prev: any) => ({ ...prev, ...user, sub: user.id }));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -321,15 +334,29 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
       setMessages(prev => prev.map(m => m.id === data.messageId.toString() ? { ...m, reactions: data.reactions } : m));
     });
 
+    socketRef.current.on("user_typing_start", (data: { channelId: string; userId: string | number; userName: string }) => {
+      if (data.channelId === channelId && String(data.userId) !== currentUserId) {
+        setTypingUsers(prev => {
+          if (prev.some(u => String(u.userId) === String(data.userId))) return prev;
+          return [...prev, { userId: data.userId, userName: data.userName }];
+        });
+      }
+    });
+
+    socketRef.current.on("user_typing_stop", (data: { channelId: string; userId: string | number }) => {
+      if (data.channelId === channelId) {
+        setTypingUsers(prev => prev.filter(u => String(u.userId) !== String(data.userId)));
+      }
+    });
+
     socketRef.current.on("webrtc_offer", (payload: any) => {
       // We only care if the offer is specifically for us, but if we are not in a call, we shouldn't get offers.
-      // The banner is now triggered by invite_video_call
     });
 
     socketRef.current.on("invite_video_call", (payload: any) => {
-      if (currentUser && payload.senderId !== currentUser.sub) {
+      if (currentUserId && String(payload.senderId) !== currentUserId) {
         // If it has a targetId and it's not us, ignore
-        if (payload.targetId && payload.targetId !== currentUser.sub) return;
+        if (payload.targetId && String(payload.targetId) !== currentUserId) return;
         
         // Show banner
         setIncomingCallOffer(payload);
@@ -339,8 +366,10 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
     return () => {
       socketRef.current?.disconnect();
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      setTypingUsers([]);
     };
-  }, [channelId, refreshTrigger, currentUser]);
+  }, [channelId, refreshTrigger, currentUser, currentUserId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -521,9 +550,18 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
       }
     }
 
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      socketRef.current?.emit("typing_stop", {
+        channelId,
+        userId: currentUserId,
+      });
+    }
+
     socketRef.current?.emit("send_message", {
       text: inputText,
-      userId: currentUser.sub,
+      userId: currentUserId,
       channelId: channelId,
       attachment: attachmentToSent ? { ...attachmentToSent, file: undefined } : null
     });
@@ -531,6 +569,33 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
     setInputText("");
     setPendingAttachment(null);
     setShowEmojiPicker(false);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputText(e.target.value);
+
+    if (!socketRef.current || !currentUserId) return;
+
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      socketRef.current.emit("typing_start", {
+        channelId,
+        userId: currentUserId,
+        userName: currentUserName,
+      });
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      socketRef.current?.emit("typing_stop", {
+        channelId,
+        userId: currentUserId,
+      });
+    }, 2500);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -841,8 +906,8 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                       setIncomingCallOffer(null);
                       socketRef.current?.emit('invite_video_call', {
                         channelId,
-                        senderId: currentUser?.sub,
-                        senderName: currentUser?.name
+                        senderId: currentUserId,
+                        senderName: currentUserName
                       });
                     }}
                     className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shadow-sm border border-indigo-200"
@@ -1317,6 +1382,24 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
 
             {/* Bottom Chat Input Bar */}
             <div className={`shrink-0 px-5 pb-4 pt-2 transition-colors relative z-10 ${hasCustomBg ? "bg-transparent" : "bg-white"}`}>
+              {/* Typing indicator */}
+              {typingUsers.length > 0 && (
+                <div className="flex items-center gap-2 mb-2 px-1 animate-in fade-in duration-200">
+                  <div className="flex gap-1 items-center">
+                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></span>
+                  </div>
+                  <span className={`text-[11.5px] font-semibold ${hasCustomBg ? 'text-white/90' : 'text-gray-500'}`}>
+                    {typingUsers.length === 1
+                      ? `${typingUsers[0].userName} is typing...`
+                      : typingUsers.length === 2
+                      ? `${typingUsers[0].userName} and ${typingUsers[1].userName} are typing...`
+                      : `${typingUsers[0].userName} and ${typingUsers.length - 1} others are typing...`}
+                  </span>
+                </div>
+              )}
+
               <div className={`rounded-2xl p-2.5 px-3 flex flex-col justify-between gap-2.5 transition-all ${
                 hasCustomBg
                   ? "bg-slate-900/80 backdrop-blur-md border border-white/20 shadow-xl"
@@ -1363,7 +1446,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                     <input
                       type="text"
                       value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
+                      onChange={handleInputChange}
                       onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                       placeholder={`Message ${info?.name || "#general"}`}
                       className={`w-full bg-transparent text-[13px] focus:outline-none font-normal py-1 ${
@@ -2158,8 +2241,9 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
         <VideoCall
           socket={socketRef.current}
           channelId={channelId}
-          currentUser={currentUser}
+          currentUser={{ ...currentUser, id: currentUserId, sub: currentUserId, name: currentUserName }}
           isInitiator={isInitiator}
+          initialOffer={incomingCallOffer}
           channelMembers={info?.members || []}
           onClose={() => {
             setIsInCall(false);

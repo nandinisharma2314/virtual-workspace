@@ -822,7 +822,7 @@ export default function MeetingsView() {
         <VideoCall 
           socket={socketRef.current}
           channelId={`meeting_${callingMeeting?.id || activeMeeting?.id || 'room'}`}
-          currentUser={currentUser}
+          currentUser={{ ...currentUser, sub: currentUser.id }}
           onClose={() => { setIsInCall(false); setCallingMeeting(null); }}
           isInitiator={Boolean(callingMeeting ? callingMeeting.organizerId === currentUser.id : activeMeeting?.organizerId === currentUser.id)}
         />

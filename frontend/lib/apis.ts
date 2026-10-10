@@ -1,4 +1,4 @@
-export const API_URL: string = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+export const API_URL: string = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export function getActiveWorkspaceId(): number | null {
   if (typeof window === "undefined") return null;

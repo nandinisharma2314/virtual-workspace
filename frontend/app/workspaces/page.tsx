@@ -32,7 +32,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
 import CreateBoardModal, { CustomBoard } from "@/components/boards/CreateBoardModal";
-import { API_URL } from "@/lib/apis";
+import { API_URL, getAuthHeaders } from "@/lib/apis";
 import { toast } from "@/lib/toast";
 import { useWorkspace } from "@/lib/WorkspaceContext";
 
@@ -223,7 +223,7 @@ export default function WorkspacesPage() {
     try {
       // 1. Fetch current user
       const userRes = await fetch(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: getAuthHeaders(),
       });
       if (userRes.ok) {
         const user = await userRes.json();
@@ -232,7 +232,7 @@ export default function WorkspacesPage() {
 
       // 2. Fetch role-based channels
       const channelsRes = await fetch(`${API_URL}/chat/channels`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: getAuthHeaders(),
       });
       if (channelsRes.ok) {
         const data = await channelsRes.json();

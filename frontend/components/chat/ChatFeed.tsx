@@ -1037,7 +1037,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                 <p className={`text-[13.5px] font-medium mb-5 ${
                   hasCustomBg ? "text-white/90 drop-shadow-xs font-semibold" : "text-gray-600"
                 }`}>
-                  Channels in WorkFlow keep work focused around a specific topic. You can keep all your information related projects attached to the channel so everyone can access.
+                  Channels in nannex keep work focused around a specific topic. You can keep all your information related projects attached to the channel so everyone can access.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4">
@@ -1091,7 +1091,7 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
                       : "bg-[#EAF2FF] border-blue-100/50 hover:border-blue-200"
                   }`}>
                     <h3 className={`font-extrabold text-[14px] mb-1 ${hasCustomBg ? "text-white" : "text-gray-900"}`}>Connect your apps</h3>
-                    <p className={`text-[12.5px] font-medium mb-6 ${hasCustomBg ? "text-white/75" : "text-gray-600"}`}>Bring your work into WorkFlow</p>
+                    <p className={`text-[12.5px] font-medium mb-6 ${hasCustomBg ? "text-white/75" : "text-gray-600"}`}>Bring your work into nannex</p>
 
                     <div className="mt-auto self-center flex items-center justify-center h-16 w-full px-4">
                       <div className="flex -space-x-3 overflow-visible py-2 px-1 hover:-space-x-1 transition-all duration-300">
@@ -2179,11 +2179,11 @@ export default function ChatFeed({ channelId = "c-general", refreshTrigger = 0 }
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
         inviterName={currentUser?.name || "A teammate"}
-        channelName={info?.name || "WorkFlow"}
+        channelName={info?.name || "nannex"}
         onInvite={(email) => {
           if (currentUser) {
             socketRef.current?.emit("send_message", {
-              text: `✉️ **${currentUser.name}** invited **${email}** to join WorkFlow Connect for this channel.`,
+              text: `✉️ **${currentUser.name}** invited **${email}** to join nannex Connect for this channel.`,
               userId: currentUser.sub,
               channelId: channelId,
             });

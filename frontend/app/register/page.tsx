@@ -185,10 +185,10 @@ function RegisterForm() {
               <Link href="/" className="inline-flex items-center group">
                 <Image
                   src="/nannex-horizontal.png"
-                  alt="nannex"
-                  width={130}
-                  height={30}
-                  className="h-7 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-300"
+                  alt="nannex — Chat / Meet / Connect"
+                  width={160}
+                  height={38}
+                  className="h-8 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-300 drop-shadow-sm"
                   priority
                 />
               </Link>
@@ -222,7 +222,7 @@ function RegisterForm() {
               <div className="relative w-full h-full flex items-center justify-center animate-float-hero">
                 <Image
                   src="/login-dashboard-preview.png"
-                  alt="WorkFlow 3D Telemetry Dashboard"
+                  alt="nannex 3D Telemetry Dashboard"
                   width={560}
                   height={560}
                   className="w-full h-full object-cover rounded-2xl transform group-hover:scale-[1.02] transition-transform duration-500 drop-shadow-[0_15px_30px_rgba(0,0,0,0.45)]"

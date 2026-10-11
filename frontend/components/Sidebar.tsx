@@ -121,33 +121,36 @@ export default function Sidebar() {
     <aside className="group hidden w-[72px] hover:w-[240px] transition-[width] duration-300 ease-in-out shrink-0 flex-col border-r border-gray-200/80 bg-white lg:flex h-screen overflow-hidden z-50 relative">
       <div className="w-[240px] flex flex-col h-full pt-4 pb-8 px-3">
         {/* 1. Seamless Logo Header Section */}
-        <div className="flex shrink-0 items-center px-2 pb-2.5 mb-1 h-11 overflow-hidden">
+        <div className="flex shrink-0 items-center px-1.5 pb-2.5 mb-2 h-12 overflow-hidden">
           <Link 
             href="/" 
-            className="flex items-center gap-2 select-none group/logo"
+            className="flex items-center gap-2.5 select-none group/logo"
           >
-            {/* 3D Brand Emblem - compact, refined and centered in collapsed mode */}
-            <div className="relative w-7 h-7 shrink-0 flex items-center justify-center">
+            {/* 3D Brand Emblem - perfectly centered in collapsed mode */}
+            <div className="relative w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-purple-50/40 p-0.5 border border-purple-100/40 shadow-sm shadow-purple-500/5 group-hover/logo:border-purple-200/80 transition-all duration-300">
               <Image
                 src="/nannex-icon.png"
                 alt="nannex"
-                width={28}
-                height={28}
-                className="w-7 h-7 object-contain shrink-0 group-hover/logo:scale-105 transition-transform duration-200"
+                width={36}
+                height={36}
+                className="w-8 h-8 object-contain shrink-0 group-hover/logo:scale-105 transition-transform duration-200 drop-shadow-sm"
                 priority
               />
             </div>
 
             {/* Brand Wordmark - sleek typography that smoothly fades in on sidebar expansion */}
-            <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="flex flex-col justify-center shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-[-4px] group-hover:translate-x-0">
               <Image
                 src="/nannex-wordmark.png"
                 alt="nannex"
-                width={100}
-                height={18}
-                className="h-[18px] w-auto object-contain"
+                width={120}
+                height={26}
+                className="h-[22px] w-auto object-contain"
                 priority
               />
+              <span className="text-[9px] font-semibold tracking-wider text-purple-600/70 uppercase pl-0.5 leading-none mt-0.5">
+                Chat · Meet · Connect
+              </span>
             </div>
           </Link>
         </div>

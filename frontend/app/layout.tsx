@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   description: "nannex — The unified collaboration platform to chat, meet, and connect.",
   icons: {
     icon: "/favicon.ico",
+    apple: "/nannex-icon.png",
   },
 };
 

@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { API_URL } from "@/lib/apis";
 
 export const metadata: Metadata = {
-  title: "Calendar | WorkFlow",
+  title: "Calendar | nannex",
 };
 
 async function getDashboardData(token: string, workspaceId?: string) {

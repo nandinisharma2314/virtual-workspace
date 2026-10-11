@@ -42,8 +42,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Allow user to view reset-password and invite pages without redirecting them to "/" or "/login"
-    if (isResetPassword || isInvitePage) {
+    const isForgotPassword = pathname.startsWith("/forgot-password");
+
+    // Allow user to view reset-password, forgot-password, and invite pages without redirecting them
+    if (isResetPassword || isInvitePage || isForgotPassword) {
       setIsAuthenticated(true);
       return;
     }

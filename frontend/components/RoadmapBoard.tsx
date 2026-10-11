@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   MessageSquare,
   Plus,
@@ -42,6 +43,7 @@ export default function RoadmapBoard({
   bgGradient?: string;
   onBoardUpdated?: () => void;
 }) {
+  const router = useRouter();
   const { currentWorkspace, can } = useWorkspace();
   const canEditBoard = Boolean(currentWorkspace?.isOwner) || can("boards:edit");
   const canCreateTask = Boolean(currentWorkspace?.isOwner) || can("tasks:create");
@@ -98,63 +100,97 @@ export default function RoadmapBoard({
   }, [currentWorkspace?.id]);
 
   // Lists from backend board normalized so every column and task has a unique id
-  const rawLists: any[] = board?.lists || (Array.isArray(roadmap) ? roadmap : null) || [
-    { id: 1, title: "To Do", accent: "bg-gray-400", tasks: [] },
-    { id: 2, title: "In Progress", accent: "bg-blue-500", tasks: [] },
-    { id: 3, title: "In Review", accent: "bg-amber-500", tasks: [] },
-    { id: 4, title: "Done", accent: "bg-emerald-500", tasks: [] },
-  ];
+  const normalizeLists = (raw: any[]) => {
+    return raw.map((list: any, listIdx: number) => {
+      const listId = list.id ?? list.key ?? listIdx + 1;
+      const normalizedTasks = (list.tasks || []).map((task: any, taskIdx: number) => ({
+        ...task,
+        id: task.id ?? `task-${listId}-${taskIdx}-${task.title || ""}`,
+      }));
+      return {
+        ...list,
+        id: listId,
+        tasks: normalizedTasks,
+      };
+    });
+  };
 
-  const lists: any[] = rawLists.map((list: any, listIdx: number) => {
-    const listId = list.id ?? list.key ?? listIdx + 1;
-    const normalizedTasks = (list.tasks || []).map((task: any, taskIdx: number) => ({
-      ...task,
-      id: task.id ?? `task-${listId}-${taskIdx}-${task.title || ""}`,
-    }));
-    return {
-      ...list,
-      id: listId,
-      tasks: normalizedTasks,
-    };
+  const [boardLists, setBoardLists] = useState<any[]>(() => {
+    const rawLists: any[] = board?.lists || (Array.isArray(roadmap) ? roadmap : null) || [
+      { id: 1, title: "To Do", accent: "bg-gray-400", tasks: [] },
+      { id: 2, title: "In Progress", accent: "bg-blue-500", tasks: [] },
+      { id: 3, title: "In Review", accent: "bg-amber-500", tasks: [] },
+      { id: 4, title: "Done", accent: "bg-emerald-500", tasks: [] },
+    ];
+    return normalizeLists(rawLists);
   });
+
+  useEffect(() => {
+    const rawLists: any[] = board?.lists || (Array.isArray(roadmap) ? roadmap : null) || [
+      { id: 1, title: "To Do", accent: "bg-gray-400", tasks: [] },
+      { id: 2, title: "In Progress", accent: "bg-blue-500", tasks: [] },
+      { id: 3, title: "In Review", accent: "bg-amber-500", tasks: [] },
+      { id: 4, title: "Done", accent: "bg-emerald-500", tasks: [] },
+    ];
+    setBoardLists(normalizeLists(rawLists));
+  }, [board, roadmap]);
+
+  const lists = boardLists;
 
   const handleAddList = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newListTitle.trim() || !board?.id) return;
-    try {
-      const res = await fetch(`${API_URL}/boards/${board.id}/lists`, {
-        method: "POST",
-        headers: getAuthHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          title: newListTitle.trim(),
-          accent: newListAccent,
-        }),
-      });
-      if (res.ok) {
-        setNewListTitle("");
-        setIsAddingList(false);
-        onBoardUpdated?.();
+    if (!newListTitle.trim()) return;
+    if (board?.id) {
+      try {
+        const res = await fetch(`${API_URL}/boards/${board.id}/lists`, {
+          method: "POST",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            title: newListTitle.trim(),
+            accent: newListAccent,
+          }),
+        });
+        if (res.ok) {
+          setNewListTitle("");
+          setIsAddingList(false);
+          router.refresh();
+          onBoardUpdated?.();
+        }
+      } catch (e) {
+        console.error("Failed to add list:", e);
       }
-    } catch (e) {
-      console.error("Failed to add list:", e);
+    } else {
+      const newList = {
+        id: Date.now(),
+        title: newListTitle.trim(),
+        accent: newListAccent,
+        tasks: [],
+      };
+      setBoardLists((prev) => [...prev, newList]);
+      setNewListTitle("");
+      setIsAddingList(false);
     }
   };
 
   const handleDeleteList = async (listId: number) => {
-    if (!board?.id) return;
-    try {
-      await fetch(`${API_URL}/boards/${board.id}/lists/${listId}`, {
-        method: "DELETE",
-        headers: getAuthHeaders(),
-      });
-      onBoardUpdated?.();
-    } catch (e) {
-      console.error(e);
+    if (board?.id) {
+      try {
+        await fetch(`${API_URL}/boards/${board.id}/lists/${listId}`, {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+        });
+        router.refresh();
+        onBoardUpdated?.();
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      setBoardLists((prev) => prev.filter((l) => l.id !== listId));
     }
   };
 
   const handleCreateTask = async (list: any) => {
-    if (!newTaskTitle.trim() || !board?.id) {
+    if (!newTaskTitle.trim()) {
       setAddingTaskColId(null);
       return;
     }
@@ -163,44 +199,103 @@ export default function RoadmapBoard({
     try {
       const wsId = currentWorkspace?.id || getActiveWorkspaceId();
       let status = "todo";
-      const titleLower = list.title.toLowerCase();
+      const titleLower = (list.title || "").toLowerCase();
       if (titleLower.includes("done") || titleLower.includes("complete")) status = "completed";
       else if (titleLower.includes("progress")) status = "in_progress";
       else if (titleLower.includes("review")) status = "review";
 
-      await fetch(`${API_URL}/tasks`, {
+      const payload: any = {
+        title: newTaskTitle.trim(),
+        status,
+        workspaceId: wsId ? Number(wsId) : undefined,
+      };
+
+      if (board?.id) {
+        payload.boardId = board.id;
+        payload.boardListId = list.id;
+      }
+
+      const res = await fetch(`${API_URL}/tasks`, {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          title: newTaskTitle.trim(),
-          status,
-          boardId: board.id,
-          boardListId: list.id,
-          workspaceId: wsId ? Number(wsId) : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      setNewTaskTitle("");
-      setAddingTaskColId(null);
-      onBoardUpdated?.();
+      if (res.ok) {
+        const createdTask = await res.json();
+        setBoardLists((prev) =>
+          prev.map((col) => {
+            if (col.id === list.id) {
+              return {
+                ...col,
+                tasks: [...(col.tasks || []), createdTask],
+              };
+            }
+            return col;
+          })
+        );
+        router.refresh();
+        onBoardUpdated?.();
+      }
     } catch (e) {
       console.error(e);
     } finally {
       setIsSubmitting(false);
+      setNewTaskTitle("");
+      setAddingTaskColId(null);
     }
   };
 
   const handleMoveCard = async (taskId: number, targetListId: number) => {
-    if (!board?.id) return;
-    try {
-      await fetch(`${API_URL}/boards/${board.id}/cards/move`, {
-        method: "PATCH",
-        headers: getAuthHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          taskId,
-          targetListId,
-        }),
+    const targetCol = boardLists.find((l) => l.id === targetListId);
+    let status = "todo";
+    if (targetCol) {
+      const titleLower = (targetCol.title || "").toLowerCase();
+      if (titleLower.includes("done") || titleLower.includes("complete")) status = "completed";
+      else if (titleLower.includes("progress")) status = "in_progress";
+      else if (titleLower.includes("review")) status = "review";
+    }
+
+    // Optimistically update card position
+    setBoardLists((prev) => {
+      let movedCard: any = null;
+      const next = prev.map((col) => {
+        const card = (col.tasks || []).find((t: any) => t.id === taskId);
+        if (card) movedCard = { ...card, status };
+        return {
+          ...col,
+          tasks: (col.tasks || []).filter((t: any) => t.id !== taskId),
+        };
       });
+      if (!movedCard) return prev;
+      return next.map((col) => {
+        if (col.id === targetListId) {
+          return { ...col, tasks: [...col.tasks, movedCard] };
+        }
+        return col;
+      });
+    });
+
+    try {
+      if (board?.id) {
+        await fetch(`${API_URL}/boards/${board.id}/cards/move`, {
+          method: "PATCH",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            taskId,
+            targetListId,
+          }),
+        });
+      } else {
+        await fetch(`${API_URL}/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            status,
+          }),
+        });
+      }
+      router.refresh();
       onBoardUpdated?.();
     } catch (e) {
       console.error("Failed to move card:", e);

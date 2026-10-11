@@ -11,7 +11,7 @@ interface InviteModalProps {
   channelName?: string;
 }
 
-export default function InviteModal({ isOpen, onClose, onInvite, inviterName = 'A teammate', channelName = 'WorkFlow' }: InviteModalProps) {
+export default function InviteModal({ isOpen, onClose, onInvite, inviterName = 'A teammate', channelName = 'nannex' }: InviteModalProps) {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -84,12 +84,12 @@ export default function InviteModal({ isOpen, onClose, onInvite, inviterName = '
         <div className="p-8 pb-6 flex-1 flex flex-col">
           <h2 className="text-[22px] font-black text-gray-900 mb-3 tracking-tight">Message with external people</h2>
           <p className="text-[14.5px] text-gray-700 leading-relaxed font-medium mb-6">
-            WorkFlow Connect lets you securely send direct messages to external people from other organizations. Send an invitation via email, and we'll notify you as soon as they accept.
+            nannex Connect lets you securely send direct messages to external people from other organizations. Send an invitation via email, and we'll notify you as soon as they accept.
           </p>
 
           <div className="mb-2">
             <input 
-              type="email"
+              type="email" 
               placeholder="Add an email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -102,7 +102,7 @@ export default function InviteModal({ isOpen, onClose, onInvite, inviterName = '
         <div className="px-8 pb-8 pt-2 flex items-center justify-between mt-auto">
           <button className="flex items-center gap-2 text-[13.5px] font-bold text-gray-500 hover:text-gray-800 transition-colors">
             <HelpCircle size={16} />
-            <span>Learn more about WorkFlow Connect</span>
+            <span>Learn more about nannex Connect</span>
           </button>
 
           <button 

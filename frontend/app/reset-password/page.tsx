@@ -106,10 +106,10 @@ function ResetPasswordForm() {
                 <Link href="/" className="inline-flex items-center gap-2.5 group">
                   <Image
                     src="/nannex-horizontal.png"
-                    alt="nannex"
-                    width={130}
-                    height={30}
-                    className="h-7 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-300"
+                    alt="nannex — Chat / Meet / Connect"
+                    width={160}
+                    height={38}
+                    className="h-8 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-300 drop-shadow-sm"
                     priority
                   />
                 </Link>

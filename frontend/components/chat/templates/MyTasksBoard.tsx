@@ -658,11 +658,11 @@ export default function MyTasksBoard({
             }}
           >
             <Image
-              src="/workflow-logo-white.png"
+              src="/nannex-horizontal.png"
               alt="nannex"
-              width={120}
-              height={28}
-              className="h-7 w-auto object-contain"
+              width={140}
+              height={32}
+              className="h-7 w-auto object-contain brightness-0 invert drop-shadow-sm"
               priority
             />
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/25 text-indigo-200 border border-indigo-400/20">Boards</span>

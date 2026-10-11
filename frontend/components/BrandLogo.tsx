@@ -3,10 +3,11 @@ import Link from "next/link";
 
 interface BrandLogoProps {
   href?: string;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
   className?: string;
   showTagline?: boolean;
   variant?: "horizontal" | "icon" | "wordmark" | "full";
+  priority?: boolean;
 }
 
 export default function BrandLogo({
@@ -15,12 +16,15 @@ export default function BrandLogo({
   className = "",
   showTagline = false,
   variant = "horizontal",
+  priority = true,
 }: BrandLogoProps) {
   const heights = {
-    sm: "h-5",
-    md: "h-7",
-    lg: "h-9",
-    xl: "h-11",
+    xs: "h-5",
+    sm: "h-6",
+    md: "h-8",
+    lg: "h-10",
+    xl: "h-12",
+    "2xl": "h-16",
   }[size];
 
   const imageSrc =
@@ -33,20 +37,20 @@ export default function BrandLogo({
       : "/nannex-horizontal.png";
 
   const content = (
-    <div className={`inline-flex flex-col items-start group select-none ${className}`}>
-      <div className="flex items-center gap-2">
+    <div className={`inline-flex flex-col items-start group/brand select-none ${className}`}>
+      <div className="flex items-center gap-2.5">
         <Image
           src={imageSrc}
-          alt="nannex"
-          width={240}
-          height={60}
-          className={`${heights} w-auto object-contain shrink-0 group-hover:scale-[1.02] transition-transform duration-300`}
-          priority
+          alt="nannex — Chat / Meet / Connect"
+          width={280}
+          height={70}
+          className={`${heights} w-auto object-contain shrink-0 group-hover/brand:scale-[1.02] transition-transform duration-300 drop-shadow-sm`}
+          priority={priority}
         />
       </div>
-      {showTagline && (
-        <span className="text-[10px] tracking-wider text-slate-400 font-medium pl-1 mt-0.5">
-          Chat / Meet / Connect
+      {showTagline && variant !== "full" && (
+        <span className="text-[10px] tracking-widest text-slate-400 font-semibold uppercase pl-1 mt-1">
+          Chat · Meet · Connect
         </span>
       )}
     </div>
@@ -54,7 +58,7 @@ export default function BrandLogo({
 
   if (href) {
     return (
-      <Link href={href} className="inline-flex items-center">
+      <Link href={href} className="inline-flex items-center focus:outline-none">
         {content}
       </Link>
     );
@@ -62,3 +66,4 @@ export default function BrandLogo({
 
   return content;
 }
+
